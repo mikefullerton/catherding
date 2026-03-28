@@ -12,6 +12,8 @@ Agents are markdown files with YAML frontmatter, placed in `.claude/agents/`.
 
 The markdown body serves as the agent's system prompt.
 
+The filename should be lowercase kebab-case (e.g., `build-runner.md`). Uppercase stems are reserved for identity files like `SKILL.md` and `CLAUDE.md`.
+
 ## Frontmatter Fields
 
 | Field | Type | Default | Description |

@@ -28,6 +28,8 @@ Severity levels:
 | S10 | `argument-hint` present if `$ARGUMENTS` used | SKILL.md uses `$ARGUMENTS` or `$1`, `$2` but frontmatter lacks `argument-hint:` | WARN |
 | S11 | Correct file location | Skill is in `.claude/skills/` or `~/.claude/skills/` | WARN |
 | S12 | Only recognized frontmatter fields | Check against known fields: name, description, argument-hint, disable-model-invocation, user-invocable, allowed-tools, model, effort, context, agent, hooks, paths, shell | WARN |
+| S13 | Main file named `SKILL.md` (uppercase stem) | Filename is exactly `SKILL.md`, not `skill.md` or `Skill.md` — Claude Code looks for this exact name | FAIL |
+| S14 | Supporting files use lowercase descriptive names | Files in references/, scripts/, examples/ match `^[a-z][a-z0-9-]*(\.[a-z]+)+$`; names describe content (not `doc1.md`) | WARN |
 
 ---
 

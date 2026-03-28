@@ -48,3 +48,4 @@ Severity levels:
 | R10 | Reasonable length | Rule is long enough to be complete but not so long it gets ignored; under ~300 lines for a single rule file | WARN |
 | R11 | "MUST NOT" section present | Rule explicitly states what the LLM must NOT do — common mistakes and anti-patterns | WARN |
 | R12 | Deterministic — no ambiguity | An LLM following the rule would produce consistent behavior across sessions; no room for interpretation on critical steps | WARN |
+| R13 | Filename is lowercase kebab-case | Filename matches `^[a-z][a-z0-9-]*\.md$` (e.g., `testing.md`, `api-design.md`); UPPERCASE stems are reserved for identity files like `SKILL.md` and `CLAUDE.md` | WARN |

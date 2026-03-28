@@ -23,6 +23,7 @@ Severity levels:
 | S05 | Description uses natural trigger keywords | Description includes phrases users would say; not too vague or too narrow | WARN |
 | S11 | Correct file location | Agent is in `.claude/agents/` or `~/.claude/agents/` | WARN |
 | S12 | Only recognized frontmatter fields | Check against known fields: name, description, tools, disallowedTools, model, permissionMode, maxTurns, skills, mcpServers, hooks, memory, background, effort, isolation | WARN |
+| S13 | Filename is lowercase kebab-case | Filename matches `^[a-z][a-z0-9-]*\.md$`; UPPERCASE stems are reserved for identity files like `SKILL.md` and `CLAUDE.md` | WARN |
 
 ---
 
