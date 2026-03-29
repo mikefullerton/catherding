@@ -1,5 +1,7 @@
 # Skill Authoring Rule
 
+Prerequisite: Read and follow `authoring-ground-rules.md` before applying this rule.
+
 You are creating, renaming, or modifying a Claude Code skill. You MUST follow every step below.
 
 ---

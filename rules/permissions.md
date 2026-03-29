@@ -1,5 +1,7 @@
 # Permissions Rule
 
+Prerequisite: Read and follow `authoring-ground-rules.md` before applying this rule.
+
 Before starting implementation, you MUST audit the plan for all permissions needed and present them as a single atomic prompt. The user says yes or no once — not per-item, not per-category. The goal is zero mid-execution permission prompts so the user can walk away and come back to completed work.
 
 ---

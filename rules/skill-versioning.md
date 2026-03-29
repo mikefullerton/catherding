@@ -1,5 +1,7 @@
 # Skill Versioning Rule
 
+Prerequisite: Read and follow `authoring-ground-rules.md` before applying this rule.
+
 Every Claude Code skill and rule file in this repo uses a `version` field in its YAML frontmatter. You MUST follow these rules when modifying any skill, agent, or rule file.
 
 ---
