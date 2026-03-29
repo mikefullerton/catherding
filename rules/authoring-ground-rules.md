@@ -1,3 +1,8 @@
+---
+title: Authoring Ground Rules
+version: 1.0.0
+---
+
 # Authoring Ground Rules
 
 Foundation rule for ALL authoring — skills, agents, rules, cookbook content, code. Every other rule in this directory builds on these ground rules. Read and follow this rule first.
@@ -6,15 +11,15 @@ Foundation rule for ALL authoring — skills, agents, rules, cookbook content, c
 
 ## 1. Confirm Context
 
-You MUST verify you are in the correct project directory before making any changes. State the project name. If there is any ambiguity about which project, repo, or directory you should be working in, confirm with the user before proceeding. Never assume the current working directory is correct.
+If there is any ambiguity about which project, repo, or directory you should be working in, state the project name and confirm with the user before proceeding.
 
 ## 2. Understand Scope
 
 The scope of work MUST be fully understood before starting. Restate what you are going to do and what you are NOT going to do. If scope is unclear, ask — do not infer. A clear scope statement prevents wasted work and unwanted changes.
 
-## 3. Read Before Writing
+## 3. Preserve Existing Work
 
-You MUST NOT modify a file you have not read. Understand existing content before changing it. If you encounter unfamiliar content, investigate before overwriting — it may be in-progress work by the user or another session.
+If you encounter unfamiliar content in a file, investigate before overwriting — it may be in-progress work by the user or another session. Do not assume content you don't recognize is outdated or wrong.
 
 ## 4. No Unauthorized Changes
 
@@ -28,7 +33,7 @@ You MUST present a clear plan before taking action. The plan MUST state:
 - What will NOT change
 - How to verify it worked
 
-Do not begin implementation until the user has seen the plan.
+Do not begin implementation until the user has explicitly approved the plan. In non-interactive or automated contexts, log the plan and proceed only if `.claude/cookbook-preferences.json` contains `"auto_approve_plans": true`.
 
 ## 6. Verify Every Action
 
@@ -40,7 +45,20 @@ Work in small steps. Verify and commit each step individually. Do not batch larg
 
 ## 8. When Uncertain, Ask
 
-Do not guess at intent, file paths, project names, or scope boundaries. A question takes seconds; undoing wrong work takes much longer. "I'm not sure if you want X or Y" is always better than silently choosing wrong.
+Do not guess at scope boundaries or which files/features are in play. When the task could reasonably go two ways, ask which one — don't pick silently.
+
+---
+
+## Self-Check
+
+Before marking work complete, confirm:
+
+- [ ] Scope was stated and followed — no unplanned additions or removals
+- [ ] Plan was shown and approved before implementation began
+- [ ] Existing content was investigated before overwriting
+- [ ] Every change has a verification step that passed
+- [ ] No unauthorized changes were made (nothing removed, renamed, or added beyond what was requested)
+- [ ] Work was committed incrementally
 
 ---
 
@@ -48,7 +66,7 @@ Do not guess at intent, file paths, project names, or scope boundaries. A questi
 
 - Do not start work without confirming you are in the correct project.
 - Do not start work without a clear scope statement.
-- Do not modify files you have not read.
+- Do not overwrite unfamiliar content without investigating it first.
 - Do not remove, rename, or add anything the user did not ask for.
 - Do not skip the plan step — even for "small" changes.
 - Do not skip verification.
