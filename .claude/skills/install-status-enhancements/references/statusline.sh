@@ -24,14 +24,17 @@ if [[ "$GIT_DIR" == *"/worktrees/"* ]]; then
   IS_WORKTREE=true
 fi
 
+DIM=$'\033[38;5;245m'
+SEP=" ${DIM}|${RST} "
+
 LINE1="${BLUE}${CWD}${RST}"
 if [[ -n "$BRANCH" ]]; then
   DIRTY=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
   if $IS_WORKTREE; then
     GREEN=$'\033[38;5;151m'
-    LINE1="${LINE1}  ${GREEN}git-worktree${RST}:(${YELLOW}${BRANCH}${RST})"
+    LINE1="${LINE1}${SEP}${GREEN}git-worktree${RST}:(${YELLOW}${BRANCH}${RST})"
   else
-    LINE1="${LINE1}  git:(${YELLOW}${BRANCH}${RST})"
+    LINE1="${LINE1}${SEP}git:(${YELLOW}${BRANCH}${RST})"
   fi
   STATS=()
   if [[ "$DIRTY" -gt 0 ]]; then
@@ -57,9 +60,9 @@ if [[ -n "$BRANCH" ]]; then
     fi
   fi
   if [[ ${#STATS[@]} -gt 0 ]]; then
-    LINE1="${LINE1}  [${(j:, :)STATS}]"
+    LINE1="${LINE1}${SEP}${(j:, :)STATS}"
   else
-    LINE1="${LINE1}  [up to date]"
+    LINE1="${LINE1}${SEP}up to date"
   fi
 fi
 
@@ -69,7 +72,6 @@ YOLO=""
 MARKER="$HOME/.claude-yolo-sessions/${SESSION_ID}.json"
 if [ -f "$MARKER" ]; then
   RED=$'\033[38;5;210m'
-  DIM=$'\033[38;5;245m'
   NEEDS_RESTART=$(jq -r '.needs_restart // false' "$MARKER" 2>/dev/null)
   if [ "$NEEDS_RESTART" = "true" ]; then
     YOLO=" ${RED}☠ YOLO${RST} ${DIM}(needs session restart)${RST}"
