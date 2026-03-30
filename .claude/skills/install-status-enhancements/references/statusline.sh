@@ -103,4 +103,4 @@ if [ -f "$MARKER" ]; then
 fi
 
 print "$LINE1"
-echo "${MODEL}${SEP}${REM_PCT}% context remaining${SEP}duration ${DURATION}${SEP}${TOTAL_CHANGES} changes${SEP}\$${TOTAL_COST}${SEP}rate limits [5h: ${RATE_5H}%, 7d: ${RATE_7D}%]${YOLO}"
+echo "${MODEL}${SEP}${REM_PCT}% context remaining${SEP}duration ${DURATION}${SEP}${TOTAL_CHANGES} changes${SEP}\$${TOTAL_COST}${SEP}5h rate limit: ${RATE_5H}%${SEP}7d rate limit: ${RATE_7D}%${YOLO}"
