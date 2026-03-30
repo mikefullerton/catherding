@@ -8,7 +8,7 @@ REM_PCT=$(echo "$input" | jq -r '.context_window.remaining_percentage // 100' | 
 DURATION_MS=$(echo "$input" | jq -r '.cost.total_duration_ms // 0')
 LINES_ADDED=$(echo "$input" | jq -r '.cost.total_lines_added // 0')
 LINES_REMOVED=$(echo "$input" | jq -r '.cost.total_lines_removed // 0')
-TOTAL_COST=$(echo "$input" | jq -r '.cost.total_cost_usd // 0')
+TOTAL_COST=$(echo "$input" | jq -r '.cost.total_cost_usd // 0' | xargs printf '%.2f')
 SESSION_NAME=$(echo "$input" | jq -r '.session_name // ""')
 TOTAL_CHANGES=$(( LINES_ADDED + LINES_REMOVED ))
 
