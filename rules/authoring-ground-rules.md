@@ -33,7 +33,7 @@ You MUST present a clear plan before taking action. The plan MUST state:
 - What will NOT change
 - How to verify it worked
 
-Do not begin implementation until the user has explicitly approved the plan. In non-interactive or automated contexts, log the plan and proceed only if `.claude/cookbook-preferences.json` contains `"auto_approve_plans": true`.
+Do not begin implementation until the user has explicitly approved the plan. In non-interactive or automated contexts, log the plan and proceed only if `.cookbook/preferences.json` contains `"auto_approve_plans": true`.
 
 ## 6. Verify Every Action
 
