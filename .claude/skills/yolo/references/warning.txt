@@ -1,5 +1,5 @@
 
-              ***  HERE BE DRAGONS  ***
+              ===  HERE BE DRAGONS  ===
 
                   ___====-_  _-====___
             _--^^^#####//      \\#####^^^--_
@@ -20,7 +20,7 @@
 
 +----------------------------------------------------------+
 |                                                          |
-|  Yolo mode auto-approves ALL permission                  |
+|  YOLO mode auto-approves ALL permission                  |
 |  prompts with zero safety checks.                        |
 |                                                          |
 |  This means Claude can:                                  |

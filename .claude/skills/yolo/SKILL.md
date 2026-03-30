@@ -1,27 +1,27 @@
 ---
 name: yolo
 description: "Toggle yolo mode (auto-approve all permissions). Use when --dangerously-skip-permissions is broken. /yolo on, /yolo off, /yolo status"
-version: "1.6.0"
+version: "1.7.0"
 argument-hint: "[on|off|status|--version]"
 allowed-tools: Read, Edit, Write, Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), AskUserQuestion
 ---
 
-# Yolo Mode v1.6.0
+# YOLO Mode v1.7.0
 
 Toggle a PermissionRequest hook that auto-approves all tool calls — a workaround for broken `--dangerously-skip-permissions` in Claude Code v2.1.x.
 
 ## Startup
 
-yolo v1.6.0
+YOLO v1.7.0
 
-**Version check**: Read `${CLAUDE_SKILL_DIR}/SKILL.md` from disk and extract the `version:` field from frontmatter. Compare to this skill's version (1.6.0). If they differ, print:
+**Version check**: Read `${CLAUDE_SKILL_DIR}/SKILL.md` from disk and extract the `version:` field from frontmatter. Compare to this skill's version (1.7.0). If they differ, print:
 
-> ⚠ This skill is running v1.6.0 but vA.B.C is installed. Restart the session to use the latest version.
+> ⚠ This skill is running v1.7.0 but vA.B.C is installed. Restart the session to use the latest version.
 
 Then continue running.
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> yolo v1.6.0
+> yolo v1.7.0
 
 Then stop.
 
@@ -60,17 +60,17 @@ This ensures the dragon art and box render with monospace alignment.
 ### Step 2: Ask for confirmation
 
 Use AskUserQuestion:
-- Question: "Enable yolo mode? This auto-approves ALL tool calls with no safety net."
-- Option 1: "Yes, enable yolo mode"
+- Question: "Enable YOLO mode? This auto-approves ALL tool calls with no safety net."
+- Option 1: "Yes, enable YOLO mode"
 - Option 2: "No, cancel"
 
-If the user selects "No, cancel", print "Yolo mode not enabled." and stop.
+If the user selects "No, cancel", print "YOLO mode not enabled." and stop.
 
 ### Step 3: Check current state
 
 Read `~/.claude/settings.json`. If `hooks.PermissionRequest` already exists and contains a hook with command referencing `yolo-approve-all.sh`, print:
 
-> Yolo mode is already enabled.
+> YOLO mode is already enabled.
 
 Then stop.
 
@@ -112,7 +112,7 @@ If the `hooks` key does not exist, create it. Do NOT overwrite existing hook ent
 
 Print:
 
-> ☠ Yolo mode enabled. All permission prompts will be auto-approved.
+> YOLO mode enabled. All permission prompts will be auto-approved.
 >
 > If prompts still appear, restart your session for the hook to take effect.
 
@@ -120,13 +120,13 @@ Print:
 
 ## Disable
 
-Print: "Disabling yolo mode..."
+Print: "Disabling YOLO mode..."
 
 ### Step 1: Check current state
 
 Read `~/.claude/settings.json`. If `hooks.PermissionRequest` does not exist or does not contain a hook referencing `yolo-approve-all.sh`, print:
 
-> Yolo mode is already disabled.
+> YOLO mode is already disabled.
 
 Then stop.
 
@@ -138,7 +138,7 @@ Read `~/.claude/settings.json`. Remove the `PermissionRequest` key from `hooks`.
 
 Print:
 
-> Yolo mode disabled. Permission prompts restored.
+> YOLO mode disabled. Permission prompts restored.
 
 Do NOT delete the hook script file — it's harmless on disk and avoids needing to recreate it next time.
 
@@ -154,8 +154,8 @@ Read `~/.claude/settings.json`. Check if `hooks.PermissionRequest` exists and co
 
 If enabled, print:
 
-> ☠ Yolo mode is **ON**. All permission prompts are auto-approved.
+> YOLO mode is **ON**. All permission prompts are auto-approved.
 
 If disabled, print:
 
-> Yolo mode is **OFF**. Normal permission prompts are active.
+> YOLO mode is **OFF**. Normal permission prompts are active.
