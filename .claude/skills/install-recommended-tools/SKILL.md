@@ -23,7 +23,7 @@ An interactive guide that recommends Claude Code plugins, LSP integrations, and 
 - **Global**: universally useful plugins with no hooks or only SessionStart hooks. Install once, available in every project.
 - **Local**: language-specific, platform-specific, deployment-specific, or hook-heavy plugins. Install per-project to avoid overhead in irrelevant projects.
 
-The recommendations come from the developer-tools research catalog at `developer-tools/research/` in the agentic-cookbook repo.
+The recommendations come from the developer-tools research catalog at `research/developer-tools/` in the agentic-cookbook repo.
 
 ### Hook-Heavy Plugins — Install Locally Only
 
@@ -341,6 +341,6 @@ How would you like to proceed?
 ## Notes
 
 - The user runs `/plugin install` commands themselves — Claude Code cannot programmatically install plugins.
-- Recommendations are curated from the research catalog in the agentic-cookbook repo (`developer-tools/research/claude/plugins-and-skills-catalog.md`, relative to repo root).
+- Recommendations are curated from the research catalog in the agentic-cookbook repo (`research/developer-tools/claude/plugins-and-skills-catalog.md`, relative to repo root).
 - MCP server configuration (adding to `.mcp.json`) can be done by Claude Code directly if the user approves.
 - For deeper info on any tool, the user can ask and the relevant research file will be referenced.
