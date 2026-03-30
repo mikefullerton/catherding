@@ -1,6 +1,6 @@
 ---
 name: show-project-setup
-version: "1.0.0"
+version: "2.0.0"
 description: "Generate an HTML dashboard showing all rules, skills, plugins, MCP servers, and dev tools installed locally and globally."
 argument-hint: "[--version]"
 disable-model-invocation: true
@@ -8,13 +8,13 @@ context: fork
 allowed-tools: Read, Glob, Grep, Bash(which *), Bash(node *), Bash(python3 *), Bash(swift *), Bash(git *), Bash(gh *), Bash(npm *), Bash(docker *), Bash(go *), Bash(rustc *), Bash(java *), Bash(dotnet *), Bash(kubectl *), Bash(terraform *), Bash(wrangler *), Bash(code *), Bash(ls *), Bash(cat *), Bash(jq *), Bash(open *), Bash(uname *), Bash(sw_vers *), Bash(bun *), Bash(bash *), Write
 ---
 
-# Show Project Setup v1.0.0
+# Show Project Setup v2.0.0
 
 ## Startup
 
-**First action**: If `$ARGUMENTS` is `--version`, print `show-project-setup v1.0.0` and stop.
+**First action**: If `$ARGUMENTS` is `--version`, print `show-project-setup v2.0.0` and stop.
 
-Otherwise, print `show-project-setup v1.0.0` as the first line of output, then proceed.
+Otherwise, print `show-project-setup v2.0.0` as the first line of output, then proceed.
 
 ## Overview
 
@@ -53,17 +53,19 @@ basename "$(git rev-parse --show-toplevel 2>/dev/null)" # project name
 ### 1f: Global settings
 - Read `~/.claude/settings.json`
 - Extract:
-  - `enabledPlugins` — object keys are `plugin-name@marketplace`
-  - `hooks` — object with event names as keys, arrays of hook configs as values
+  - `enabledPlugins` — object keys are `plugin-name@marketplace`. These are **global plugins**.
+  - `hooks` — object with event names as keys, arrays of hook configs as values. These are **global hooks**.
   - `effortLevel` — string
-  - `permissions.allow` — array of permission strings
+  - `permissions.allow` — array of **global permissions**
 
 ### 1g: Project settings
-- Read `.claude/settings.json` — extract `permissions.allow`
-- Read `.claude/settings.local.json` — extract `permissions.allow`
+- Read `.claude/settings.json` — extract `permissions.allow` as **project permissions**
+- Read `.claude/settings.local.json` — extract `permissions.allow` as **local permission overrides**
+- Also check for `enabledPlugins` in project settings — these are **project-local plugins** (distinct from global)
 
 ### 1h: MCP servers
-- Read `.mcp.json` — extract `mcpServers` object (name → command/args)
+- Read `.mcp.json` — extract `mcpServers` object (name → command/args). These are **project MCP servers**.
+- Read `~/.claude.json` — extract any user-scoped MCP servers. These are **global MCP servers**.
 
 ### 1i: Dev tools and environment
 
@@ -105,7 +107,44 @@ echo "api_key|$([ -n "$ANTHROPIC_API_KEY" ] && echo present || echo absent)"
 
 Parse the pipe-delimited output into structured data for the HTML. Each line is `name|status|version`.
 
-### 1j: Detect project type and suggest tools
+### 1j: Scan plugin hooks
+
+For each installed plugin, check if it has a `hooks/hooks.json` file in the plugin cache:
+
+```bash
+bash -c '
+for dir in ~/.claude/plugins/cache/claude-plugins-official/*/; do
+  name=$(basename "$dir")
+  latest=$(ls "$dir" 2>/dev/null | sort -V | tail -1)
+  hfile="$dir$latest/hooks/hooks.json"
+  if [ -f "$hfile" ]; then
+    count=$(python3 -c "
+import json
+with open(\"$hfile\") as f:
+    d=json.load(f)
+hooks=d.get(\"hooks\",{})
+total=0
+continuous=[]
+for event,hlist in hooks.items():
+    n=len(hlist) if isinstance(hlist,list) else 1
+    total+=n
+    if event in (\"PreToolUse\",\"PostToolUse\",\"UserPromptSubmit\"):
+        continuous.append(event)
+print(f\"$name|{total}|{\",\".join(continuous)}\")
+" 2>/dev/null)
+    [ -n "$count" ] && echo "$count"
+  else
+    echo "$name|0|"
+  fi
+done
+'
+```
+
+Parse into a map of `plugin-name -> {hook_count, continuous_events[]}`. A plugin is "hook-heavy" if it has any continuous events (PreToolUse, PostToolUse, or UserPromptSubmit).
+
+Also check the accesslint marketplace: `~/.claude/plugins/cache/accesslint/*/`.
+
+### 1k: Detect project type and suggest tools
 
 Scan the codebase to detect what kind of project this is, then suggest tools that aren't installed yet. Check these signals:
 
@@ -146,6 +185,8 @@ For each suggestion, include the plugin name and its install command. Render the
 Also include the detected project types in the "Current Configuration" card as a row.
 
 ## Step 2: Generate HTML
+
+Use `${CLAUDE_SKILL_DIR}/references/reference-dashboard.html` as the visual reference for the dashboard design — match its layout, typography, colors, and section structure.
 
 Build a single self-contained HTML file. Everything is inline — no external stylesheets, no CDN, no imports.
 
@@ -212,26 +253,65 @@ Build a single self-contained HTML file. Everything is inline — no external st
 - Accessibility: `accesslint`
 - Other: everything else
 
-### HTML structure
+**Hook indicators on each plugin** (from step 1j data):
+- If `hook_count > 0`: show a gold badge after the plugin name: `⚡N hooks`
+- If `hook_count == 0`: no badge
+- If the plugin has continuous events AND is in global `enabledPlugins`: show an amber warning: `⚠ not recommended globally`
+- Continuous events are: `PreToolUse`, `PostToolUse`, `UserPromptSubmit`
 
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Project Setup — {PROJECT_NAME}</title>
-  <style>/* all CSS inline */</style>
-</head>
-<body>
-  <!-- Header card -->
-  <!-- Two-column grid -->
-  <!--   Main: Config, Rules, Skills, Plugins, MCP, Permissions, Hooks -->
-  <!--   Sidebar: Dev Tools, Environment -->
-  <script>/* collapsible toggle JS */</script>
-</body>
-</html>
+Example rendering in the plugin tree:
 ```
+Workflow (6)
+  ├── superpowers        ⚡1 hook (SessionStart)
+  ├── feature-dev
+  ├── hookify            ⚡4 hooks  ⚠ not recommended globally
+  ├── commit-commands
+  ├── claude-code-setup
+  └── claude-md-management
+```
+
+**Suggested Tools scope indicator** — in the Suggested Tools card, for each suggestion note whether it should be installed globally or locally:
+```
+pyright-lsp                        [LSP — install locally]
+No hooks. Language-specific — install per-project.
+/plugin install pyright-lsp@claude-plugins-official
+
+security-guidance                  [Security — install locally]
+⚡1 hook (PreToolUse). Has continuous hooks — install per-project only.
+/plugin install security-guidance@claude-plugins-official
+```
+
+### HTML section order
+
+The dashboard is organized into two scopes after the header and config:
+
+```
+1. Header (project name + environment)
+2. Current Configuration (stats, detected types)
+3. Suggested Tools (based on detected project types)
+
+── PROJECT (LOCAL) ──────────────────────────
+4. Project Rules          (.claude/rules/*.md)
+5. Project Skills         (.claude/skills/*/SKILL.md)
+6. Project Plugins        (enabledPlugins in .claude/settings.json, if any)
+7. Project MCP Servers    (.mcp.json)
+8. Project Permissions    (.claude/settings.json + settings.local.json)
+
+── GLOBAL ──────────────────────────────────
+9.  Global Plugins        (enabledPlugins in ~/.claude/settings.json)
+10. Global Skills         (~/.claude/skills/, excluding project-symlinked dupes)
+11. Global Hooks          (hooks in ~/.claude/settings.json + plugin hooks)
+12. Global Permissions    (permissions in ~/.claude/settings.json)
+
+── ENVIRONMENT ─────────────────────────────
+13. Dev Tools             (detected binaries + versions)
+```
+
+Each scope section gets a visual divider — a thin horizontal rule with the scope label ("Project" or "Global") in small monospace uppercase text, like a section separator. This makes it immediately clear which scope you're looking at.
+
+For **Global Plugins**, show hook count badges and "not recommended globally" warnings as described above.
+
+For **Global Skills**, deduplicate against project skills — if a global skill is a symlink that points into the current project, show it only in the Project Skills section. Show the remaining non-project global skills here.
 
 ### Collapsible JS (inline)
 
@@ -267,10 +347,14 @@ document.querySelectorAll('.card-header').forEach(header => {
 ```
 > /show-project-setup
 
-show-project-setup v1.0.0
+show-project-setup v2.0.0
 Gathering data... rules, skills, plugins, MCP servers, dev tools...
 Detected project types: Web frontend, Web backend, Cloudflare Workers
 Dashboard opened at /tmp/claude-project-setup.html
 ```
 
-A dark-themed HTML dashboard opens in your browser showing all sections expanded: configuration, 5 rules, 13 project skills, 34 plugins (grouped by category with source links), 1 MCP server, permissions, hooks, 8 installed dev tools, and suggested tools based on detected project type.
+A dark-themed HTML dashboard opens in your browser with sections organized by scope:
+- **Config**: stats bar, detected project types, suggested tools
+- **Project**: 5 rules, 13 skills, 0 local plugins, 1 MCP server, project permissions
+- **Global**: 12 plugins (with hook count badges), 14 additional skills, 6 hook events, global permissions
+- **Environment**: 8 installed dev tools, 8 not installed

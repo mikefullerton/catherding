@@ -1,8 +1,9 @@
 ---
 name: install-recommended-tools
-version: "1.0.0"
+version: "2.0.0"
 description: "Walk through installing recommended Claude Code plugins, LSPs, and MCP servers based on your development type and languages."
 argument-hint: "[--version]"
+disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Bash(cat *), Bash(ls *), Bash(jq *), AskUserQuestion
 ---
 
@@ -10,15 +11,33 @@ allowed-tools: Read, Glob, Grep, Bash(cat *), Bash(ls *), Bash(jq *), AskUserQue
 
 ## Startup
 
-**First action**: If `$ARGUMENTS` is `--version`, print `install-recommended-tools v1.0.0` and stop.
+**First action**: If `$ARGUMENTS` is `--version`, print `install-recommended-tools v2.0.0` and stop.
 
-Otherwise, print `install-recommended-tools v1.0.0` as the first line of output, then proceed.
+Otherwise, print `install-recommended-tools v2.0.0` as the first line of output, then proceed.
 
 ## Overview
 
 An interactive guide that recommends Claude Code plugins, LSP integrations, and MCP servers based on what you build and the languages you use. It detects what's already installed and only recommends what's missing.
 
+**Each recommendation specifies a scope — global or local:**
+- **Global**: universally useful plugins with no hooks or only SessionStart hooks. Install once, available in every project.
+- **Local**: language-specific, platform-specific, deployment-specific, or hook-heavy plugins. Install per-project to avoid overhead in irrelevant projects.
+
 The recommendations come from the developer-tools research catalog at `developer-tools/research/` in the agentic-cookbook repo.
+
+### Hook-Heavy Plugins — Install Locally Only
+
+These plugins register hooks that fire on every tool call or prompt. Never install them globally — the hooks run in every project whether relevant or not.
+
+| Plugin | Hooks | Fires on |
+|--------|-------|----------|
+| `semgrep` | PostToolUse, UserPromptSubmit, SessionStart (3) | Every write + every prompt |
+| `security-guidance` | PreToolUse (1) | Every Write/Edit |
+| `hookify` | PreToolUse, PostToolUse, UserPromptSubmit, Stop (4) | Everything |
+| `vercel` | 13 hooks across all events | Everything + telemetry |
+| `railway` | PreToolUse (1) | Every Bash command |
+
+When recommending any of these, always set scope to `local` and include the warning: "Has hooks that fire continuously — install per-project only."
 
 ## Step 1: Detect Installed Tools
 
@@ -88,20 +107,20 @@ Skip any tool already in `installed_plugins` or `installed_mcp`.
 
 ### Universal (everyone gets these)
 
-| Tool | Tier | Description | Install |
-|------|------|-------------|---------|
-| `superpowers` | Essential | TDD, systematic debugging, brainstorming, subagent workflows | `/plugin install superpowers@claude-plugins-official` |
-| `security-guidance` | Essential | Scans file writes for 8 vulnerability categories | `/plugin install security-guidance@claude-plugins-official` |
-| `semgrep` | Essential | Real-time SAST scanning via MCP server | `/plugin install semgrep@claude-plugins-official` |
-| `code-review` | Essential | Multi-agent PR code review with confidence filtering | `/plugin install code-review@claude-plugins-official` |
-| `pr-review-toolkit` | Essential | Specialized review agents across 6 domains | `/plugin install pr-review-toolkit@claude-plugins-official` |
-| `hookify` | Recommended | Create custom hooks from natural language | `/plugin install hookify@claude-plugins-official` |
-| `context7` | Recommended | Real, version-specific library docs in context | `/plugin install context7@claude-plugins-official` |
-| `github` | Recommended | GitHub API: issues, PRs, code search | `/plugin install github@claude-plugins-official` |
-| `claude-code-setup` | Recommended | Analyze codebase and recommend automations | `/plugin install claude-code-setup@claude-plugins-official` |
-| `commit-commands` | Optional | Git commit, push, PR commands | `/plugin install commit-commands@claude-plugins-official` |
-| `claude-md-management` | Optional | Maintain and audit CLAUDE.md files | `/plugin install claude-md-management@claude-plugins-official` |
-| `remember` | Optional | Continuous cross-session memory via daily logs | `/plugin install remember@claude-plugins-official` |
+| Tool | Tier | Scope | Description |
+|------|------|-------|-------------|
+| `superpowers` | Essential | global | TDD, systematic debugging, brainstorming, subagent workflows |
+| `code-review` | Essential | global | Multi-agent PR code review with confidence filtering |
+| `pr-review-toolkit` | Essential | global | Specialized review agents across 6 domains |
+| `context7` | Essential | global | Real, version-specific library docs in context |
+| `github` | Essential | global | GitHub API: issues, PRs, code search |
+| `security-guidance` | Recommended | local | Scans file writes for 8 vulnerability categories. Has PreToolUse hook — install per-project only. |
+| `semgrep` | Recommended | local | Real-time SAST scanning via MCP server. Has 3 continuous hooks — install per-project only. Requires SEMGREP_APP_TOKEN. |
+| `claude-code-setup` | Recommended | global | Analyze codebase and recommend automations |
+| `commit-commands` | Optional | global | Git commit, push, PR commands |
+| `claude-md-management` | Optional | global | Maintain and audit CLAUDE.md files |
+| `feature-dev` | Optional | global | 7-phase multi-agent feature development |
+| `remember` | Optional | global | Continuous cross-session memory via daily logs |
 
 ### By Language (LSP plugins)
 
@@ -123,89 +142,102 @@ Map each selected language to its LSP plugin:
 | Elixir | `elixir-ls-lsp` | `elixir-ls` | `/plugin install elixir-ls-lsp@claude-plugins-official` |
 | Lua | `lua-lsp` | `lua-language-server` | `/plugin install lua-lsp@claude-plugins-official` |
 
-All LSP plugins are **Essential** tier for their language.
+All LSP plugins are **Essential** tier for their language and always **local** scope (language-specific).
 
 ### By Dev Type
 
+All dev-type-specific plugins are **local** scope unless noted otherwise.
+
 **Web frontend** (selection 1):
-| Tool | Tier | Description | Install |
-|------|------|-------------|---------|
-| `frontend-design` | Essential | Production-grade UI with distinctive design quality | `/plugin install frontend-design@claude-plugins-official` |
-| `figma` | Essential | Read Figma designs for design-to-code translation | `/plugin install figma@claude-plugins-official` |
-| `playwright` | Essential | Browser automation, E2E testing, screenshots | `/plugin install playwright@claude-plugins-official` |
-| `playground` | Recommended | Interactive HTML playgrounds with live preview | `/plugin install playground@claude-plugins-official` |
-| `accesslint` | Recommended | WCAG accessibility compliance checking | `/plugin marketplace add accesslint && /plugin install accesslint@accesslint` |
-| `stagehand` | Optional | Natural language browser automation | `/plugin install stagehand@claude-plugins-official` |
+| Tool | Tier | Description |
+|------|------|-------------|
+| `frontend-design` | Essential | Production-grade UI with distinctive design quality |
+| `figma` | Essential | Read Figma designs for design-to-code translation |
+| `playwright` | Essential | Browser automation, E2E testing, screenshots |
+| `playground` | Recommended | Interactive HTML playgrounds with live preview |
+| `accesslint` | Recommended | WCAG accessibility compliance checking |
+| `stagehand` | Optional | Natural language browser automation |
 
 **Web backend** (selection 2):
-| Tool | Tier | Description | Install |
-|------|------|-------------|---------|
-| `feature-dev` | Recommended | 7-phase multi-agent feature development | `/plugin install feature-dev@claude-plugins-official` |
-| `postman` | Recommended | Full API lifecycle: collections, tests, mocks, docs | `/plugin install postman@claude-plugins-official` |
-| `sentry` | Optional | Error monitoring, stack traces, issue search | `/plugin install sentry@claude-plugins-official` |
-| `prisma` | Optional | Prisma ORM, migrations, PostgreSQL management | `/plugin install prisma@claude-plugins-official` |
+| Tool | Tier | Description |
+|------|------|-------------|
+| `postman` | Recommended | Full API lifecycle: collections, tests, mocks, docs |
+| `sentry` | Optional | Error monitoring, stack traces, issue search |
+| `prisma` | Optional | Prisma ORM, migrations, PostgreSQL management |
 
 **iOS / macOS** (selection 3):
-| Tool | Tier | Description | Install |
-|------|------|-------------|---------|
-| `figma` | Recommended | Design-to-code for iOS UI | `/plugin install figma@claude-plugins-official` |
+| Tool | Tier | Description |
+|------|------|-------------|
+| `figma` | Recommended | Design-to-code for iOS UI |
 
 **Android** (selection 4):
-| Tool | Tier | Description | Install |
-|------|------|-------------|---------|
-| `figma` | Recommended | Design-to-code for Android UI | `/plugin install figma@claude-plugins-official` |
+| Tool | Tier | Description |
+|------|------|-------------|
+| `figma` | Recommended | Design-to-code for Android UI |
 
 **Windows / .NET** (selection 5):
-| Tool | Tier | Description | Install |
-|------|------|-------------|---------|
-| `microsoft-docs` | Recommended | Azure and .NET documentation lookup | `/plugin install microsoft-docs@claude-plugins-official` |
+| Tool | Tier | Description |
+|------|------|-------------|
+| `microsoft-docs` | Recommended | Azure and .NET documentation lookup |
 
 **CLI / terminal** (selection 6):
-| Tool | Tier | Description | Install |
-|------|------|-------------|---------|
-| `ralph-loop` | Recommended | Autonomous multi-hour coding sessions | `/plugin install ralph-loop@claude-plugins-official` |
+| Tool | Tier | Description |
+|------|------|-------------|
+| `ralph-loop` | Recommended | Autonomous multi-hour coding sessions. Has Stop hook. |
 
 **Data / ML** (selection 7):
-| Tool | Tier | Description | Install |
-|------|------|-------------|---------|
-| `huggingface-skills` | Recommended | Build and train ML models with Hugging Face | `/plugin install huggingface-skills@claude-plugins-official` |
+| Tool | Tier | Description |
+|------|------|-------------|
+| `huggingface-skills` | Recommended | Build and train ML models with Hugging Face |
 
 **Infrastructure / DevOps** (selection 8):
-| Tool | Tier | Description | Install |
-|------|------|-------------|---------|
-| `deploy-on-aws` | Recommended | 5-step AWS deployment with cost estimation | `/plugin install deploy-on-aws@claude-plugins-official` |
-| `terraform` | Recommended | Terraform IaC automation | `/plugin install terraform@claude-plugins-official` |
-| `vercel` | Optional | Vercel deployment integration | `/plugin install vercel@claude-plugins-official` |
-| `railway` | Optional | Railway container deployment | `/plugin install railway@claude-plugins-official` |
-| `netlify-skills` | Optional | Netlify serverless/edge/databases | `/plugin install netlify-skills@claude-plugins-official` |
+| Tool | Tier | Description |
+|------|------|-------------|
+| `deploy-on-aws` | Recommended | 5-step AWS deployment with cost estimation |
+| `terraform` | Recommended | Terraform IaC automation |
+| `vercel` | Optional | Vercel deployment. Has 13 continuous hooks — install per-project only. |
+| `railway` | Optional | Railway container deployment. Has PreToolUse hook on every Bash — install per-project only. |
+| `netlify-skills` | Optional | Netlify serverless/edge/databases |
 
 **API development** (selection 9):
-| Tool | Tier | Description | Install |
-|------|------|-------------|---------|
-| `postman` | Essential | API collections, testing, mocks, documentation | `/plugin install postman@claude-plugins-official` |
-| `feature-dev` | Recommended | Multi-agent feature development workflow | `/plugin install feature-dev@claude-plugins-official` |
+| Tool | Tier | Description |
+|------|------|-------------|
+| `postman` | Essential | API collections, testing, mocks, documentation |
 
 ## Step 5: Present Recommendations
 
 Deduplicate the combined list (a tool recommended by multiple dev types appears once, at its highest tier).
 
-Group by tier and present:
+Group by scope first, then by tier within each scope:
 
 ```
 === Recommended Tools ===
 
-ESSENTIAL (install these for a strong baseline)
-  1. [plugin-name] — one-line description
-     /plugin install plugin-name@claude-plugins-official
-  2. ...
+GLOBAL (install once, available in every project)
+  Essential:
+    1. superpowers — TDD, debugging, brainstorming, subagent workflows
+    2. code-review — Multi-agent PR code review
+    ...
+  Recommended:
+    5. claude-code-setup — Analyze codebase and recommend automations
+    ...
 
-RECOMMENDED (strong value for your workflow)
-  3. ...
-
-OPTIONAL (specialized, install when needed)
-  5. ...
+LOCAL (install in this project only)
+  Essential:
+    7. typescript-lsp — TypeScript/JS type checking and diagnostics
+    8. frontend-design — Production-grade UI generation
+    ...
+  Recommended:
+    11. security-guidance — File write scanning. Has PreToolUse hook.
+    ...
 
 Total: X new tools (Y already installed, skipped)
+  Global: N plugins    Local: M plugins
+```
+
+For any plugin with continuous hooks (PreToolUse, PostToolUse, UserPromptSubmit), append a warning after its description:
+```
+  ⚡ Has N continuous hooks — install per-project only
 ```
 
 Then ask:
@@ -222,11 +254,20 @@ Then ask:
 
 Based on the user's choice:
 
-- **Options 1-3**: Print each install command as you go. Note: plugins are installed via the `/plugin install` slash command which the user must run themselves — Claude Code cannot programmatically install plugins. So for each tool, print the command and ask the user to run it.
-- **Option 4**: For each tool, show description + command and ask "Install? (y/n)" before moving to the next.
+- **Options 1-3**: Print each install command as you go. The user runs the commands themselves.
+- **Option 4**: For each tool, show description + scope + command and ask "Install? (y/n)".
 - **Option 5**: Print the full list with commands and stop.
 
+**Install commands by scope:**
+- **Global**: `/plugin install <name>@marketplace` (default scope — goes to `~/.claude/settings.json`)
+- **Local**: The user should run `/plugin install <name>@marketplace` from within the project directory. Note: Claude Code installs to the project scope when run from a project context.
+
 For LSP plugins, also note if the language server binary needs to be installed separately (e.g., `npm install -g typescript-language-server`).
+
+For hook-heavy plugins, always print the warning:
+```
+Note: This plugin has continuous hooks. It is installed locally for this project only.
+```
 
 ## Step 7: Verify and Summarize
 
@@ -258,10 +299,10 @@ Note: plugin-name may not have installed — verify with /plugin list
 ```
 > /install-recommended-tools
 
-install-recommended-tools v1.0.0
+install-recommended-tools v2.0.0
 
 === Installed Tools ===
-Plugins: 33 installed (typescript-lsp, swift-lsp, semgrep, superpowers, ...)
+Plugins: 12 global, 0 local
 MCP servers: 1 configured (playwright)
 
 What types of development do you work on?
@@ -272,19 +313,26 @@ What languages do you primarily use?
 
 === Recommended Tools ===
 
-ESSENTIAL (install these for a strong baseline)
-  1. frontend-design — Production-grade UI with distinctive design quality
-     /plugin install frontend-design@claude-plugins-official
-  2. figma — Read Figma designs for design-to-code translation
-     /plugin install figma@claude-plugins-official
-  ...
+GLOBAL (install once, available everywhere)
+  Essential:
+    1. superpowers — TDD, debugging, brainstorming          [already installed]
+    2. code-review — Multi-agent PR code review              [already installed]
+    ...
 
-RECOMMENDED (strong value for your workflow)
-  5. feature-dev — 7-phase multi-agent feature development
-     /plugin install feature-dev@claude-plugins-official
-  ...
+LOCAL (install in this project only)
+  Essential:
+    5. typescript-lsp — TS/JS type checking and diagnostics
+       /plugin install typescript-lsp@claude-plugins-official
+    6. frontend-design — Production-grade UI generation
+       /plugin install frontend-design@claude-plugins-official
+    ...
+  Recommended:
+    9. security-guidance — File write vulnerability scanning
+       /plugin install security-guidance@claude-plugins-official
+       ⚡ Has 1 continuous hook — install per-project only
 
-Total: 8 new tools (25 already installed, skipped)
+Total: 6 new tools (8 already installed, skipped)
+  Global: 0 new    Local: 6 new
 
 How would you like to proceed?
 > 1

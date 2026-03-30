@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Setup — agentic-cookbook</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Mono:wght@400;500;600&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0c0c10; --surface: #151519; --surface-raised: #1c1c22; --surface-hover: #22222a;
+      --border: #2a2a34; --border-subtle: #1e1e28;
+      --text: #e8e5e0; --text-sec: #8a8a9a; --text-dim: #55556a;
+      --gold: #d4a853; --gold-dim: rgba(212,168,83,0.12);
+      --green: #5cb270; --red: #d45454; --amber: #e5a84c;
+      --serif: 'DM Serif Display', Georgia, serif;
+      --mono: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+      --sans: 'DM Sans', system-ui, sans-serif;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:var(--bg); color:var(--text); font-family:var(--sans); font-size:14px; line-height:1.65; padding:0 24px 24px; min-height:100vh; }
+    body::before { content:''; position:fixed; inset:0; opacity:0.025; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); pointer-events:none; z-index:9999; }
+    .container { max-width:1100px; margin:0 auto; }
+    .top-row { display:grid; grid-template-columns:1fr 300px; gap:16px; margin-bottom:20px; }
+    @media (max-width:800px) { .top-row { grid-template-columns:1fr; } }
+    .hero { background:linear-gradient(135deg,var(--surface) 0%,var(--surface-raised) 100%); border:1px solid var(--border); border-radius:12px; padding:28px 32px; position:relative; overflow:hidden; }
+    .hero::after { content:''; position:absolute; top:-40%; right:-10%; width:300px; height:300px; background:radial-gradient(circle,rgba(212,168,83,0.06) 0%,transparent 70%); pointer-events:none; }
+    .hero h1 { font-family:var(--serif); font-size:2rem; font-weight:400; color:var(--gold); letter-spacing:-0.01em; margin-bottom:6px; }
+    .hero-meta { font-family:var(--mono); font-size:0.75rem; color:var(--text-dim); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .hero-meta a { color:var(--gold); text-decoration:none; opacity:0.7; transition:opacity 0.2s; }
+    .hero-meta a:hover { opacity:1; }
+    .hero-meta .sep { color:var(--border); }
+    .sections { display:flex; flex-direction:column; gap:14px; }
+    .card { background:var(--surface); border:1px solid var(--border-subtle); border-radius:10px; overflow:hidden; animation:card-in 0.4s ease-out both; }
+    @keyframes card-in { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    .card-header { display:flex; align-items:center; justify-content:space-between; padding:14px 22px; }
+    .card-header h2 { font-family:var(--serif); font-size:1.05rem; font-weight:400; color:var(--text); }
+    .badge { display:inline-block; font-family:var(--mono); font-size:0.65rem; font-weight:500; color:var(--gold); background:var(--gold-dim); padding:2px 10px; border-radius:20px; margin-left:10px; }
+    .card-body { padding:0 22px 18px; }
+    .card-body.collapsed { display:none; }
+    table { width:100%; border-collapse:collapse; }
+    th { text-align:left; font-family:var(--mono); font-size:0.65rem; font-weight:500; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-dim); padding:8px 14px; border-bottom:1px solid var(--border); }
+    td { padding:7px 14px; border-bottom:1px solid var(--border-subtle); font-size:0.82rem; transition:background 0.1s; }
+    tr:hover td { background:var(--surface-hover); }
+    .mono { font-family:var(--mono); font-size:0.78rem; }
+    .kv { display:grid; grid-template-columns:150px 1fr; gap:3px 14px; }
+    .kv dt { color:var(--text-dim); font-size:0.82rem; font-weight:500; }
+    .kv dd { font-family:var(--mono); font-size:0.82rem; }
+    .dot { display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:7px; vertical-align:middle; }
+    .dot.ok { background:var(--green); box-shadow:0 0 6px rgba(92,178,112,0.3); }
+    .dot.miss { background:var(--red); opacity:0.6; }
+    .tag { display:inline-block; font-family:var(--mono); font-size:0.68rem; padding:2px 8px; border-radius:4px; margin:2px; background:var(--surface-raised); color:var(--text-sec); border:1px solid var(--border-subtle); }
+    .tag.gold { color:var(--gold); border-color:rgba(212,168,83,0.25); background:var(--gold-dim); }
+    .label { font-family:var(--mono); font-size:0.68rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--gold); margin:14px 0 6px; padding-bottom:4px; border-bottom:1px solid var(--border-subtle); }
+    .stats { display:flex; gap:0; margin-top:18px; padding-top:14px; border-top:1px solid var(--border-subtle); }
+    .stat { flex:1; text-align:center; padding:4px 0; border-right:1px solid var(--border-subtle); }
+    .stat:last-child { border-right:none; }
+    .stat-num { font-family:var(--mono); font-size:1.6rem; font-weight:600; color:var(--gold); line-height:1.1; }
+    .stat-num.green { color:var(--green); }
+    .stat-label { font-family:var(--mono); font-size:0.6rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-dim); margin-top:2px; }
+    .ptree .cat { font-family:var(--mono); font-size:0.72rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; color:var(--gold); padding:10px 0 4px; border-bottom:1px solid var(--border-subtle); }
+    .ptree .cat .cnt { font-weight:400; color:var(--text-dim); }
+    .ptree ul { list-style:none; padding:0 0 0 14px; border-left:2px solid var(--border-subtle); margin:4px 0 10px 6px; }
+    .ptree li { padding:3px 0; font-size:0.82rem; transition:padding-left 0.15s; }
+    .ptree li:hover { padding-left:4px; }
+    .ptree li a { font-family:var(--mono); font-size:0.78rem; color:var(--gold); text-decoration:none; border-bottom:1px solid transparent; transition:border-color 0.2s; }
+    .ptree li a:hover { border-bottom-color:var(--gold); }
+    .ptree li .mkt { color:var(--text-dim); font-size:0.65rem; margin-left:6px; }
+    .ptree li .hooks-badge { font-family:var(--mono); font-size:0.6rem; color:var(--amber); margin-left:6px; }
+    .ptree li .warn { font-family:var(--mono); font-size:0.6rem; color:var(--red); margin-left:4px; opacity:0.8; }
+    .suggest { background:var(--surface-raised); border:1px solid var(--border); border-left:3px solid var(--gold); border-radius:8px; padding:16px 20px; transition:border-color 0.2s,box-shadow 0.2s; }
+    .suggest:hover { border-color:rgba(212,168,83,0.4); box-shadow:0 0 20px rgba(212,168,83,0.05); }
+    .suggest-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+    .suggest-head a { font-family:var(--mono); font-size:0.88rem; font-weight:600; color:var(--gold); text-decoration:none; }
+    .suggest-head a:hover { text-decoration:underline; }
+    .suggest p { color:var(--text-sec); font-size:0.8rem; line-height:1.55; margin-bottom:8px; }
+    .suggest code { display:block; font-family:var(--mono); font-size:0.7rem; color:var(--text-dim); background:var(--bg); border:1px solid var(--border-subtle); border-radius:5px; padding:7px 12px; }
+    .hook { display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--border-subtle); }
+    .hook:last-child { border-bottom:none; }
+    .hook-name { font-family:var(--mono); font-size:0.8rem; color:var(--gold); }
+    .hook-val { font-family:var(--mono); font-size:0.78rem; color:var(--text-dim); }
+    .tools-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:6px; }
+    .tool-item { padding:6px 10px; border-radius:6px; transition:background 0.1s; font-size:0.82rem; }
+    .tool-item:hover { background:var(--surface-hover); }
+    .tool-item .ver { font-family:var(--mono); font-size:0.72rem; color:var(--text-dim); margin-left:4px; }
+    .footer { text-align:center; padding:20px 0 8px; font-family:var(--mono); font-size:0.65rem; color:var(--text-dim); }
+    .perms { display:flex; flex-wrap:wrap; gap:4px; }
+    .scope-divider { display:flex; align-items:center; gap:12px; margin:24px 0 10px; }
+    .scope-divider::before, .scope-divider::after { content:''; flex:1; height:1px; background:var(--border); }
+    .scope-divider span { font-family:var(--mono); font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:0.1em; color:var(--text-dim); white-space:nowrap; }
+    .scope-tag { font-family:var(--mono); font-size:0.55rem; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; padding:2px 7px; border-radius:3px; vertical-align:middle; white-space:nowrap; }
+    .scope-tag.local { color:#5cb270; background:rgba(92,178,112,0.1); border:1px solid rgba(92,178,112,0.2); }
+    .scope-tag.global { color:#5a8fd4; background:rgba(90,143,212,0.1); border:1px solid rgba(90,143,212,0.2); }
+    /* Right-align scope badges in table cells */
+    td:last-child:has(.scope-tag), th:last-child:has(.scope-tag) { text-align:right; width:60px; }
+    /* Right-align in hook rows and plugin tree */
+    .hook { position:relative; }
+    .hook .scope-tag { position:absolute; right:0; top:50%; transform:translateY(-50%); }
+    .ptree li { display:flex; align-items:center; }
+    .ptree li .scope-tag { margin-left:auto; }
+    .env-card { background:var(--surface); border:1px solid var(--border-subtle); border-radius:10px; overflow:hidden; animation:card-in 0.4s ease-out both; animation-delay:0.05s; }
+
+    /* Sticky header */
+    .sticky-header {
+      position:fixed; top:0; left:0; right:0; z-index:100; background:var(--bg);
+      border-bottom:1px solid var(--border);
+      padding:24px 24px 16px;
+    }
+    .sticky-header .top-row { max-width:1100px; margin:0 auto; }
+    /* Push content below fixed header — height set by JS */
+    .header-spacer { display:block; }
+
+    /* Layout: sidebar + main */
+    .layout { display:flex; gap:0; }
+
+    /* Left sidebar nav */
+    .sidebar-nav {
+      position:fixed;
+      /* top and height set by JS based on actual header size */
+      width:155px;
+      overflow-y:auto;
+      padding:12px 6px 20px 0;
+      border-right:1px solid var(--border-subtle);
+    }
+    .sidebar-nav::-webkit-scrollbar { width:3px; }
+    .sidebar-nav::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+    .main-content { margin-left:175px; }
+    .sidebar-nav .nav-group { margin-bottom:14px; }
+    .sidebar-nav .nav-label {
+      font-family:var(--mono); font-size:0.6rem; font-weight:600;
+      text-transform:uppercase; letter-spacing:0.08em;
+      color:var(--text-dim); margin-bottom:4px; padding-left:8px;
+    }
+    .sidebar-nav a {
+      display:flex; align-items:center; justify-content:space-between;
+      font-family:var(--mono); font-size:0.72rem;
+      color:var(--text-sec); text-decoration:none;
+      padding:4px 8px; border-radius:4px;
+      border-left:2px solid transparent;
+      transition:all 0.15s;
+    }
+    .sidebar-nav a:hover {
+      color:var(--gold); background:var(--gold-dim);
+      border-left-color:var(--gold);
+    }
+
+    .main-content { flex:1; min-width:0; }
+
+    @media (max-width:900px) {
+      .layout { flex-direction:column; }
+      .sidebar-nav { display:none; }
+    }
+
+    /* scroll-margin-top set dynamically by JS */
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <div class="sticky-header">
+  <div class="top-row">
+    <div class="hero">
+      <h1>agentic-cookbook</h1>
+      <div class="hero-meta">
+        <span>main</span><span class="sep">/</span>
+        <a href="https://github.com/mikefullerton/agentic-cookbook">github.com/mikefullerton/agentic-cookbook</a>
+        <span class="sep">&middot;</span><span>2026-03-29</span>
+      </div>
+    </div>
+    <div class="env-card">
+      <div class="card-header">
+        <h2 style="font-family:var(--serif);font-weight:400;font-size:1.05rem;">Environment</h2>
+      </div>
+      <div class="card-body">
+        <dl class="kv">
+          <dt>OS:</dt><dd>Darwin 26.3.1</dd>
+          <dt>Shell:</dt><dd>/bin/zsh</dd>
+          <dt>Effort:</dt><dd>high</dd>
+          <dt>API Key:</dt><dd><span class="dot miss"></span>absent</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /sticky-header -->
+  <div class="header-spacer"></div>
+
+  <div class="layout">
+  <nav class="sidebar-nav">
+    <div class="nav-group">
+      <a href="#config">Config</a>
+      <a href="#suggestions">Suggestions</a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Project</div>
+      <a href="#rules">Rules <span class="scope-tag local">local</span></a>
+      <a href="#skills-local">Skills <span class="scope-tag local">local</span></a>
+      <a href="#plugins-local">Plugins <span class="scope-tag local">local</span></a>
+      <a href="#mcp">MCP <span class="scope-tag local">local</span></a>
+      <a href="#perms-local">Permissions <span class="scope-tag local">local</span></a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Global</div>
+      <a href="#plugins-global">Plugins <span class="scope-tag global">global</span></a>
+      <a href="#skills-global">Skills <span class="scope-tag global">global</span></a>
+      <a href="#hooks">Hooks <span class="scope-tag global">global</span></a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Environment</div>
+      <a href="#devtools">Dev Tools</a>
+    </div>
+  </nav>
+
+  <div class="main-content">
+  <div class="sections">
+
+    <!-- CONFIG -->
+    <div id="config" class="card scroll-content">
+      <div class="card-header">
+        <h2>Current Configuration</h2>
+      </div>
+      <div class="card-body">
+        <dl class="kv">
+          <dt>Project Dir:</dt><dd>/Users/mfullerton/projects/agentic-cookbook</dd>
+          <dt>Branch:</dt><dd>main</dd>
+          <dt>CLAUDE.md:</dt><dd><span class="dot ok"></span>Project + Global</dd>
+          <dt>Detected:</dt><dd><span class="tag gold">Web frontend</span> <span class="tag gold">Cloudflare Workers</span> <span class="tag gold">Apple/Swift</span> <span class="tag gold">Swift Package</span></dd>
+        </dl>
+        <div class="stats">
+          <div class="stat"><div class="stat-num">5</div><div class="stat-label">Rules</div></div>
+          <div class="stat"><div class="stat-num">16</div><div class="stat-label">Skills</div></div>
+          <div class="stat"><div class="stat-num">12</div><div class="stat-label">Plugins</div></div>
+          <div class="stat"><div class="stat-num">1</div><div class="stat-label">MCP</div></div>
+          <div class="stat"><div class="stat-num">6</div><div class="stat-label">Hooks</div></div>
+          <div class="stat"><div class="stat-num green">8</div><div class="stat-label">Dev Tools</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUGGESTED TOOLS -->
+    <div id="suggestions" class="card scroll-content">
+      <div class="card-header">
+        <h2>Suggested Tools <span class="badge">4 recommendations</span></h2>
+      </div>
+      <div class="card-body">
+        <p style="color:var(--text-sec);font-size:0.8rem;margin-bottom:14px;">Based on detected project types. Install per-project (locally).</p>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div class="suggest">
+            <div class="suggest-head"><a href="https://claude.com/plugins/pyright-lsp">pyright-lsp</a><span class="tag gold">LSP &mdash; local</span></div>
+            <p>Python 3.9.6 is installed but you have no Python LSP. Adds real-time type checking, diagnostics, and jump-to-definition. No hooks.</p>
+            <code>/plugin install pyright-lsp@claude-plugins-official</code>
+          </div>
+          <div class="suggest">
+            <div class="suggest-head"><a href="https://claude.com/plugins/postman">postman</a><span class="tag gold">API &mdash; local</span></div>
+            <p>Your site has Cloudflare Worker API routes. Full API lifecycle: collections, tests, mocks, security. No hooks.</p>
+            <code>/plugin install postman@claude-plugins-official</code>
+          </div>
+          <div class="suggest">
+            <div class="suggest-head"><a href="https://claude.com/plugins/sentry">sentry</a><span class="tag gold">Monitoring &mdash; local</span></div>
+            <p>Production web app on Cloudflare Workers. Error reports, stack traces, issue search. No hooks.</p>
+            <code>/plugin install sentry@claude-plugins-official</code>
+          </div>
+          <div class="suggest">
+            <div class="suggest-head"><a href="https://claude.com/plugins/stagehand">stagehand</a><span class="tag gold">Testing &mdash; local</span></div>
+            <p>Complements Playwright with natural language browser commands (act, extract, observe). No hooks.</p>
+            <code>/plugin install stagehand@claude-plugins-official</code>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PROJECT (LOCAL) ═══ -->
+    <div class="scope-divider"><span>Project (Local)</span></div>
+
+    <!-- PROJECT RULES -->
+    <div id="rules" class="card scroll-content">
+      <div class="card-header">
+        <h2>Rules <span class="badge">5</span></h2>
+      </div>
+      <div class="card-body">
+        <table>
+          <tr><th>Name</th><th>Description</th><th>Source</th><th></th></tr>
+          <tr><td class="mono">authoring-ground-rules</td><td>Authoring Ground Rules</td><td class="mono" style="color:var(--text-dim)">symlink &rarr; rules/</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">auto-lint</td><td>Auto-Lint Rule</td><td class="mono" style="color:var(--text-dim)">symlink &rarr; rules/</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">committing</td><td>Committing Rule</td><td class="mono" style="color:var(--text-dim)">symlink &rarr; rules/</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">site-design</td><td>Design system rules for the documentation site</td><td class="mono" style="color:var(--text-dim)">local (globs: site/**)</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">skill-versioning</td><td>Skill Versioning Rule</td><td class="mono" style="color:var(--text-dim)">symlink &rarr; rules/</td><td><span class="scope-tag local">local</span></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- PROJECT SKILLS -->
+    <div id="skills-local" class="card scroll-content">
+      <div class="card-header">
+        <h2>Skills <span class="badge">16</span></h2>
+      </div>
+      <div class="card-body">
+        <table>
+          <tr><th>Name</th><th>Ver</th><th>Description</th><th></th></tr>
+          <tr><td class="mono">/configure-cookbook</td><td class="mono">2.0.0</td><td>Manage cookbook preferences</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">/contribute-to-cookbook</td><td class="mono">2.2.0</td><td>Create a PR to contribute a recipe or enhancement</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">/cookbook-bug</td><td class="mono">1.0.0</td><td>File a bug report against the cookbook</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">/cookbook-help</td><td class="mono">1.0.0</td><td>Interactive guide &mdash; status, content, troubleshooting</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">/cookbook-suggestion</td><td class="mono">1.0.0</td><td>Suggest new content or improvements</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">/import-cookbook</td><td class="mono">6.1.0</td><td>Import the agentic cookbook into your project</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">/install-recommended-tools</td><td class="mono">1.0.0</td><td>Recommend plugins/MCP servers by dev type and language</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">/lint-agent</td><td class="mono" style="color:var(--text-dim)">&mdash;</td><td>Lint a Claude Code agent</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">/lint-compliance</td><td class="mono">1.0.0</td><td>Evaluate against compliance checks</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">/lint-rule</td><td class="mono" style="color:var(--text-dim)">&mdash;</td><td>Lint a Claude Code rule file</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">/lint-skill</td><td class="mono" style="color:var(--text-dim)">&mdash;</td><td>Lint a Claude Code skill</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">/lint-with-cookbook</td><td class="mono">1.0.0</td><td>Lint implementation against guidelines or a recipe</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">/plan-cookbook-recipe</td><td class="mono">2.2.0</td><td>Interactively design a new cookbook recipe</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">/port-swiftui-to-appkit</td><td class="mono">1.1.0</td><td>Plan SwiftUI-to-AppKit conversion</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">/show-project-setup</td><td class="mono">1.0.0</td><td>Generate HTML dashboard of full environment</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">/validate-cookbook</td><td class="mono">1.0.1</td><td>Validate cookbook integrity</td><td><span class="scope-tag local">local</span></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- PROJECT PLUGINS -->
+    <div id="plugins-local" class="card scroll-content">
+      <div class="card-header">
+        <h2>Plugins <span class="badge">0</span></h2>
+      </div>
+      <div class="card-body">
+        <p style="color:var(--text-dim);font-size:0.82rem;">No project-local plugins installed. Use <code style="font-family:var(--mono);font-size:0.78rem;color:var(--text-sec);">/plugin install &lt;name&gt;</code> from this project to add one.</p>
+      </div>
+    </div>
+
+    <!-- PROJECT MCP -->
+    <div id="mcp" class="card scroll-content">
+      <div class="card-header">
+        <h2>MCP Servers <span class="badge">1</span></h2>
+      </div>
+      <div class="card-body">
+        <table>
+          <tr><th>Name</th><th>Command</th><th>Args / Caps</th><th></th></tr>
+          <tr><td class="mono">playwright</td><td class="mono">npx</td><td class="mono" style="color:var(--text-sec)">@playwright/mcp@latest --caps vision</td><td><span class="scope-tag local">local</span></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- PROJECT PERMISSIONS -->
+    <div id="perms-local" class="card scroll-content">
+      <div class="card-header">
+        <h2>Permissions <span class="badge">21 project &middot; 10 local &middot; 2 global</span></h2>
+      </div>
+      <div class="card-body">
+        <div class="label">Project (.claude/settings.json)</div>
+        <table>
+          <colgroup><col style="width:180px"><col style="width:260px"><col><col style="width:60px"></colgroup><tr><th>Permission</th><th>Why</th><th>Risk</th><th></th></tr>
+          <tr><td class="mono">Read(**)</td><td>Read any file in project</td><td style="color:var(--green)">Low &mdash; read-only</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Glob(**)</td><td>Find files by pattern</td><td style="color:var(--green)">Low &mdash; read-only</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Grep(**)</td><td>Search file contents</td><td style="color:var(--green)">Low &mdash; read-only</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Edit(**)</td><td>Modify any file in project</td><td style="color:var(--amber)">Medium &mdash; can change any file without asking</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Write(**)</td><td>Create any file in project</td><td style="color:var(--amber)">Medium &mdash; can create files without asking</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(git *)</td><td>Git operations (status, diff, log, etc.)</td><td style="color:var(--amber)">Medium &mdash; includes push, reset</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(gh *)</td><td>GitHub CLI (PRs, issues, releases)</td><td style="color:var(--amber)">Medium &mdash; can create PRs, comment on issues</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(ls *)</td><td>List directory contents</td><td style="color:var(--green)">Low &mdash; read-only</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(find *)</td><td>Search for files on disk</td><td style="color:var(--green)">Low &mdash; read-only</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(wc *)</td><td>Count lines/words/bytes</td><td style="color:var(--green)">Low &mdash; read-only</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(diff *)</td><td>Compare files</td><td style="color:var(--green)">Low &mdash; read-only</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(mkdir *)</td><td>Create directories</td><td style="color:var(--green)">Low &mdash; non-destructive</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(cp *)</td><td>Copy files</td><td style="color:var(--green)">Low &mdash; non-destructive</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(rm *)</td><td>Delete files</td><td style="color:var(--red)">High &mdash; destructive, irreversible</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(mv *)</td><td>Move/rename files</td><td style="color:var(--amber)">Medium &mdash; can relocate files</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(cat *)</td><td>Display file contents</td><td style="color:var(--green)">Low &mdash; read-only</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(head *)</td><td>Show first lines of file</td><td style="color:var(--green)">Low &mdash; read-only</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(tail *)</td><td>Show last lines of file</td><td style="color:var(--green)">Low &mdash; read-only</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(grep *)</td><td>Search text in files</td><td style="color:var(--green)">Low &mdash; read-only</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(python3 *)</td><td>Run Python scripts</td><td style="color:var(--red)">High &mdash; arbitrary code execution</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(claude *)</td><td>Invoke Claude CLI recursively</td><td style="color:var(--amber)">Medium &mdash; spawns sub-sessions</td><td><span class="scope-tag local">local</span></td></tr>
+        </table>
+        <div class="label">Local Overrides (.claude/settings.local.json)</div>
+        <table>
+          <colgroup><col style="width:180px"><col style="width:260px"><col><col style="width:60px"></colgroup><tr><th>Permission</th><th>Why</th><th>Risk</th><th></th></tr>
+          <tr><td class="mono">Bash(ls:*)</td><td>List dirs (alternate syntax)</td><td style="color:var(--green)">Low</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(git:*)</td><td>All git operations</td><td style="color:var(--amber)">Medium</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(git add:*)</td><td>Stage files</td><td style="color:var(--green)">Low</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(git commit:*)</td><td>Create commits</td><td style="color:var(--amber)">Medium &mdash; writes to history</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(git push:*)</td><td>Push to remote</td><td style="color:var(--red)">High &mdash; publishes to shared repo</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(npm install:*)</td><td>Install npm packages</td><td style="color:var(--amber)">Medium &mdash; modifies node_modules, lockfile</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(npx playwright:*)</td><td>Run Playwright tests</td><td style="color:var(--green)">Low &mdash; test runner</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Bash(open:*)</td><td>Open files/URLs in browser</td><td style="color:var(--green)">Low &mdash; opens apps</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Skill(lint-skill)</td><td>Run /lint-skill without asking</td><td style="color:var(--green)">Low &mdash; read-only analysis</td><td><span class="scope-tag local">local</span></td></tr>
+          <tr><td class="mono">Skill(lint-rule)</td><td>Run /lint-rule without asking</td><td style="color:var(--green)">Low &mdash; read-only analysis</td><td><span class="scope-tag local">local</span></td></tr>
+        </table>
+        <div class="label">Global (~/.claude/settings.json)</div>
+        <table>
+          <colgroup><col style="width:180px"><col style="width:260px"><col><col style="width:60px"></colgroup>
+          <tr><th>Permission</th><th>Why</th><th>Risk</th><th></th></tr>
+          <tr><td class="mono">Edit(.claude/Features/**)</td><td>Edit files in .claude/Features/ across all projects</td><td style="color:var(--amber)">Medium &mdash; auto-added by feature-dev plugin</td><td><span class="scope-tag global">global</span></td></tr>
+          <tr><td class="mono">Write(.claude/Features/**)</td><td>Create files in .claude/Features/ across all projects</td><td style="color:var(--amber)">Medium &mdash; auto-added by feature-dev plugin</td><td><span class="scope-tag global">global</span></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ GLOBAL ═══ -->
+    <div class="scope-divider"><span>Global</span></div>
+
+    <!-- GLOBAL PLUGINS -->
+    <div id="plugins-global" class="card scroll-content">
+      <div class="card-header">
+        <h2>Plugins <span class="badge">12</span></h2>
+      </div>
+      <div class="card-body">
+        <div class="ptree">
+          <div class="cat">Code Review <span class="cnt">(3)</span></div>
+          <ul>
+            <li><a href="https://claude.com/plugins/code-review">code-review</a> <span class="scope-tag global">global</span></li>
+            <li><a href="https://claude.com/plugins/code-simplifier">code-simplifier</a> <span class="scope-tag global">global</span></li>
+            <li><a href="https://claude.com/plugins/pr-review-toolkit">pr-review-toolkit</a> <span class="scope-tag global">global</span></li>
+          </ul>
+          <div class="cat">Workflow <span class="cnt">(5)</span></div>
+          <ul>
+            <li><a href="https://github.com/obra/superpowers">superpowers</a> <span class="hooks-badge">&#9889;1</span> <span class="scope-tag global">global</span></li>
+            <li><a href="https://claude.com/plugins/feature-dev">feature-dev</a> <span class="scope-tag global">global</span></li>
+            <li><a href="https://claude.com/plugins/commit-commands">commit-commands</a> <span class="scope-tag global">global</span></li>
+            <li><a href="https://claude.com/plugins/claude-code-setup">claude-code-setup</a> <span class="scope-tag global">global</span></li>
+            <li><a href="https://claude.com/plugins/claude-md-management">claude-md-management</a> <span class="scope-tag global">global</span></li>
+          </ul>
+          <div class="cat">Source Control <span class="cnt">(1)</span></div>
+          <ul>
+            <li><a href="https://github.com/modelcontextprotocol/servers/tree/main/src/github">github</a> <span class="scope-tag global">global</span></li>
+          </ul>
+          <div class="cat">Search <span class="cnt">(1)</span></div>
+          <ul>
+            <li><a href="https://github.com/upstash/context7">context7</a> <span class="scope-tag global">global</span></li>
+          </ul>
+          <div class="cat">Docs <span class="cnt">(2)</span></div>
+          <ul>
+            <li><a href="https://github.com/anthropics/skills">document-skills</a> <span class="mkt">anthropic-agent-skills</span> <span class="scope-tag global">global</span></li>
+            <li><a href="https://github.com/anthropics/skills">claude-api</a> <span class="mkt">anthropic-agent-skills</span> <span class="scope-tag global">global</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- GLOBAL SKILLS -->
+    <div id="skills-global" class="card scroll-content">
+      <div class="card-header">
+        <h2>Skills <span class="badge">11</span></h2>
+      </div>
+      <div class="card-body">
+        <table>
+          <tr><th>Name</th><th>Source</th><th></th></tr>
+          <tr><td class="mono">/describe-roadmap</td><td style="color:var(--text-dim)">cat-herding</td><td><span class="scope-tag global">global</span></td></tr>
+          <tr><td class="mono">/generate-test-roadmap</td><td style="color:var(--text-dim)">cat-herding</td><td><span class="scope-tag global">global</span></td></tr>
+          <tr><td class="mono">/implement-roadmap</td><td style="color:var(--text-dim)">cat-herding</td><td><span class="scope-tag global">global</span></td></tr>
+          <tr><td class="mono">/implement-roadmap-interactively</td><td style="color:var(--text-dim)">cat-herding</td><td><span class="scope-tag global">global</span></td></tr>
+          <tr><td class="mono">/import-shared-project</td><td style="color:var(--text-dim)">cat-herding</td><td><span class="scope-tag global">global</span></td></tr>
+          <tr><td class="mono">/list-roadmaps</td><td style="color:var(--text-dim)">cat-herding</td><td><span class="scope-tag global">global</span></td></tr>
+          <tr><td class="mono">/plan-bugfix-roadmap</td><td style="color:var(--text-dim)">cat-herding</td><td><span class="scope-tag global">global</span></td></tr>
+          <tr><td class="mono">/plan-roadmap</td><td style="color:var(--text-dim)">cat-herding</td><td><span class="scope-tag global">global</span></td></tr>
+          <tr><td class="mono">/pre-review</td><td style="color:var(--text-dim)">claude-config</td><td><span class="scope-tag global">global</span></td></tr>
+          <tr><td class="mono">/progress-dashboard</td><td style="color:var(--text-dim)">cat-herding</td><td><span class="scope-tag global">global</span></td></tr>
+          <tr><td class="mono">/repair-roadmap</td><td style="color:var(--text-dim)">cat-herding</td><td><span class="scope-tag global">global</span></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- GLOBAL HOOKS -->
+    <div id="hooks" class="card scroll-content">
+      <div class="card-header">
+        <h2>Hooks <span class="badge">6 events</span></h2>
+      </div>
+      <div class="card-body">
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <div class="hook"><span class="hook-name">SessionStart</span><span class="hook-val">1 hook</span> <span class="scope-tag global">global</span></div>
+          <div style="padding:2px 0 8px 20px;font-size:0.75rem;color:var(--text-dim);border-bottom:1px solid var(--border-subtle);">
+            <span class="mono" style="color:var(--text-sec)">superpowers</span> &mdash; run-hook session-start
+          </div>
+
+          <div class="hook"><span class="hook-name">UserPromptSubmit</span><span class="hook-val">1 hook</span> <span class="scope-tag global">global</span></div>
+          <div style="padding:2px 0 8px 20px;font-size:0.75rem;color:var(--text-dim);border-bottom:1px solid var(--border-subtle);">
+            <span class="mono" style="color:var(--text-sec)">~/.claude/settings.json</span> &mdash; configured in global settings
+          </div>
+
+          <div class="hook"><span class="hook-name">Notification</span><span class="hook-val">1 hook</span> <span class="scope-tag global">global</span></div>
+          <div style="padding:2px 0 8px 20px;font-size:0.75rem;color:var(--text-dim);border-bottom:1px solid var(--border-subtle);">
+            <span class="mono" style="color:var(--text-sec)">~/.claude/settings.json</span> &mdash; configured in global settings
+          </div>
+
+          <div class="hook"><span class="hook-name">PostToolUse</span><span class="hook-val">1 hook</span> <span class="scope-tag global">global</span></div>
+          <div style="padding:2px 0 8px 20px;font-size:0.75rem;color:var(--text-dim);border-bottom:1px solid var(--border-subtle);">
+            <span class="mono" style="color:var(--text-sec)">~/.claude/settings.json</span> &mdash; configured in global settings
+          </div>
+
+          <div class="hook"><span class="hook-name">Stop</span><span class="hook-val">1 hook</span> <span class="scope-tag global">global</span></div>
+          <div style="padding:2px 0 8px 20px;font-size:0.75rem;color:var(--text-dim);border-bottom:1px solid var(--border-subtle);">
+            <span class="mono" style="color:var(--text-sec)">~/.claude/settings.json</span> &mdash; configured in global settings
+          </div>
+
+          <div class="hook"><span class="hook-name">SessionEnd</span><span class="hook-val">1 hook</span> <span class="scope-tag global">global</span></div>
+          <div style="padding:2px 0 0 20px;font-size:0.75rem;color:var(--text-dim);">
+            <span class="mono" style="color:var(--text-sec)">~/.claude/settings.json</span> &mdash; configured in global settings
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ ENVIRONMENT ═══ -->
+    <div class="scope-divider"><span>Environment</span></div>
+
+    <!-- DEV TOOLS -->
+    <div id="devtools" class="card scroll-content">
+      <div class="card-header">
+        <h2>Dev Tools <span class="badge">8 installed &middot; 8 missing</span></h2>
+      </div>
+      <div class="card-body">
+        <table>
+          <tr><th></th><th>Tool</th><th>Version</th><th>Why it's here</th></tr>
+          <tr><td><span class="dot ok"></span></td><td class="mono">Node.js</td><td class="mono">v25.8.1</td><td>Vite dev server, site build, npm scripts, Cloudflare Workers</td></tr>
+          <tr><td><span class="dot ok"></span></td><td class="mono">Python</td><td class="mono">3.9.6</td><td>macOS system Python; used by build scripts and plugin hooks</td></tr>
+          <tr><td><span class="dot ok"></span></td><td class="mono">Swift</td><td class="mono">6.3</td><td>Apple platform development (iOS, macOS apps)</td></tr>
+          <tr><td><span class="dot ok"></span></td><td class="mono">Git</td><td class="mono">2.50.1</td><td>Version control &mdash; worktrees, branches, commits</td></tr>
+          <tr><td><span class="dot ok"></span></td><td class="mono">GitHub CLI</td><td class="mono">2.86.0</td><td>PR creation, issue management, repo operations from CLI</td></tr>
+          <tr><td><span class="dot ok"></span></td><td class="mono">npm</td><td class="mono">11.11.0</td><td>Package management for site/ and tools-site/</td></tr>
+          <tr><td><span class="dot ok"></span></td><td class="mono">Wrangler</td><td class="mono">4.76.0</td><td>Cloudflare Workers deployment and local dev preview</td></tr>
+          <tr><td><span class="dot ok"></span></td><td class="mono">VS Code</td><td class="mono">1.112.0</td><td>Primary editor; used by <code style="font-size:0.75rem">open</code> commands</td></tr>
+          <tr><td><span class="dot miss"></span></td><td class="mono" style="color:var(--text-dim)">Bun</td><td></td><td style="color:var(--text-dim)">Alt JS runtime &mdash; not needed, Node.js covers this</td></tr>
+          <tr><td><span class="dot miss"></span></td><td class="mono" style="color:var(--text-dim)">Docker</td><td></td><td style="color:var(--text-dim)">Containerization &mdash; not used in this project</td></tr>
+          <tr><td><span class="dot miss"></span></td><td class="mono" style="color:var(--text-dim)">Go</td><td></td><td style="color:var(--text-dim)">No Go code in this project</td></tr>
+          <tr><td><span class="dot miss"></span></td><td class="mono" style="color:var(--text-dim)">Rust</td><td></td><td style="color:var(--text-dim)">No Rust code in this project</td></tr>
+          <tr><td><span class="dot miss"></span></td><td class="mono" style="color:var(--text-dim)">Java</td><td></td><td style="color:var(--text-dim)">No Java code in this project</td></tr>
+          <tr><td><span class="dot miss"></span></td><td class="mono" style="color:var(--text-dim)">.NET</td><td></td><td style="color:var(--text-dim)">No .NET code in this project</td></tr>
+          <tr><td><span class="dot miss"></span></td><td class="mono" style="color:var(--text-dim)">kubectl</td><td></td><td style="color:var(--text-dim)">No Kubernetes usage &mdash; deployed on Cloudflare</td></tr>
+          <tr><td><span class="dot miss"></span></td><td class="mono" style="color:var(--text-dim)">Terraform</td><td></td><td style="color:var(--text-dim)">No IaC usage &mdash; Cloudflare managed via wrangler</td></tr>
+        </table>
+      </div>
+    </div>
+
+  </div>
+  </div><!-- /main-content -->
+  </div><!-- /layout -->
+
+  <div class="footer">Generated by /show-project-setup &middot; 2026-03-29</div>
+</div>
+
+<script>
+// Calculate header height and set all dependent positions
+(function() {
+  const header = document.querySelector('.sticky-header');
+  const spacer = document.querySelector('.header-spacer');
+  if (!header) return;
+  const h = header.offsetHeight;
+  const gap = 16;
+  const top = h + gap;
+
+  // Spacer pushes content below fixed header
+  if (spacer) spacer.style.height = top + 'px';
+
+  // Sidebar starts right below header
+  const nav = document.querySelector('.sidebar-nav');
+  if (nav) {
+    nav.style.top = top + 'px';
+    nav.style.height = 'calc(100vh - ' + (top + 16) + 'px)';
+    // Align left with container
+    const container = document.querySelector('.container');
+    if (container) {
+      nav.style.left = container.getBoundingClientRect().left + 'px';
+    }
+  }
+
+  // Scroll targets clear the header
+  document.querySelectorAll('.scroll-content').forEach(el => {
+    el.style.scrollMarginTop = (top + 8) + 'px';
+  });
+})();
+</script>
+</body>
+</html>
