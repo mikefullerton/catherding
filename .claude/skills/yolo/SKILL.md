@@ -6,7 +6,7 @@ argument-hint: "[on|off|configure|status|--version]"
 allowed-tools: Read, Edit, Write, Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(rm *), Bash(find *), Bash(ls *), Bash(date *), Bash(jq *), AskUserQuestion
 ---
 
-# YOLO Mode v4.3.0
+# YOLO Mode v4.4.0
 
 Toggle a per-session PermissionRequest hook that auto-approves all tool calls — a workaround for broken `--dangerously-skip-permissions` in Claude Code v2.1.x.
 
@@ -16,16 +16,16 @@ Each session independently opts in. Other sessions are unaffected.
 
 **CRITICAL**: The very first thing you output MUST be the version line below. Print it BEFORE anything else — before the warning, before any tool calls, before any other text:
 
-YOLO v4.3.0
+YOLO v4.4.0
 
 **Version check**: Read `${CLAUDE_SKILL_DIR}/SKILL.md` from disk and extract the `version:` field from frontmatter. Compare to this skill's version (4.0.0). If they differ, print:
 
-> ⚠ This skill is running v4.3.0 but vA.B.C is installed. Restart the session to use the latest version.
+> ⚠ This skill is running v4.4.0 but vA.B.C is installed. Restart the session to use the latest version.
 
 Then continue running.
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> yolo v4.3.0
+> yolo v4.4.0
 
 Then stop.
 
@@ -60,7 +60,7 @@ Then stop.
 
 Read `${CLAUDE_SKILL_DIR}/references/warning.txt` FIRST (using the Read tool). Then output a single text block that starts with the version line followed by the file contents:
 
-    YOLO v4.3.0
+    YOLO v4.4.0
 
     <contents of warning.txt, verbatim, preserving all indentation>
 
@@ -86,6 +86,8 @@ Then stop.
 ### Step 4: One-time hook install
 
 This step ensures the PermissionRequest and SessionEnd hooks are permanently installed. It is idempotent — safe to run every time.
+
+**Track whether hooks were just installed**: Before modifying settings.json, note whether the PermissionRequest hook was already present. Store this as a boolean `HOOKS_ALREADY_INSTALLED` (true if already present, false if you had to add it). This determines the `needs_restart` field in Step 5.
 
 #### Step 4a: Hook scripts
 
@@ -212,7 +214,8 @@ cat > "$MARKER" <<MARKER_EOF
   "enabled_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "project": "${CWD}",
   "deny_list": "~/.claude/yolo-deny.json",
-  "auto_enabled": true
+  "auto_enabled": true,
+  "needs_restart": false
 }
 MARKER_EOF
 
@@ -284,19 +287,26 @@ Write the session marker file to `~/.claude-yolo-sessions/${CLAUDE_SESSION_ID}.j
   "session_id": "${CLAUDE_SESSION_ID}",
   "enabled_at": "<current ISO 8601 timestamp>",
   "project": "<current working directory>",
-  "deny_list": "~/.claude/yolo-deny.json"
+  "deny_list": "~/.claude/yolo-deny.json",
+  "needs_restart": <true if HOOKS_ALREADY_INSTALLED is false, otherwise false>
 }
 ```
 
 Use `date -u +%Y-%m-%dT%H:%M:%SZ` for the timestamp.
 
+Set `needs_restart` based on whether hooks were already installed BEFORE this invocation (from the `HOOKS_ALREADY_INSTALLED` flag in Step 4). If hooks were already present, the session loaded them at startup and YOLO works immediately — no restart needed.
+
 ### Step 6: Confirm
 
-Print:
+If `needs_restart` is true, print:
 
 > YOLO mode enabled. Restart this session for it to take effect.
 >
 > Hooks are loaded at session start — they can't activate mid-session. After restarting, YOLO will auto-approve all permissions (except deny-listed items) for this session only.
+
+If `needs_restart` is false, print:
+
+> YOLO mode enabled for this session. All permissions will be auto-approved (except deny-listed items).
 
 ---
 
