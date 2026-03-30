@@ -36,3 +36,5 @@
 
     --dangerously-skip-permissions docs:
     https://code.claude.com/docs/en/permission-modes
+
+                  ===  BE CAREFUL OUT THERE  ===
