@@ -1,3 +1,4 @@
+```
 
               ===  HERE BE DRAGONS  ===
 
@@ -30,6 +31,7 @@
 |    - Do anything -- without asking                       |
 |                                                          |
 +----------------------------------------------------------+
+```
 
 Workaround for known bugs:
   anthropics/claude-code#40241

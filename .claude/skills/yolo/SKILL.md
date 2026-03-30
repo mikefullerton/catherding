@@ -1,27 +1,27 @@
 ---
 name: yolo
 description: "Toggle yolo mode (auto-approve all permissions). Use when --dangerously-skip-permissions is broken. /yolo on, /yolo off, /yolo status"
-version: "1.7.0"
+version: "1.8.0"
 argument-hint: "[on|off|status|--version]"
 allowed-tools: Read, Edit, Write, Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), AskUserQuestion
 ---
 
-# YOLO Mode v1.7.0
+# YOLO Mode v1.8.0
 
 Toggle a PermissionRequest hook that auto-approves all tool calls — a workaround for broken `--dangerously-skip-permissions` in Claude Code v2.1.x.
 
 ## Startup
 
-YOLO v1.7.0
+YOLO v1.8.0
 
-**Version check**: Read `${CLAUDE_SKILL_DIR}/SKILL.md` from disk and extract the `version:` field from frontmatter. Compare to this skill's version (1.7.0). If they differ, print:
+**Version check**: Read `${CLAUDE_SKILL_DIR}/SKILL.md` from disk and extract the `version:` field from frontmatter. Compare to this skill's version (1.8.0). If they differ, print:
 
-> ⚠ This skill is running v1.7.0 but vA.B.C is installed. Restart the session to use the latest version.
+> ⚠ This skill is running v1.8.0 but vA.B.C is installed. Restart the session to use the latest version.
 
 Then continue running.
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> yolo v1.7.0
+> yolo v1.8.0
 
 Then stop.
 
@@ -47,15 +47,7 @@ Then stop.
 
 ### Step 1: Show warning
 
-Read `${CLAUDE_SKILL_DIR}/references/warning.txt` and print its contents as a markdown code block. Wrap the output in triple backticks so the terminal renders it with fixed-width formatting and preserves all spacing:
-
-````
-```
-<contents of warning.txt>
-```
-````
-
-This ensures the dragon art and box render with monospace alignment.
+Read `${CLAUDE_SKILL_DIR}/references/warning.txt` and print its contents verbatim. The file already contains triple-backtick code block fences — do NOT add additional fences. Just output the file content exactly as-is.
 
 ### Step 2: Ask for confirmation
 
