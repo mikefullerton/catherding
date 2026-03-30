@@ -1,12 +1,12 @@
 ---
 name: yolo
-description: "Toggle yolo mode (auto-approve all permissions). Use when --dangerously-skip-permissions is broken. /yolo on, /yolo off, /yolo status"
-version: "2.0.0"
-argument-hint: "[on|off|status|--version]"
+description: "Toggle YOLO mode (auto-approve permissions with configurable deny list). Use when --dangerously-skip-permissions is broken. /yolo on, /yolo off, /yolo configure, /yolo status"
+version: "3.0.0"
+argument-hint: "[on|off|configure|status|--version]"
 allowed-tools: Read, Edit, Write, Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), AskUserQuestion
 ---
 
-# YOLO Mode v2.0.0
+# YOLO Mode v3.0.0
 
 Toggle a PermissionRequest hook that auto-approves all tool calls — a workaround for broken `--dangerously-skip-permissions` in Claude Code v2.1.x.
 
@@ -14,16 +14,16 @@ Toggle a PermissionRequest hook that auto-approves all tool calls — a workarou
 
 **CRITICAL**: The very first thing you output MUST be the version line below. Print it BEFORE anything else — before the warning, before any tool calls, before any other text:
 
-YOLO v2.0.0
+YOLO v3.0.0
 
-**Version check**: Read `${CLAUDE_SKILL_DIR}/SKILL.md` from disk and extract the `version:` field from frontmatter. Compare to this skill's version (2.0.0). If they differ, print:
+**Version check**: Read `${CLAUDE_SKILL_DIR}/SKILL.md` from disk and extract the `version:` field from frontmatter. Compare to this skill's version (3.0.0). If they differ, print:
 
-> ⚠ This skill is running v2.0.0 but vA.B.C is installed. Restart the session to use the latest version.
+> ⚠ This skill is running v3.0.0 but vA.B.C is installed. Restart the session to use the latest version.
 
 Then continue running.
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> yolo v2.0.0
+> yolo v3.0.0
 
 Then stop.
 
@@ -39,9 +39,10 @@ Then stop.
 |---|---|
 | `on` | Go to **Enable** |
 | `off` | Go to **Disable** |
+| `configure` | Go to **Configure** |
 | `status` or empty | Go to **Status** |
 | `--version` | Print version (handled in Startup) |
-| anything else | Print: "Usage: /yolo [on\|off\|status\|--version]" and stop |
+| anything else | Print: "Usage: /yolo [on\|off\|configure\|status\|--version]" and stop |
 
 ---
 
@@ -51,7 +52,7 @@ Then stop.
 
 Read `${CLAUDE_SKILL_DIR}/references/warning.txt` FIRST (using the Read tool). Then output a single text block that starts with the version line followed by the file contents:
 
-    YOLO v2.0.0
+    YOLO v3.0.0
 
     <contents of warning.txt, verbatim, preserving all indentation>
 
@@ -87,6 +88,14 @@ exit 0
 ```
 
 Make it executable: `chmod +x ~/.claude/hooks/yolo-approve-all.sh`
+
+### Step 4b: Create deny config
+
+Check if `~/.claude/yolo-deny.json` exists. If not, copy the defaults from `${CLAUDE_SKILL_DIR}/references/yolo-deny-defaults.json` to `~/.claude/yolo-deny.json`.
+
+If it already exists, leave it as-is (user may have customized it).
+
+Print: "Deny list: ~/.claude/yolo-deny.json (N rules). Use /yolo configure to edit."
 
 ### Step 5: Add hook to settings.json
 
@@ -154,8 +163,44 @@ Read `~/.claude/settings.json`. Check if `hooks.PermissionRequest` exists and co
 
 If enabled, print:
 
-> YOLO mode is **ON**. All permission prompts are auto-approved.
+> YOLO mode is **ON**. All permission prompts are auto-approved (except deny-listed items).
 
 If disabled, print:
 
 > YOLO mode is **OFF**. Normal permission prompts are active.
+
+If enabled, also read `~/.claude/yolo-deny.json` and print the deny list summary:
+
+> Deny list (N rules): ExitPlanMode, git push --force, git reset --hard, ...
+
+---
+
+## Configure
+
+Show and edit the YOLO deny list.
+
+### Step 1: Read current config
+
+Read `~/.claude/yolo-deny.json`. If it doesn't exist, print "No deny list found. Run /yolo on to create one." and stop.
+
+### Step 2: Show current rules
+
+Print the current deny rules as a numbered list:
+
+    YOLO Deny List (~/.claude/yolo-deny.json)
+
+    1. ExitPlanMode — User should review the plan before execution
+    2. Bash: git push --force — Force push is destructive
+    3. Bash: git reset --hard — Discards uncommitted work
+    ...
+
+### Step 3: Ask what to do
+
+Use AskUserQuestion:
+- "What would you like to do?"
+- Option 1: "Add a rule" — ask for matcher (tool name), pattern (regex), and reason
+- Option 2: "Remove a rule" — show numbered list, ask which to remove
+- Option 3: "Reset to defaults" — copy defaults from `${CLAUDE_SKILL_DIR}/references/yolo-deny-defaults.json`
+- Option 4: "Done" — stop
+
+After each add/remove, write the updated config to `~/.claude/yolo-deny.json` and loop back to Step 2.
