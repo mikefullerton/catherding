@@ -17,9 +17,9 @@ RATE_7D=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // 0' | 
 # Format duration as readable string
 DURATION_S=$(( DURATION_MS / 1000 ))
 if [[ $DURATION_S -ge 3600 ]]; then
-  DURATION="$(( DURATION_S / 3600 ))h $(( (DURATION_S % 3600) / 60 ))m"
+  DURATION="$(( DURATION_S / 3600 )):$(printf '%02d' $(( (DURATION_S % 3600) / 60 )))"
 elif [[ $DURATION_S -ge 60 ]]; then
-  DURATION="$(( DURATION_S / 60 ))m"
+  DURATION="0:$(printf '%02d' $(( DURATION_S / 60 )))"
 else
   DURATION="${DURATION_S}s"
 fi
@@ -103,4 +103,4 @@ if [ -f "$MARKER" ]; then
 fi
 
 print "$LINE1"
-echo "${MODEL}${SEP}${REM_PCT}% context remaining${SEP}duration ${DURATION}${SEP}${TOTAL_CHANGES} changes${SEP}\$${TOTAL_COST}${SEP}5h rate limit: ${RATE_5H}%${SEP}7d rate limit: ${RATE_7D}%${YOLO}"
+echo "${MODEL}${SEP}${REM_PCT}% context remaining${SEP}duration ${DURATION}${SEP}${TOTAL_CHANGES} changes${SEP}\$${TOTAL_COST}${SEP}5h rl: ${RATE_5H}%${SEP}7d rl: ${RATE_7D}%${YOLO}"
