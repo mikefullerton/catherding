@@ -25,7 +25,8 @@ if [[ "$GIT_DIR" == *"/worktrees/"* ]]; then
 fi
 
 DIM=$'\033[38;5;245m'
-SEP=" ${DIM}|${RST} "
+ORANGE=$'\033[38;5;214m'
+SEP=" ${ORANGE}|${RST} "
 
 LINE1="${BLUE}${CWD}${RST}"
 if [[ -n "$BRANCH" ]]; then
