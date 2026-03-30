@@ -10,15 +10,15 @@ context: fork
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
 
-> lint-rule v1.0.1
+> lint-rule v1.1.0
 
 Then stop. Do not continue with the rest of the skill.
 
-Otherwise, print `lint-rule v1.0.1` as the first line of output, then proceed.
+Otherwise, print `lint-rule v1.1.0` as the first line of output, then proceed.
 
-**Version check**: Read `${CLAUDE_SKILL_DIR}/SKILL.md` from disk and extract the `version:` field from frontmatter. If it differs from this skill's version (1.0.1), print:
+**Version check**: Read `${CLAUDE_SKILL_DIR}/SKILL.md` from disk and extract the `version:` field from frontmatter. If it differs from this skill's version (1.1.0), print:
 
-> ⚠ This skill is running v1.0.1 but vA.B.C is installed. Restart the session to use the latest version.
+> ⚠ This skill is running v1.1.0 but vA.B.C is installed. Restart the session to use the latest version.
 
 Continue running — do not stop.
 
