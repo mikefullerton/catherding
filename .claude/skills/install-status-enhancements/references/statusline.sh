@@ -11,6 +11,8 @@ LINES_REMOVED=$(echo "$input" | jq -r '.cost.total_lines_removed // 0')
 TOTAL_COST=$(echo "$input" | jq -r '.cost.total_cost_usd // 0' | xargs printf '%.2f')
 SESSION_NAME=$(echo "$input" | jq -r '.session_name // ""')
 TOTAL_CHANGES=$(( LINES_ADDED + LINES_REMOVED ))
+RATE_5H=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // 0' | cut -d. -f1)
+RATE_7D=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // 0' | cut -d. -f1)
 
 # Format duration as readable string
 DURATION_S=$(( DURATION_MS / 1000 ))
@@ -101,4 +103,4 @@ if [ -f "$MARKER" ]; then
 fi
 
 print "$LINE1"
-echo "${MODEL}${SEP}${REM_PCT}% context remaining${SEP}duration ${DURATION}${SEP}${TOTAL_CHANGES} changes${SEP}\$${TOTAL_COST}${YOLO}"
+echo "${MODEL}${SEP}${REM_PCT}% context remaining${SEP}duration ${DURATION}${SEP}${TOTAL_CHANGES} changes${SEP}\$${TOTAL_COST}${SEP}5h: ${RATE_5H}%${SEP}7d: ${RATE_7D}%${YOLO}"
