@@ -6,7 +6,11 @@ input=$(cat)
 MODEL=$(echo "$input" | jq -r '.model.display_name // "unknown"')
 REM_PCT=$(echo "$input" | jq -r '.context_window.remaining_percentage // 100' | cut -d. -f1)
 DURATION_MS=$(echo "$input" | jq -r '.cost.total_duration_ms // 0')
+LINES_ADDED=$(echo "$input" | jq -r '.cost.total_lines_added // 0')
+LINES_REMOVED=$(echo "$input" | jq -r '.cost.total_lines_removed // 0')
+TOTAL_COST=$(echo "$input" | jq -r '.cost.total_cost_usd // 0')
 SESSION_NAME=$(echo "$input" | jq -r '.session_name // ""')
+TOTAL_CHANGES=$(( LINES_ADDED + LINES_REMOVED ))
 
 # Format duration as readable string
 DURATION_S=$(( DURATION_MS / 1000 ))
@@ -97,4 +101,4 @@ if [ -f "$MARKER" ]; then
 fi
 
 print "$LINE1"
-echo "${MODEL}${SEP}${REM_PCT}% remaining${SEP}${DURATION}${YOLO}"
+echo "${MODEL}${SEP}${REM_PCT}% context remaining${SEP}duration ${DURATION}${SEP}${TOTAL_CHANGES} changes${SEP}\$${TOTAL_COST}${YOLO}"
