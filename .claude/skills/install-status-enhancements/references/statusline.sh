@@ -2,11 +2,21 @@
 # Claude Code status line — two-line: project/git info + model/context
 input=$(cat)
 
-# Model and context
+# Model, context, session
 MODEL=$(echo "$input" | jq -r '.model.display_name // "unknown"')
-PCT=$(echo "$input" | jq -r '.context_window.used_percentage // 0' | cut -d. -f1)
-CTX_SIZE=$(echo "$input" | jq -r '.context_window.context_window_size // 0')
-CTX_LABEL=$(( CTX_SIZE / 1000 ))k
+REM_PCT=$(echo "$input" | jq -r '.context_window.remaining_percentage // 100' | cut -d. -f1)
+DURATION_MS=$(echo "$input" | jq -r '.cost.total_duration_ms // 0')
+SESSION_NAME=$(echo "$input" | jq -r '.session_name // ""')
+
+# Format duration as readable string
+DURATION_S=$(( DURATION_MS / 1000 ))
+if [[ $DURATION_S -ge 3600 ]]; then
+  DURATION="$(( DURATION_S / 3600 ))h $(( (DURATION_S % 3600) / 60 ))m"
+elif [[ $DURATION_S -ge 60 ]]; then
+  DURATION="$(( DURATION_S / 60 ))m"
+else
+  DURATION="${DURATION_S}s"
+fi
 
 # Project and git info
 CWD=$(echo "$input" | jq -r '.cwd // ""')
@@ -31,6 +41,9 @@ ORANGE=$'\033[38;5;214m'
 SEP=" ${ORANGE}|${RST} "
 
 LINE1="${BLUE}${CWD}${RST}"
+if [[ -n "$SESSION_NAME" ]]; then
+  LINE1="${LINE1} ${DIM}(${SESSION_NAME})${RST}"
+fi
 if [[ -n "$BRANCH" ]]; then
   DIRTY=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
   if $IS_WORKTREE; then
@@ -84,4 +97,4 @@ if [ -f "$MARKER" ]; then
 fi
 
 print "$LINE1"
-echo "${MODEL}: ${PCT}% of ${CTX_LABEL} used${YOLO}"
+echo "${MODEL}${SEP}${REM_PCT}% remaining${SEP}${DURATION}${YOLO}"
