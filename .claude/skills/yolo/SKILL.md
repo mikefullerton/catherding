@@ -49,7 +49,13 @@ Then stop.
 
 ### Step 1: Show warning
 
-Read `${CLAUDE_SKILL_DIR}/references/warning.txt` and print its contents verbatim. Every line is indented with 4+ spaces to render as preformatted monospace text (markdown indented code block). Do NOT add code fences, do NOT remove the indentation, do NOT modify the content in any way. Just output it exactly as-is.
+Read `${CLAUDE_SKILL_DIR}/references/warning.txt` FIRST (using the Read tool). Then output a single text block that starts with the version line followed by the file contents:
+
+    YOLO v2.0.0
+
+    <contents of warning.txt, verbatim, preserving all indentation>
+
+Every line in the file is indented with 4+ spaces. Preserve this indentation exactly — it prevents markdown interpretation. Do NOT add code fences, do NOT strip indentation.
 
 ### Step 2: Ask for confirmation
 
