@@ -1,8 +1,8 @@
 ---
 name: lint-skill
 description: "Lint a Claude Code skill against best practices. Triggers on 'lint this skill', 'check my skill', 'review this skill', or /lint-skill."
-argument-hint: "<path-to-skill-directory>"
-allowed-tools: Read, Glob, Grep, WebFetch, Bash(wc *)
+argument-hint: "[path-or-name]"
+allowed-tools: Read, Glob, Grep, WebFetch, Bash(wc *), AskUserQuestion
 context: fork
 ---
 
@@ -10,15 +10,15 @@ context: fork
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
 
-> lint-skill v1.0.1
+> lint-skill v1.1.0
 
 Then stop. Do not continue with the rest of the skill.
 
-Otherwise, print `lint-skill v1.0.1` as the first line of output, then proceed.
+Otherwise, print `lint-skill v1.1.0` as the first line of output, then proceed.
 
 **Version check**: Read `${CLAUDE_SKILL_DIR}/SKILL.md` from disk and extract the `version:` field from frontmatter. If it differs from this skill's version (1.0.1), print:
 
-> ⚠ This skill is running v1.0.1 but vA.B.C is installed. Restart the session to use the latest version.
+> ⚠ This skill is running v1.1.0 but vA.B.C is installed. Restart the session to use the latest version.
 
 Continue running — do not stop.
 
@@ -38,23 +38,30 @@ Lint a Claude Code skill against best practices and structural requirements. Pro
 
 ## Step 1: Resolve the Target
 
-Use `$ARGUMENTS` as the path to the skill to review.
+Resolve `$ARGUMENTS` to a skill directory containing `SKILL.md`.
 
 ### If `$ARGUMENTS` is provided:
-1. Check if the path points to a directory containing `SKILL.md` — it's a **skill**
-2. Check if the path points directly to a `SKILL.md` file — use its parent directory
-3. If no `SKILL.md` found, check if it's an agent or rule file and print a helpful error:
-   ```
-   ERROR: Not a skill — no SKILL.md found. Use /lint-agent or /lint-rule instead.
-   ```
+
+1. **Path check**: If `$ARGUMENTS` contains `/` or points to a directory:
+   - If the path is a directory containing `SKILL.md`, use it.
+   - If the path points directly to a `SKILL.md` file, use its parent directory.
+   - If no `SKILL.md` found, check if it's an agent or rule file and print a helpful error:
+     ```
+     ERROR: Not a skill — no SKILL.md found. Use /lint-agent or /lint-rule instead.
+     ```
+
+2. **Search string**: Otherwise, treat `$ARGUMENTS` as a search string. Use Glob to find `.claude/skills/*/SKILL.md`. Filter to directories whose name contains the search string (case-insensitive).
+   - **1 match** → Use it. Print: "Found: <path>"
+   - **Multiple matches** → Show up to 4 matches with AskUserQuestion. Each option label is the skill name, description is the directory path.
+   - **0 matches** → Print "No skills matching '<string>'" and stop.
 
 ### If `$ARGUMENTS` is empty:
-1. Check if the current directory contains `SKILL.md` — use it
-2. Check parent directories up to `.claude/skills/` for `SKILL.md`
-3. If nothing found, print an error and **STOP**:
-   ```
-   ERROR: No skill found. Provide a path: /lint-skill <path>
-   ```
+
+1. **Session context**: Check if a skill was recently created, edited, or read in this conversation. If so, offer it with AskUserQuestion: "Lint <skill-name>?" with options "Yes" and "No, choose another".
+
+2. **Current directory**: Check if the current directory contains `SKILL.md` — use it.
+
+3. **Prompt**: If nothing found, use AskUserQuestion: "Which skill? Enter a name or path." The user's response re-enters the search string flow above.
 
 ---
 
