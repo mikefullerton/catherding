@@ -6,7 +6,7 @@ argument-hint: "[on|off|configure|status|--version]"
 allowed-tools: Read, Edit, Write, Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(rm *), Bash(find *), Bash(ls *), Bash(date *), Bash(jq *), AskUserQuestion
 ---
 
-# YOLO Mode v4.2.0
+# YOLO Mode v4.3.0
 
 Toggle a per-session PermissionRequest hook that auto-approves all tool calls — a workaround for broken `--dangerously-skip-permissions` in Claude Code v2.1.x.
 
@@ -16,16 +16,16 @@ Each session independently opts in. Other sessions are unaffected.
 
 **CRITICAL**: The very first thing you output MUST be the version line below. Print it BEFORE anything else — before the warning, before any tool calls, before any other text:
 
-YOLO v4.2.0
+YOLO v4.3.0
 
 **Version check**: Read `${CLAUDE_SKILL_DIR}/SKILL.md` from disk and extract the `version:` field from frontmatter. Compare to this skill's version (4.0.0). If they differ, print:
 
-> ⚠ This skill is running v4.2.0 but vA.B.C is installed. Restart the session to use the latest version.
+> ⚠ This skill is running v4.3.0 but vA.B.C is installed. Restart the session to use the latest version.
 
 Then continue running.
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> yolo v4.2.0
+> yolo v4.3.0
 
 Then stop.
 
@@ -60,7 +60,7 @@ Then stop.
 
 Read `${CLAUDE_SKILL_DIR}/references/warning.txt` FIRST (using the Read tool). Then output a single text block that starts with the version line followed by the file contents:
 
-    YOLO v4.2.0
+    YOLO v4.3.0
 
     <contents of warning.txt, verbatim, preserving all indentation>
 
@@ -294,9 +294,9 @@ Use `date -u +%Y-%m-%dT%H:%M:%SZ` for the timestamp.
 
 Print:
 
-> YOLO mode enabled for this session. All permission prompts will be auto-approved.
+> YOLO mode enabled. Restart this session for it to take effect.
 >
-> If prompts still appear, restart your session for the hook to take effect.
+> Hooks are loaded at session start — they can't activate mid-session. After restarting, YOLO will auto-approve all permissions (except deny-listed items) for this session only.
 
 ---
 

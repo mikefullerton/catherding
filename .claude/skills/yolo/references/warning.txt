@@ -19,8 +19,8 @@
 
     +----------------------------------------------------------+
     |                                                          |
-    |  YOLO mode auto-approves ALL permission                  |
-    |  prompts with zero safety checks.                        |
+    |  YOLO mode auto-approves almost ALL permissions          |
+    |  (with some important exceptions).                       |
     |                                                          |
     |  This means Claude can:                                  |
     |    - Run any shell command                               |
