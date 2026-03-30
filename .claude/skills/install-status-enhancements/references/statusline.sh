@@ -61,9 +61,9 @@ if [[ -n "$BRANCH" ]]; then
     fi
   fi
   if [[ ${#STATS[@]} -gt 0 ]]; then
-    LINE1="${LINE1}${SEP}${(j:, :)STATS}"
+    LINE1="${LINE1}${SEP}[${(j:, :)STATS}]"
   else
-    LINE1="${LINE1}${SEP}up to date"
+    LINE1="${LINE1}${SEP}[up to date]"
   fi
 fi
 
