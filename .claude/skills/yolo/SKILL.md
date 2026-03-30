@@ -1,27 +1,29 @@
 ---
 name: yolo
 description: "Toggle yolo mode (auto-approve all permissions). Use when --dangerously-skip-permissions is broken. /yolo on, /yolo off, /yolo status"
-version: "1.9.0"
+version: "2.0.0"
 argument-hint: "[on|off|status|--version]"
 allowed-tools: Read, Edit, Write, Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), AskUserQuestion
 ---
 
-# YOLO Mode v1.9.0
+# YOLO Mode v2.0.0
 
 Toggle a PermissionRequest hook that auto-approves all tool calls — a workaround for broken `--dangerously-skip-permissions` in Claude Code v2.1.x.
 
 ## Startup
 
-YOLO v1.9.0
+**CRITICAL**: The very first thing you output MUST be the version line below. Print it BEFORE anything else — before the warning, before any tool calls, before any other text:
 
-**Version check**: Read `${CLAUDE_SKILL_DIR}/SKILL.md` from disk and extract the `version:` field from frontmatter. Compare to this skill's version (1.9.0). If they differ, print:
+YOLO v2.0.0
 
-> ⚠ This skill is running v1.9.0 but vA.B.C is installed. Restart the session to use the latest version.
+**Version check**: Read `${CLAUDE_SKILL_DIR}/SKILL.md` from disk and extract the `version:` field from frontmatter. Compare to this skill's version (2.0.0). If they differ, print:
+
+> ⚠ This skill is running v2.0.0 but vA.B.C is installed. Restart the session to use the latest version.
 
 Then continue running.
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> yolo v1.9.0
+> yolo v2.0.0
 
 Then stop.
 
