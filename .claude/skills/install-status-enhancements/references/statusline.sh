@@ -17,9 +17,9 @@ RATE_7D=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // 0' | 
 # Format duration as readable string
 DURATION_S=$(( DURATION_MS / 1000 ))
 if [[ $DURATION_S -ge 3600 ]]; then
-  DURATION="$(( DURATION_S / 3600 )):$(printf '%02d' $(( (DURATION_S % 3600) / 60 )))"
+  DURATION="$(( DURATION_S / 3600 ))h:$(printf '%02d' $(( (DURATION_S % 3600) / 60 )))m"
 elif [[ $DURATION_S -ge 60 ]]; then
-  DURATION="0:$(printf '%02d' $(( DURATION_S / 60 )))"
+  DURATION="0h:$(printf '%02d' $(( DURATION_S / 60 )))m"
 else
   DURATION="${DURATION_S}s"
 fi
@@ -92,6 +92,11 @@ fi
 SESSION_ID=$(echo "$input" | jq -r '.session_id // empty')
 YOLO=""
 MARKER="$HOME/.claude-yolo-sessions/${SESSION_ID}.json"
+if [ ! -f "$MARKER" ]; then
+  # Fallback: check if any marker exists for the current project (handles /compact changing session_id)
+  FALLBACK=$(grep -rl "\"project\": \"${CWD/#\~/$HOME}\"" "$HOME/.claude-yolo-sessions/" 2>/dev/null | head -1)
+  [ -n "$FALLBACK" ] && MARKER="$FALLBACK"
+fi
 if [ -f "$MARKER" ]; then
   RED=$'\033[38;5;210m'
   NEEDS_RESTART=$(jq -r '.needs_restart // false' "$MARKER" 2>/dev/null)
@@ -102,5 +107,5 @@ if [ -f "$MARKER" ]; then
   fi
 fi
 
-print "$LINE1"
-echo "${MODEL}${SEP}${REM_PCT}% context remaining${SEP}duration ${DURATION}${SEP}${TOTAL_CHANGES} changes${SEP}\$${TOTAL_COST}${SEP}5h rl: ${RATE_5H}%${SEP}7d rl: ${RATE_7D}%${YOLO}"
+print "${LINE1}${YOLO}"
+echo "${MODEL}${SEP}${REM_PCT}% context remaining${SEP}${DURATION}${SEP}${TOTAL_CHANGES} changes${SEP}\$${TOTAL_COST}${SEP}5h: ${RATE_5H}%${SEP}7d: ${RATE_7D}%"
