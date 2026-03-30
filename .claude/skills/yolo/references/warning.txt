@@ -1,4 +1,6 @@
 
+              ***  HERE BE DRAGONS  ***
+
                   ___====-_  _-====___
             _--^^^#####//      \\#####^^^--_
          _-^##########// (    ) \\##########^-_
@@ -17,8 +19,6 @@
                    (vvv(VVV)(VVV)vvv)
 
 +----------------------------------------------------------+
-|                                                          |
-|              ***  HERE BE DRAGONS  ***                   |
 |                                                          |
 |  Yolo mode auto-approves ALL permission                  |
 |  prompts with zero safety checks.                        |
