@@ -1,7 +1,7 @@
 ---
 name: yolo
 description: "Toggle per-session YOLO mode (auto-approve permissions with configurable deny list). Use when --dangerously-skip-permissions is broken. /yolo on, /yolo off, /yolo configure, /yolo status"
-version: "4.1.0"
+version: "4.4.0"
 argument-hint: "[on|off|configure|status|--version]"
 allowed-tools: Read, Edit, Write, Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(rm *), Bash(find *), Bash(ls *), Bash(date *), Bash(jq *), AskUserQuestion
 ---
