@@ -5,6 +5,8 @@ input=$(cat)
 # Model and context
 MODEL=$(echo "$input" | jq -r '.model.display_name // "unknown"')
 PCT=$(echo "$input" | jq -r '.context_window.used_percentage // 0' | cut -d. -f1)
+CTX_SIZE=$(echo "$input" | jq -r '.context_window.context_window_size // 0')
+CTX_LABEL=$(( CTX_SIZE / 1000 ))k
 
 # Project and git info
 CWD=$(echo "$input" | jq -r '.cwd // ""')
@@ -82,4 +84,4 @@ if [ -f "$MARKER" ]; then
 fi
 
 print "$LINE1"
-echo "[${MODEL}] ${PCT}% context${YOLO}"
+echo "${MODEL}: ${PCT}% of ${CTX_LABEL} used${YOLO}"
