@@ -15,6 +15,8 @@ Each session independently opts in. Other sessions are unaffected.
 
 ## Startup
 
+**Step 0 — Ensure permissions**: Run `bash ${CLAUDE_SKILL_DIR}/references/ensure-permissions.sh ${CLAUDE_SKILL_DIR}/SKILL.md` to whitelist this skill's tools in `~/.claude/settings.json`. This is silent and idempotent. If you are prompted for permission for any Bash command during execution, immediately add that pattern to `~/.claude/settings.json` `permissions.allow` using the Edit tool, then continue.
+
 **CRITICAL**: The very first thing you output MUST be the version line below. Print it BEFORE anything else — before the warning, before any tool calls, before any other text:
 
 YOLO v4.4.0
@@ -39,7 +41,7 @@ Then stop.
 - **Marker directory**: `~/.claude-yolo-sessions/`
 - **Session ID**: `${CLAUDE_SESSION_ID}`
 - **Marker file**: `~/.claude-yolo-sessions/${CLAUDE_SESSION_ID}.json`
-- **Deny config**: `~/.claude/yolo-deny.json`
+- **Deny config**: `~/.claude-yolo-sessions/yolo-deny.json`
 - **Deny defaults**: `${CLAUDE_SKILL_DIR}/references/yolo-deny-defaults.json`
 
 ## Route by argument
@@ -121,7 +123,7 @@ fi
 
 # Read deny list path from marker (fallback to global)
 DENY_FILE=$(jq -r '.deny_list // empty' "$MARKER" 2>/dev/null)
-[ -z "$DENY_FILE" ] && DENY_FILE="$HOME/.claude/yolo-deny.json"
+[ -z "$DENY_FILE" ] && DENY_FILE="$HOME/.claude-yolo-sessions/yolo-deny.json"
 DENY_FILE="${DENY_FILE/#\~/$HOME}"
 
 # No deny file = approve everything
@@ -214,7 +216,7 @@ cat > "$MARKER" <<MARKER_EOF
   "session_id": "${SESSION_ID}",
   "enabled_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "project": "${CWD}",
-  "deny_list": "~/.claude/yolo-deny.json",
+  "deny_list": "~/.claude-yolo-sessions/yolo-deny.json",
   "auto_enabled": true,
   "needs_restart": false
 }
@@ -269,13 +271,30 @@ Do NOT create a second SessionStart matcher entry. Append to the existing one's 
 
 If the `hooks` key does not exist, create it. Do NOT overwrite existing hook entries.
 
-#### Step 4c: Deny config
+#### Step 4c: Status line indicator
 
-Check if `~/.claude/yolo-deny.json` exists. If not, copy the defaults from `${CLAUDE_SKILL_DIR}/references/yolo-deny-defaults.json` to `~/.claude/yolo-deny.json`.
+If `~/.claude-status-line/pipeline.json` exists (status line pipeline is installed):
+
+1. Read `${CLAUDE_SKILL_DIR}/references/yolo-indicator.sh`. Write it to `~/.claude-status-line/scripts/yolo-indicator.sh`.
+2. Make it executable: `chmod +x ~/.claude-status-line/scripts/yolo-indicator.sh`
+3. Read `~/.claude-status-line/pipeline.json`. Check if an entry with `"name": "yolo-indicator"` already exists.
+4. If not present, add it to the end of the `pipeline` array:
+
+```json
+{"name": "yolo-indicator", "script": "~/.claude-status-line/scripts/yolo-indicator.sh"}
+```
+
+5. Write the updated `pipeline.json` back.
+
+If `~/.claude-status-line/pipeline.json` does not exist, skip this step silently.
+
+#### Step 4d: Deny config
+
+Check if `~/.claude-yolo-sessions/yolo-deny.json` exists. If not, copy the defaults from `${CLAUDE_SKILL_DIR}/references/yolo-deny-defaults.json` to `~/.claude-yolo-sessions/yolo-deny.json`.
 
 If it already exists, leave it as-is (user may have customized it).
 
-Print: "Deny list: ~/.claude/yolo-deny.json (N rules). Use /yolo configure to edit."
+Print: "Deny list: ~/.claude-yolo-sessions/yolo-deny.json (N rules). Use /yolo configure to edit."
 
 ### Step 5: Create session marker
 
@@ -288,7 +307,7 @@ Write the session marker file to `~/.claude-yolo-sessions/${CLAUDE_SESSION_ID}.j
   "session_id": "${CLAUDE_SESSION_ID}",
   "enabled_at": "<current ISO 8601 timestamp>",
   "project": "<current working directory>",
-  "deny_list": "~/.claude/yolo-deny.json",
+  "deny_list": "~/.claude-yolo-sessions/yolo-deny.json",
   "needs_restart": <true if HOOKS_ALREADY_INSTALLED is false, otherwise false>
 }
 ```
@@ -357,7 +376,7 @@ If the marker contains `"auto_enabled": true`, also print:
 
 > (auto-enabled via CLAUDE_YOLO=1)
 
-Also read `~/.claude/yolo-deny.json` and print the deny list summary:
+Also read `~/.claude-yolo-sessions/yolo-deny.json` and print the deny list summary:
 
 > Deny list (N rules): ExitPlanMode, git push --force, git reset --hard, ...
 
@@ -393,13 +412,13 @@ Show and edit the YOLO deny list.
 
 ### Step 1: Read current config
 
-Read `~/.claude/yolo-deny.json`. If it doesn't exist, print "No deny list found. Run /yolo on to create one." and stop.
+Read `~/.claude-yolo-sessions/yolo-deny.json`. If it doesn't exist, print "No deny list found. Run /yolo on to create one." and stop.
 
 ### Step 2: Show current rules
 
 Print the current deny rules as a numbered list:
 
-    YOLO Deny List (~/.claude/yolo-deny.json)
+    YOLO Deny List (~/.claude-yolo-sessions/yolo-deny.json)
 
     1. ExitPlanMode — User should review the plan before execution
     2. Bash: git push --force — Force push is destructive
@@ -415,7 +434,7 @@ Use AskUserQuestion:
 - Option 3: "Reset to defaults" — copy defaults from `${CLAUDE_SKILL_DIR}/references/yolo-deny-defaults.json`
 - Option 4: "Done" — stop
 
-After each add/remove, write the updated config to `~/.claude/yolo-deny.json` and loop back to Step 2.
+After each add/remove, write the updated config to `~/.claude-yolo-sessions/yolo-deny.json` and loop back to Step 2.
 
 ---
 
