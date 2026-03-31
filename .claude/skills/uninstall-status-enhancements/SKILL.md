@@ -1,7 +1,7 @@
 ---
 name: uninstall-status-enhancements
 description: "Remove enhanced Claude Code status line script and configuration"
-version: "1.0.0"
+version: "1.1.0"
 argument-hint: "[--version]"
 allowed-tools: Read, Edit, Bash(rm *), Bash(test *), AskUserQuestion
 ---
@@ -14,7 +14,7 @@ Remove the enhanced status line script and configuration.
 
 **CRITICAL**: Print the version line first:
 
-uninstall-status-enhancements v1.0.0
+uninstall-status-enhancements v1.1.0
 
 **Version check**: Read `${CLAUDE_SKILL_DIR}/SKILL.md` from disk and extract the `version:` field from frontmatter. Compare to this skill's version (1.0.0). If they differ, print:
 
@@ -23,13 +23,14 @@ uninstall-status-enhancements v1.0.0
 Then continue running.
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> uninstall-status-enhancements v1.0.0
+> uninstall-status-enhancements v1.1.0
 
 Then stop.
 
 ## Constants
 
 - **Script path**: `~/.claude/scripts/statusline.sh`
+- **Cleanup script path**: `~/.claude/scripts/repo-cleanup-status.sh`
 - **Settings file**: `~/.claude/settings.json`
 
 ## Uninstall
@@ -50,7 +51,7 @@ Read `~/.claude/settings.json`. Remove the `statusLine` key entirely. Preserve a
 
 ### Step 3: Remove script
 
-Delete the script file: `rm -f ~/.claude/scripts/statusline.sh`
+Delete the script files: `rm -f ~/.claude/scripts/statusline.sh ~/.claude/scripts/repo-cleanup-status.sh`
 
 ### Step 4: Confirm
 

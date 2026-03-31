@@ -86,6 +86,16 @@ if [[ -n "$BRANCH" ]]; then
   else
     LINE1="${LINE1}${SEP}[up to date]"
   fi
+
+  # Repo cleanup status
+  CLEANUP_SCRIPT="$HOME/.claude/scripts/repo-cleanup-status.sh"
+  if [[ -x "$CLEANUP_SCRIPT" ]]; then
+    CLEANUP_STATUS=$("$CLEANUP_SCRIPT" 2>/dev/null)
+    if [[ -n "$CLEANUP_STATUS" ]]; then
+      WARN=$'\033[38;5;208m'
+      LINE1="${LINE1}${SEP}${WARN}⚠ ${CLEANUP_STATUS}${RST}"
+    fi
+  fi
 fi
 
 # Detect YOLO mode

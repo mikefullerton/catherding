@@ -1,20 +1,20 @@
 ---
 name: install-status-enhancements
-description: "Install enhanced Claude Code status line with project info, git stats, worktree detection, and YOLO indicator"
-version: "1.0.0"
+description: "Install enhanced Claude Code status line with project info, git stats, worktree detection, repo cleanup status, and YOLO indicator"
+version: "1.1.0"
 argument-hint: "[--version]"
 allowed-tools: Read, Write, Edit, Bash(chmod *), Bash(mkdir *), Bash(test *), AskUserQuestion
 ---
 
-# Install Status Enhancements v1.0.0
+# Install Status Enhancements v1.1.0
 
-Install an enhanced status line for Claude Code that shows project info, git branch/stats, worktree detection, and YOLO mode indicator.
+Install an enhanced status line for Claude Code that shows project info, git branch/stats, worktree detection, repo cleanup status, and YOLO mode indicator.
 
 ## Startup
 
 **CRITICAL**: Print the version line first:
 
-install-status-enhancements v1.0.0
+install-status-enhancements v1.1.0
 
 **Version check**: Read `${CLAUDE_SKILL_DIR}/SKILL.md` from disk and extract the `version:` field from frontmatter. Compare to this skill's version (1.0.0). If they differ, print:
 
@@ -23,14 +23,16 @@ install-status-enhancements v1.0.0
 Then continue running.
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> install-status-enhancements v1.0.0
+> install-status-enhancements v1.1.0
 
 Then stop.
 
 ## Constants
 
 - **Script source**: `${CLAUDE_SKILL_DIR}/references/statusline.sh`
+- **Cleanup script source**: `${CLAUDE_SKILL_DIR}/references/repo-cleanup-status.sh`
 - **Script destination**: `~/.claude/scripts/statusline.sh`
+- **Cleanup script destination**: `~/.claude/scripts/repo-cleanup-status.sh`
 - **Settings file**: `~/.claude/settings.json`
 
 ## Install
@@ -49,7 +51,9 @@ Create the directory if needed: `mkdir -p ~/.claude/scripts`
 
 Read the reference script from `${CLAUDE_SKILL_DIR}/references/statusline.sh`. Write it to `~/.claude/scripts/statusline.sh`.
 
-Make it executable: `chmod +x ~/.claude/scripts/statusline.sh`
+Read the cleanup status script from `${CLAUDE_SKILL_DIR}/references/repo-cleanup-status.sh`. Write it to `~/.claude/scripts/repo-cleanup-status.sh`.
+
+Make both executable: `chmod +x ~/.claude/scripts/statusline.sh ~/.claude/scripts/repo-cleanup-status.sh`
 
 ### Step 3: Configure settings.json
 
@@ -81,4 +85,5 @@ Print:
 > - Project path (collapsed worktree paths)
 > - Git branch with ahead/behind/dirty stats
 > - Worktree indicator
+> - Repo cleanup status (stale branches, merged branches, prunable/finished worktrees)
 > - YOLO mode indicator with restart detection
