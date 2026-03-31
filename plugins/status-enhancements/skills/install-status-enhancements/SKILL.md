@@ -30,8 +30,11 @@ Then stop.
 - **Dispatcher source**: `${CLAUDE_SKILL_DIR}/references/dispatcher.sh`
 - **Base info source**: `${CLAUDE_SKILL_DIR}/references/base-info.sh`
 - **Repo cleanup source**: `${CLAUDE_SKILL_DIR}/references/repo-cleanup.sh`
+- **Progress display source**: `${CLAUDE_SKILL_DIR}/references/progress-display.sh`
+- **Update progress source**: `${CLAUDE_SKILL_DIR}/references/update-progress.sh`
 - **Install directory**: `~/.claude-status-line/`
 - **Scripts directory**: `~/.claude-status-line/scripts/`
+- **Progress directory**: `~/.claude-status-line/progress/`
 - **Pipeline config**: `~/.claude-status-line/pipeline.json`
 - **Settings file**: `~/.claude/settings.json`
 
@@ -57,7 +60,7 @@ If the user says no, print "Keeping existing status line." and stop.
 ### Step 2: Create directory structure
 
 ```bash
-mkdir -p ~/.claude-status-line/scripts
+mkdir -p ~/.claude-status-line/scripts ~/.claude-status-line/progress
 ```
 
 ### Step 3: Install scripts
@@ -68,10 +71,14 @@ Read the base info script from `${CLAUDE_SKILL_DIR}/references/base-info.sh`. Wr
 
 Read the repo cleanup script from `${CLAUDE_SKILL_DIR}/references/repo-cleanup.sh`. Write it to `~/.claude-status-line/scripts/repo-cleanup.sh`.
 
+Read the progress display script from `${CLAUDE_SKILL_DIR}/references/progress-display.sh`. Write it to `~/.claude-status-line/scripts/progress-display.sh`.
+
+Read the update progress helper from `${CLAUDE_SKILL_DIR}/references/update-progress.sh`. Write it to `~/.claude-status-line/progress/update-progress.sh`.
+
 Make all executable:
 
 ```bash
-chmod +x ~/.claude-status-line/dispatcher.sh ~/.claude-status-line/scripts/base-info.sh ~/.claude-status-line/scripts/repo-cleanup.sh
+chmod +x ~/.claude-status-line/dispatcher.sh ~/.claude-status-line/scripts/base-info.sh ~/.claude-status-line/scripts/repo-cleanup.sh ~/.claude-status-line/scripts/progress-display.sh ~/.claude-status-line/progress/update-progress.sh
 ```
 
 ### Step 4: Create pipeline config
@@ -82,12 +89,13 @@ If `~/.claude-status-line/pipeline.json` does not exist, write it:
 {
   "pipeline": [
     {"name": "base-info", "script": "~/.claude-status-line/scripts/base-info.sh"},
-    {"name": "repo-cleanup", "script": "~/.claude-status-line/scripts/repo-cleanup.sh"}
+    {"name": "repo-cleanup", "script": "~/.claude-status-line/scripts/repo-cleanup.sh"},
+    {"name": "progress-display", "script": "~/.claude-status-line/scripts/progress-display.sh"}
   ]
 }
 ```
 
-If it already exists, ensure `base-info` and `repo-cleanup` entries are present. Add any that are missing. Do not remove existing entries from other plugins.
+If it already exists, ensure `base-info`, `repo-cleanup`, and `progress-display` entries are present. Add any that are missing. Do not remove existing entries from other plugins.
 
 ### Step 5: Configure settings.json
 
@@ -109,5 +117,22 @@ Print:
 > Pipeline scripts:
 > - base-info: project path, git branch/stats, worktree detection, model/context
 > - repo-cleanup: stale branches, merged branches, prunable/finished worktrees
+> - progress-display: per-session progress bar
+>
+> **Progress display** — show a progress bar from any skill or agent:
+> ```bash
+> ~/.claude-status-line/progress/update-progress.sh "Building App" "Step" 3 5
+> ```
+> Clear when done:
+> ```bash
+> ~/.claude-status-line/progress/update-progress.sh --clear
+> ```
+> Each call prints output to trigger a status line refresh. Progress is scoped per session.
+>
+> **Permissions** — add to `~/.claude/settings.json` `permissions.allow`:
+> ```json
+> "Bash($HOME/.claude-status-line/progress/update-progress.sh *)",
+> "Bash(~/.claude-status-line/progress/update-progress.sh *)"
+> ```
 >
 > Other plugins can register additional scripts in ~/.claude-status-line/pipeline.json

@@ -148,6 +148,23 @@ SESSION_ID=$(echo "$CLAUDE" | jq -r '.session_id // ""')
 CWD=$(echo "$CLAUDE" | jq -r '.cwd // ""')
 ```
 
+### Using the progress bar
+
+The built-in progress display renders a boxed progress bar below the status lines. Use the helper script — no need to write a pipeline script:
+
+```bash
+# Update progress (each call prints output to trigger status line refresh)
+~/.claude-status-line/progress/update-progress.sh "Building App" "Step" 1 5
+~/.claude-status-line/progress/update-progress.sh "Building App" "Step" 2 5
+
+# Clear when done
+~/.claude-status-line/progress/update-progress.sh --clear
+```
+
+The helper automatically discovers the current Claude session ID by walking the process tree, so progress is scoped per session.
+
+Arguments: `<title> <subtitle> <count> <max>`
+
 ### ANSI color palette (matching built-in scripts)
 
 ```bash
