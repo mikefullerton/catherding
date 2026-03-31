@@ -4,6 +4,7 @@ version: "1.0.0"
 description: "Find and fix stale branches, deleteable branches, finished worktrees, uncommitted files, and other repo hygiene issues. Triggers on 'cleanup repo', 'clean up repo', or /cleanup-repo."
 argument-hint: "[--dry-run] [--version]"
 allowed-tools: Read, Glob, Grep, Bash(git *, gh *, ls *, rm *, test *), AskUserQuestion
+model: sonnet
 ---
 
 ## Version Check

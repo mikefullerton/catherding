@@ -4,6 +4,8 @@ description: "Install enhanced Claude Code status line with project info, git st
 version: "1.1.0"
 argument-hint: "[--version]"
 allowed-tools: Read, Write, Edit, Bash(chmod *), Bash(mkdir *), Bash(test *), AskUserQuestion
+model: haiku
+disable-model-invocation: true
 ---
 
 # Install Status Enhancements v1.1.0

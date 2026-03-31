@@ -5,6 +5,7 @@ description: "Install or uninstall the worktree-and-PR git workflow rule into a 
 argument-hint: "[--uninstall] [--version]"
 disable-model-invocation: true
 allowed-tools: Read, Write, Bash(mkdir *), Bash(ls *), Glob
+model: haiku
 ---
 
 ## Version Check

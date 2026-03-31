@@ -5,6 +5,7 @@ description: "Optimize Claude Code rules by consolidating into a single efficien
 argument-hint: "[path] [--revert] [--dry-run]"
 allowed-tools: Read, Glob, Grep, Write, Edit, Bash(wc *, rm, cp, mkdir, ls, cat), AskUserQuestion
 disable-model-invocation: true
+model: sonnet
 ---
 
 ## Version Check

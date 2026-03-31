@@ -4,6 +4,8 @@ description: "Remove enhanced Claude Code status line script and configuration"
 version: "1.1.0"
 argument-hint: "[--version]"
 allowed-tools: Read, Edit, Bash(rm *), Bash(test *), AskUserQuestion
+model: haiku
+disable-model-invocation: true
 ---
 
 # Uninstall Status Enhancements v1.0.0

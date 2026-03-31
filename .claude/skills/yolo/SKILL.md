@@ -4,6 +4,7 @@ description: "Toggle per-session YOLO mode (auto-approve permissions with config
 version: "4.4.0"
 argument-hint: "[on|off|configure|status|--version]"
 allowed-tools: Read, Edit, Write, Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(rm *), Bash(find *), Bash(ls *), Bash(date *), Bash(jq *), AskUserQuestion
+model: sonnet
 ---
 
 # YOLO Mode v4.4.0

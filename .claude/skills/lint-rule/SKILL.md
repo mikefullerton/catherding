@@ -4,6 +4,7 @@ description: "Lint a Claude Code rule file against best practices. Triggers on '
 argument-hint: "[path-or-name]"
 allowed-tools: Read, Glob, Grep, WebFetch, Bash(wc *), AskUserQuestion
 context: fork
+model: sonnet
 ---
 
 ## Version Check

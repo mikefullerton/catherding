@@ -5,6 +5,7 @@ description: "Walk through installing recommended Claude Code plugins, LSPs, and
 argument-hint: "[--version]"
 disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Bash(cat *), Bash(ls *), Bash(jq *), AskUserQuestion
+model: haiku
 ---
 
 # Install Recommended Tools v1.0.0
