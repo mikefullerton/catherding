@@ -69,8 +69,9 @@ If the project has no required checks, proceed directly to merge.
 ## Merge and Clean Up
 
 1. **Merge** the PR using the project's preferred merge strategy. Default to squash merge via `gh pr merge --squash`.
-2. **Clean up** the worktree via `git worktree remove`.
-3. **Pull main** to sync via `git pull`.
+2. **Change back to the original project directory** — you cannot remove a worktree while your shell is inside it.
+3. **Clean up the worktree immediately** via `git worktree remove <path>`. This is not optional. Every merged PR MUST have its worktree removed before the session ends.
+4. **Pull main** to sync via `git pull`.
 
 ---
 
@@ -82,5 +83,5 @@ If the project has no required checks, proceed directly to merge.
 - Do not accumulate uncommitted changes. Commit after each logical unit.
 - Do not push only at the end. Push after every commit.
 - Do not merge with failing checks. Fix failures first.
-- Do not leave stale worktrees. Clean up after merge.
+- Do not leave stale worktrees. Clean up immediately after merge — never end a session with a merged PR's worktree still present.
 - Do not skip the draft-to-ready transition. Every PR starts as a draft and is explicitly marked ready when complete.
