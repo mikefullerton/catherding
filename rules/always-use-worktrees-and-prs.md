@@ -12,9 +12,11 @@ Before writing any code, you MUST set up the working environment:
 
 1. **Create a worktree** from the project's main branch using `git worktree add`. All work happens in the worktree. Never commit directly to the main branch.
 
-2. **Create a draft PR** immediately — before any code is written. Make an empty commit, push the branch, and create the PR with `gh pr create --draft`. The PR serves as the living record of the work from the very first moment.
+2. **Change into the worktree directory** immediately after creating it. All subsequent commands — commits, pushes, builds, tests — MUST run from the worktree directory, not the original project directory. Use `cd` to switch.
 
-3. **Verify** — confirm the draft PR URL was returned and the remote branch exists before proceeding to any code changes. If either failed, fix the issue before continuing.
+3. **Create a draft PR** immediately — before any code is written. Make an empty commit, push the branch, and create the PR with `gh pr create --draft`. The PR serves as the living record of the work from the very first moment.
+
+4. **Verify** — confirm the draft PR URL was returned and the remote branch exists before proceeding to any code changes. If either failed, fix the issue before continuing.
 
 ### Branch Naming
 
@@ -75,6 +77,7 @@ If the project has no required checks, proceed directly to merge.
 ## MUST NOT
 
 - Do not commit directly to the main branch. All work goes through a worktree and PR.
+- Do not run commands from the original project directory after creating a worktree. Change into the worktree directory first.
 - Do not start writing code before the draft PR exists. The PR is created first.
 - Do not accumulate uncommitted changes. Commit after each logical unit.
 - Do not push only at the end. Push after every commit.
