@@ -5,7 +5,7 @@ description: "Generate an HTML dashboard showing all rules, skills, plugins, MCP
 argument-hint: "[--version]"
 disable-model-invocation: true
 context: fork
-model: sonnet
+model: opus
 allowed-tools: Read, Glob, Grep, Bash(which *), Bash(node *), Bash(python3 *), Bash(swift *), Bash(git *), Bash(gh *), Bash(npm *), Bash(docker *), Bash(go *), Bash(rustc *), Bash(java *), Bash(dotnet *), Bash(kubectl *), Bash(terraform *), Bash(wrangler *), Bash(code *), Bash(ls *), Bash(cat *), Bash(jq *), Bash(open *), Bash(uname *), Bash(sw_vers *), Bash(bun *), Bash(bash *), Write
 ---
 
