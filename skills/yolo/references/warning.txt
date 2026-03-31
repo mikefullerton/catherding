@@ -1,0 +1,40 @@
+                      ===  HERE BE DRAGONS  ===
+
+                      ___====-_  _-====___
+                _--^^^#####//      \\#####^^^--_
+             _-^##########// (    ) \\##########^-_
+            -############//  |\^^/|  \\############-
+          _/############//   (@::@)   \\############\_
+         /#############((     \\//     ))#############\
+        -###############\\    (oo)    //###############-
+       -#################\\  / VV \  //#################-
+      -###################\\/      \//###################-
+     _#/|##########/\######(   /\   )######/\##########|\#_
+     |/ |#/\#/\#/\/  \#/\##\  /  \  /##/\#/  \/\#/\#/\#| \|
+     `  |/  V  V '   V  \#\| |    | |/#/  V   ' V  V  \|  '
+      `   `   `      `   / | |    | | \   '      '  '   '
+                        (  | |    | |  )
+                       __\ | |____| | /__
+                       (vvv(VVV)(VVV)vvv)
+
+    +----------------------------------------------------------+
+    |                                                          |
+    |  YOLO mode auto-approves almost ALL permissions          |
+    |  (with some important exceptions).                       |
+    |                                                          |
+    |  This means Claude can:                                  |
+    |    - Run any shell command                               |
+    |    - Edit or delete any file                             |
+    |    - Push to any remote                                  |
+    |    - Do anything -- without asking                       |
+    |                                                          |
+    +----------------------------------------------------------+
+
+    Workaround for known bugs:
+      anthropics/claude-code#40241
+      anthropics/claude-code#40136
+
+    --dangerously-skip-permissions docs:
+    https://code.claude.com/docs/en/permission-modes
+
+                  ===  BE CAREFUL OUT THERE  ===
