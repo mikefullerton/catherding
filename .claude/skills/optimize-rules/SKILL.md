@@ -1,8 +1,8 @@
 ---
 name: optimize-rules
-version: "1.0.0"
+version: "1.1.0"
 description: "Optimize Claude Code rules by consolidating into a single efficient file. Triggers on 'optimize rules', 'optimize my rules', or /optimize-rules."
-argument-hint: "[path] [--revert]"
+argument-hint: "[path] [--revert] [--dry-run]"
 allowed-tools: Read, Glob, Grep, Write, Edit, Bash(wc *, rm, cp, mkdir, ls, cat), AskUserQuestion
 disable-model-invocation: true
 ---
@@ -11,15 +11,15 @@ disable-model-invocation: true
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
 
-> optimize-rules v1.0.0
+> optimize-rules v1.1.0
 
 Then stop. Do not continue with the rest of the skill.
 
-Otherwise, print `optimize-rules v1.0.0` as the first line of output, then proceed.
+Otherwise, print `optimize-rules v1.1.0` as the first line of output, then proceed.
 
-**Version check**: Read `${CLAUDE_SKILL_DIR}/SKILL.md` from disk and extract the `version:` field from frontmatter. If it differs from this skill's version (1.0.0), print:
+**Version check**: Read `${CLAUDE_SKILL_DIR}/SKILL.md` from disk and extract the `version:` field from frontmatter. If it differs from this skill's version (1.1.0), print:
 
-> ⚠ This skill is running v1.0.0 but vA.B.C is installed. Restart the session to use the latest version.
+> ⚠ This skill is running v1.1.0 but vA.B.C is installed. Restart the session to use the latest version.
 
 Continue running — do not stop.
 
@@ -35,6 +35,7 @@ Consolidate multiple Claude Code rule files into a single optimized file, reduci
 - **Always** prompts for confirmation before modifying files — there is no auto mode
 - **Never** deletes original rule files without first verifying the backup is complete (file count matches)
 - If validation fails (a constraint is missing from the output), automatically revert
+- **`--dry-run` mode is read-only** — it never modifies, creates, or deletes any files
 
 ---
 
@@ -43,7 +44,8 @@ Consolidate multiple Claude Code rule files into a single optimized file, reduci
 Parse `$ARGUMENTS` for flags and path:
 
 1. **`--revert`** → jump to the **Revert Workflow** (Step 3)
-2. **Remaining text** → treat as the path to the rules directory
+2. **`--dry-run`** → set dry-run mode (run audit and proposal only, no modifications)
+3. **Remaining text** → treat as the path to the rules directory
 
 If no path is provided, default to `.claude/rules/`.
 
@@ -56,6 +58,8 @@ And stop.
 ---
 
 ## Step 2: Disclaimer
+
+**If `--dry-run` is set**, skip this step entirely — proceed directly to Step 4.
 
 Before any work, print:
 
@@ -105,7 +109,7 @@ _Runs when `--revert` is present, or called internally by Step 4 during re-optim
 
    And stop.
 
-2. Check if the backup directory already exists. If it does:
+2. **Skip if `--dry-run`**. Check if the backup directory already exists. If it does:
    - Print: "Previous optimization detected. Reverting to originals first..."
    - Run the **Revert Workflow** (Step 3) internally.
    - After revert completes, re-glob the target directory to pick up the restored files.
@@ -143,6 +147,35 @@ List the per-file breakdown:
   ...
 ```
 
+**If `--dry-run` is set**, also print a detailed landscape report after the audit summary:
+
+```
+=== RULES LANDSCAPE ===
+Directory: <absolute path>
+Previously optimized: yes/no (backup directory exists: yes/no)
+
+--- File Details ---
+<For each .md file, print:>
+  <filename>
+    Type: <symlink → target | regular file>
+    Frontmatter: <list key frontmatter fields: globs, description>
+    Lines: <n>  Bytes: <n>
+    Constraints: <n> MUST, <n> MUST NOT, <n> SHOULD
+    External reads: <list any mandatory file references, or "none">
+    Scope: <"gated by globs: <pattern>" or "ungated (applies to all files)">
+
+--- Cross-File Analysis ---
+Duplicate constraints: <n>
+  <For each duplicate group, list the constraint text and which files contain it>
+
+Semantic overlaps: <n>
+  <For each overlap, list the constraint variants and which files contain them>
+
+--- Symlink Map ---
+<For each symlink, show: filename → absolute target path>
+<For each regular file, show: filename (regular file)>
+```
+
 ---
 
 ## Phase 2: Propose Optimizations
@@ -172,7 +205,16 @@ Strategy:
 Estimated reduction: ~<pct>%
 ```
 
-Use AskUserQuestion to confirm:
+**If `--dry-run` is set**, print:
+
+```
+=== DRY RUN COMPLETE ===
+No files were modified. Run `/optimize-rules` (without --dry-run) to execute.
+```
+
+Then stop. Do not continue to Phase 3.
+
+**Otherwise**, use AskUserQuestion to confirm:
 
 > "Proceed with optimization?"
 
@@ -242,6 +284,16 @@ To revert: /optimize-rules --revert [path]
 **Optimize a custom rules path:**
 ```
 /optimize-rules path/to/my/rules/
+```
+
+**Preview what optimization would do (read-only):**
+```
+/optimize-rules --dry-run
+```
+
+**Dry-run a custom rules path:**
+```
+/optimize-rules --dry-run path/to/my/rules/
 ```
 
 **Restore original rules after optimization:**
