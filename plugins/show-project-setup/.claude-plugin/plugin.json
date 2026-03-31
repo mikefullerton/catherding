@@ -1,0 +1,9 @@
+{
+  "name": "show-project-setup",
+  "description": "Generate an HTML dashboard showing all rules, skills, plugins, MCP servers, and dev tools",
+  "version": "2.0.0",
+  "author": {
+    "name": "Mike Fullerton"
+  },
+  "license": "MIT"
+}

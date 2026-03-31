@@ -1,0 +1,9 @@
+{
+  "name": "yolo",
+  "description": "Toggle per-session YOLO mode (auto-approve permissions with configurable deny list)",
+  "version": "4.4.0",
+  "author": {
+    "name": "Mike Fullerton"
+  },
+  "license": "MIT"
+}
