@@ -1,6 +1,11 @@
 {
   "deny": [
     {
+      "matcher": "AskUserQuestion",
+      "pattern": "",
+      "reason": "YOLO mode should not pause to ask questions"
+    },
+    {
       "matcher": "ExitPlanMode",
       "pattern": "",
       "reason": "User should review the plan before execution"
