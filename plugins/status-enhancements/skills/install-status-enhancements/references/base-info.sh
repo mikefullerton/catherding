@@ -95,16 +95,22 @@ if [ -n "$BRANCH" ]; then
   fi
 fi
 
-# Effort level from settings
-EFFORT=$(jq -r '.effortLevel // empty' "$HOME/.claude/settings.json" 2>/dev/null)
+# Settings
+SETTINGS="$HOME/.claude/settings.json"
+EFFORT=$(jq -r '.effortLevel // empty' "$SETTINGS" 2>/dev/null)
+THINKING=$(jq -r '.alwaysThinkingEnabled // false' "$SETTINGS" 2>/dev/null)
 
 LINE2="${MODEL}"
+if [ "$THINKING" = "true" ]; then
+  LINE2="${LINE2} | thinking"
+fi
 if [ -n "$EFFORT" ]; then
   LINE2="${LINE2}${SEP}${EFFORT}"
 fi
 LINE2="${LINE2}${SEP}${DURATION}${SEP}${TOTAL_CHANGES} changes${SEP}\$${TOTAL_COST}${SEP}5h: ${RATE_5H}%${SEP}7d: ${RATE_7D}%"
 
-# Context remaining — red + warning if Opus with 1M context and <80%
+# Context used — red + warning if Opus with 1M context and >20% used
+USED_PCT=$(( 100 - REM_PCT ))
 CONTEXT_TOTAL=$(echo "$CLAUDE" | jq -r '.context_window.total_tokens // 0')
 MODEL_ID=$(echo "$CLAUDE" | jq -r '.model.id // ""')
 RED=$'\033[38;5;210m'
@@ -112,10 +118,10 @@ IS_OPUS_1M=false
 if echo "$MODEL_ID" | grep -q "opus" && [ "$CONTEXT_TOTAL" -ge 1000000 ] 2>/dev/null; then
   IS_OPUS_1M=true
 fi
-if $IS_OPUS_1M && [ "$REM_PCT" -lt 80 ] 2>/dev/null; then
-  LINE2="${LINE2}${SEP}${RED}${REM_PCT}% remaining (compact needed)${RST}"
+if $IS_OPUS_1M && [ "$USED_PCT" -gt 20 ] 2>/dev/null; then
+  LINE2="${LINE2}${SEP}${RED}${USED_PCT}% context (compact needed)${RST}"
 else
-  LINE2="${LINE2}${SEP}${REM_PCT}% remaining"
+  LINE2="${LINE2}${SEP}${USED_PCT}% context"
 fi
 
 # Output pipeline JSON
