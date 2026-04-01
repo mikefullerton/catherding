@@ -18,12 +18,6 @@ fi
 
 MARKER="$HOME/.claude-yolo-sessions/${SESSION_ID}.json"
 
-# Fallback: check for project-level marker (handles /compact changing session_id)
-if [ ! -f "$MARKER" ]; then
-  FALLBACK=$(grep -rl "\"project\": \"${CWD}\"" "$HOME/.claude-yolo-sessions/" 2>/dev/null | head -1)
-  [ -n "$FALLBACK" ] && MARKER="$FALLBACK"
-fi
-
 if [ -f "$MARKER" ]; then
   RED=$'\033[38;5;210m'
   RST=$'\033[0m'

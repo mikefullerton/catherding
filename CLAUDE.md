@@ -5,7 +5,7 @@ Personal collection of tools, scripts, Claude Code rules, skills, and extensions
 ## Repository Structure
 
 ```
-.claude/skills/        # 12 Claude Code skills
+.claude/skills/        # 11 Claude Code skills
 .claude/rules/         # 6 rules (active in this repo)
 rules/                 # 6 distributable rules + 1 script
 ```
@@ -14,7 +14,6 @@ rules/                 # 6 distributable rules + 1 script
 
 | Skill | Purpose |
 |-------|---------|
-| `/yolo` | Toggle per-session YOLO mode (auto-approve permissions) |
 | `/install-status-enhancements` | Install enhanced Claude Code status line |
 | `/uninstall-status-enhancements` | Remove enhanced status line |
 | `/cleanup-repo` | Find and fix stale branches, worktree issues, repo hygiene |

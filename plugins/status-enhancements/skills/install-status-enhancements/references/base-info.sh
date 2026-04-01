@@ -109,19 +109,20 @@ if [ -n "$EFFORT" ]; then
 fi
 LINE2="${LINE2}${SEP}${DURATION}${SEP}${TOTAL_CHANGES} changes${SEP}\$${TOTAL_COST}${SEP}5h: ${RATE_5H}%${SEP}7d: ${RATE_7D}%"
 
-# Context used — red + warning if Opus with 1M context and >20% used
+# Context used — yellow at 18%+, red at 20%+ (Opus 1M only)
 USED_PCT=$(( 100 - REM_PCT ))
-CONTEXT_TOTAL=$(echo "$CLAUDE" | jq -r '.context_window.total_tokens // 0')
-MODEL_ID=$(echo "$CLAUDE" | jq -r '.model.id // ""')
+YELLOW=$'\033[38;5;220m'
 RED=$'\033[38;5;210m'
 IS_OPUS_1M=false
-if echo "$MODEL_ID" | grep -q "opus" && [ "$CONTEXT_TOTAL" -ge 1000000 ] 2>/dev/null; then
+if echo "$MODEL" | grep -qi "opus" && echo "$MODEL" | grep -q "1M"; then
   IS_OPUS_1M=true
 fi
 if $IS_OPUS_1M && [ "$USED_PCT" -gt 20 ] 2>/dev/null; then
-  LINE2="${LINE2}${SEP}${RED}${USED_PCT}% context (compact needed)${RST}"
+  LINE2="${LINE2}${SEP}${RED}${USED_PCT}% context used (compact needed)${RST}"
+elif $IS_OPUS_1M && [ "$USED_PCT" -ge 18 ] 2>/dev/null; then
+  LINE2="${LINE2}${SEP}${YELLOW}${USED_PCT}% context used${RST}"
 else
-  LINE2="${LINE2}${SEP}${USED_PCT}% context"
+  LINE2="${LINE2}${SEP}${USED_PCT}% context used"
 fi
 
 # Output pipeline JSON

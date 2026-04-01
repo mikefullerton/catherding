@@ -18,8 +18,11 @@ fi
 
 # Count other active sessions
 TOTAL=$(ls "$MARKER_DIR"/*.json 2>/dev/null | grep -v yolo-deny | wc -l | tr -d ' ')
-OTHER=$(( TOTAL - (ACTIVE == true ? 1 : 0) ))
-[ "$ACTIVE" = "true" ] && OTHER=$(( TOTAL - 1 ))
+if [ "$ACTIVE" = "true" ]; then
+  OTHER=$(( TOTAL - 1 ))
+else
+  OTHER=$TOTAL
+fi
 
 # Deny list
 DENY_COUNT=0
