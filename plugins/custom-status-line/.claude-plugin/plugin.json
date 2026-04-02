@@ -1,0 +1,9 @@
+{
+  "name": "custom-status-line",
+  "description": "Composable status line pipeline with project info, git stats, worktree detection, and repo cleanup status",
+  "version": "3.0.0",
+  "author": {
+    "name": "Mike Fullerton"
+  },
+  "license": "MIT"
+}

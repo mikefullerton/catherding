@@ -1,16 +1,16 @@
 ---
-name: install-status-enhancements
-description: "Install composable status line pipeline with project info, git stats, worktree detection, and repo cleanup status"
-version: "2.0.0"
-argument-hint: "[--version]"
-allowed-tools: Read, Write, Edit, Bash(chmod *), Bash(chmod +x *), Bash(mkdir *), Bash(mkdir -p *), Bash(test *), Bash(jq *), AskUserQuestion
+name: custom-status-line
+description: "Install or remove the composable status line pipeline with project info, git stats, worktree detection, and repo cleanup status"
+version: "3.0.0"
+argument-hint: "<install|uninstall|--help> [--version]"
+allowed-tools: Read, Write, Edit, Bash(chmod *), Bash(chmod +x *), Bash(mkdir *), Bash(mkdir -p *), Bash(test *), Bash(jq *), Bash(rm *), Bash(rm -f *), Bash(rm -rf *), AskUserQuestion
 model: haiku
 disable-model-invocation: true
 ---
 
-# Install Status Enhancements v2.0.0
+# Custom Status Line v3.0.0
 
-Install a composable status line pipeline for Claude Code. Multiple plugins can contribute to the status line without knowing about each other.
+Install or remove a composable status line pipeline for Claude Code. Multiple plugins can contribute to the status line without knowing about each other.
 
 ## Startup
 
@@ -18,14 +18,127 @@ Install a composable status line pipeline for Claude Code. Multiple plugins can 
 
 **CRITICAL**: Print the version line first:
 
-install-status-enhancements v2.0.0
+custom-status-line v3.0.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> install-status-enhancements v2.0.0
+> custom-status-line v3.0.0
 
 Then stop.
 
-## Constants
+## Route by argument
+
+| Argument | Action |
+|----------|--------|
+| `install` | Go to **Install** section |
+| `uninstall` | Go to **Uninstall** section |
+| `--help` | Go to **Help** section |
+| *(empty or anything else)* | Print usage and stop: `Usage: /custom-status-line <install\|uninstall\|--help> [--version]` |
+
+---
+
+## Help
+
+Print the following exactly, then stop:
+
+> ## Custom Status Line
+>
+> A composable status line pipeline for Claude Code. The dispatcher runs a chain of scripts, each contributing to the status display. Any plugin or project can hook into the pipeline.
+>
+> **Usage:** `/custom-status-line <install|uninstall|--help>`
+>
+> ### Architecture
+>
+> ```
+> ~/.claude-status-line/
+>   dispatcher.sh          # Entry point (configured as statusLine command)
+>   pipeline.json          # Ordered list of scripts to run
+>   scripts/               # Script directory
+>     base-info.sh         # Built-in: project path, git branch/stats, model
+>     repo-cleanup.sh      # Built-in: stale branches, worktree warnings
+>   progress/
+>     update-progress.sh   # Helper: per-session progress bar
+> ```
+>
+> ### How to hook in
+>
+> **1. Write your script** to `~/.claude-status-line/scripts/`:
+>
+> ```bash
+> #!/bin/bash
+> INPUT=$(cat)
+> LINES=$(echo "$INPUT" | jq -c '.lines')
+>
+> # Append your indicator to line 1
+> LINES=$(echo "$LINES" | jq -c --arg s " | my-indicator" '.[0] = (.[0] // "") + $s')
+>
+> echo "{\"lines\":$LINES}"
+> ```
+>
+> Make it executable: `chmod +x ~/.claude-status-line/scripts/my-indicator.sh`
+>
+> **2. Register in pipeline.json:**
+>
+> Add your entry to the `pipeline` array in `~/.claude-status-line/pipeline.json`:
+>
+> ```json
+> {"name": "my-indicator", "script": "~/.claude-status-line/scripts/my-indicator.sh"}
+> ```
+>
+> ### Script protocol
+>
+> Each script receives JSON on stdin and must output JSON on stdout:
+>
+> **Input:**
+> ```json
+> {
+>   "claude": { "model": {...}, "cwd": "...", "session_id": "...", ... },
+>   "lines": ["line 1 so far", "line 2 so far"]
+> }
+> ```
+>
+> **Output:**
+> ```json
+> {"lines": ["line 1 modified", "line 2 modified"]}
+> ```
+>
+> ### Common patterns
+>
+> ```bash
+> # Append to line 1 (project/git line)
+> LINES=$(echo "$LINES" | jq -c --arg s " | text" '.[0] = (.[0] // "") + $s')
+>
+> # Append to line 2 (model/stats line)
+> LINES=$(echo "$LINES" | jq -c --arg s " | text" '.[1] = (.[1] // "") + $s')
+>
+> # Add a new line
+> LINES=$(echo "$LINES" | jq -c --arg s "new line" '. + [$s]')
+>
+> # Read claude status data
+> MODEL=$(echo "$INPUT" | jq -r '.claude.model.id // ""')
+> SESSION=$(echo "$INPUT" | jq -r '.claude.session_id // ""')
+> ```
+>
+> ### ANSI colors (matching built-in scripts)
+>
+> ```bash
+> BLUE=$'\033[38;5;117m'   YELLOW=$'\033[38;5;229m'
+> GREEN=$'\033[38;5;151m'  ORANGE=$'\033[38;5;214m'
+> RED=$'\033[38;5;210m'    DIM=$'\033[38;5;245m'
+> RST=$'\033[0m'
+> ```
+>
+> ### Rules
+>
+> - Read stdin with `INPUT=$(cat)`, parse with `jq`
+> - Exit 0 on success — non-zero or invalid JSON is silently skipped
+> - Keep execution under 200ms — the status line refreshes frequently
+> - To uninstall cleanly: remove your entry from `pipeline.json` and delete your script
+
+---
+
+## Install
+
+### Constants
 
 - **Dispatcher source**: `${CLAUDE_SKILL_DIR}/references/dispatcher.sh`
 - **Base info source**: `${CLAUDE_SKILL_DIR}/references/base-info.sh`
@@ -37,8 +150,6 @@ Then stop.
 - **Progress directory**: `~/.claude-status-line/progress/`
 - **Pipeline config**: `~/.claude-status-line/pipeline.json`
 - **Settings file**: `~/.claude/settings.json`
-
-## Install
 
 ### Step 1: Check current state
 
@@ -136,3 +247,40 @@ Print:
 > ```
 >
 > Other plugins can register additional scripts in ~/.claude-status-line/pipeline.json
+
+---
+
+## Uninstall
+
+### Constants
+
+- **Pipeline directory**: `~/.claude-status-line/`
+- **Settings file**: `~/.claude/settings.json`
+
+### Step 1: Check current state
+
+Read `~/.claude/settings.json`. Check if `statusLine` exists and references `dispatcher.sh`.
+
+If `statusLine` does not exist or references a different script, print:
+
+> Status line pipeline is not installed. Nothing to remove.
+
+Then stop.
+
+### Step 2: Remove config
+
+Read `~/.claude/settings.json`. Remove the `statusLine` key entirely. Preserve all other settings.
+
+### Step 3: Remove pipeline directory
+
+Delete the entire pipeline directory:
+
+```bash
+rm -rf ~/.claude-status-line
+```
+
+### Step 4: Confirm
+
+Print:
+
+> Status line pipeline removed. Restart your session for changes to take effect.
