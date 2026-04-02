@@ -1,35 +1,169 @@
 ---
-name: cleanup-repo
+name: repo-tools
+description: "Repository status overview and interactive cleanup for git repos"
 version: "1.0.0"
-description: "Find and fix stale branches, deleteable branches, finished worktrees, uncommitted files, and other repo hygiene issues. Triggers on 'cleanup repo', 'clean up repo', or /cleanup-repo."
-argument-hint: "[--dry-run] [--version]"
+argument-hint: "<status|clean|--help> [--dry-run] [--version]"
 allowed-tools: Read, Glob, Grep, Bash(git *, gh *, ls *, rm *, test *), AskUserQuestion
 model: sonnet
 ---
 
-## Version Check
+# Repo Tools v1.0.0
+
+Repository status overview and interactive cleanup for git repos.
+
+## Startup
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
+> repo-tools v1.0.0
 
-> cleanup-repo v1.0.0
+Then stop.
 
-Then stop. Do not continue with the rest of the skill.
+**CRITICAL**: Print the version line first:
 
-Otherwise, print `cleanup-repo v1.0.0` as the first line of output, then proceed.
+repo-tools v1.0.0
 
-**Version check**: Read `${CLAUDE_SKILL_DIR}/SKILL.md` from disk and extract the `version:` field from frontmatter. If it differs from this skill's version (1.0.0), print:
+## Route by argument
 
-> ⚠ This skill is running v1.0.0 but vA.B.C is installed. Restart the session to use the latest version.
-
-Continue running — do not stop.
+| Argument | Action |
+|----------|--------|
+| `status` | Go to **Status** section |
+| `clean` | Go to **Clean** section (pass remaining args) |
+| `clean --dry-run` | Go to **Clean** section in dry-run mode |
+| `--help` | Go to **Help** section |
+| *(empty or anything else)* | Print usage and stop: `Usage: /repo-tools <status\|clean\|--help> [--dry-run] [--version]` |
 
 ---
 
-# Cleanup Repo
+## Help
 
-Iteratively scan a git repository for hygiene issues — stale branches, merged branches, orphaned worktrees, uncommitted changes, untracked files — and offer to fix each one until the repo is clean.
+Print the following exactly, then stop:
 
-## Guards
+> ## Repo Tools
+>
+> Repository status overview and interactive cleanup for git repos.
+>
+> **Usage:** `/repo-tools <status|clean|--help> [--dry-run] [--version]`
+>
+> ### Commands
+>
+> **`/repo-tools status`** — Quick overview of repository state
+>
+> Shows a snapshot of the current repo including:
+> - Project path and current branch
+> - Worktree detection (main repo vs git worktree)
+> - Dirty files count and uncommitted changes
+> - Commits ahead/behind default branch or remote
+> - Stale branches (remote tracking branch deleted)
+> - Merged branches (safe to delete)
+> - Prunable worktrees (directory missing)
+> - Finished worktrees (branch merged but worktree still exists)
+> - Inactive branches (no commits in 30+ days)
+>
+> This is read-only — it never modifies anything.
+>
+> **`/repo-tools clean`** — Interactive repo cleanup
+>
+> Scans for hygiene issues and offers to fix each one interactively:
+> - Prunes dangling worktree refs
+> - Removes orphaned and finished worktrees
+> - Deletes stale and merged branches
+> - Reviews inactive branches
+> - Addresses uncommitted changes (show, stash, or skip)
+>
+> Every destructive action requires confirmation. Uses safe deletes (`git branch -d`, never `-D` unless you approve). Never discards uncommitted work.
+>
+> **`/repo-tools clean --dry-run`** — Preview issues without fixing
+>
+> Runs the full scan and reports all issues found, but makes no changes.
+
+---
+
+## Status
+
+### Step 1: Verify Context
+
+Confirm the current directory is a git repository (`git rev-parse --git-dir`). If not, print:
+> Not a git repository.
+
+And stop.
+
+### Step 2: Gather Info
+
+Collect all of the following:
+
+**Project info:**
+- Repository root path (`git rev-parse --show-toplevel`)
+- Current branch (`git rev-parse --abbrev-ref HEAD`)
+- Whether this is a git worktree (check if `git rev-parse --git-dir` contains `/worktrees/`)
+
+**Default branch:**
+- Detect via `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null`, fall back to `main` or `master`
+
+**Working tree state:**
+- Staged files count (`git diff --cached --numstat | wc -l`)
+- Unstaged modified files count (`git diff --numstat | wc -l`)
+- Untracked files count (`git ls-files --others --exclude-standard | wc -l`)
+
+**Branch position:**
+- If on a feature branch: commits ahead of default (`git rev-list --count <default>..HEAD`), commits behind default (`git rev-list --count HEAD..<default>`)
+- If on default branch: commits ahead of remote (`git rev-list --count origin/<default>..HEAD`), commits behind remote (`git rev-list --count HEAD..origin/<default>`)
+
+**Repo hygiene:**
+- Stale branches: local branches whose upstream is `[gone]` (`git branch -vv | grep ': gone]'`)
+- Merged branches: branches fully merged into default, excluding default itself and current branch (`git branch --merged <default>`)
+- Prunable worktrees: `git worktree prune --dry-run | wc -l`
+- Finished worktrees: worktrees whose branch is merged into default (iterate `git worktree list`, check each with `git merge-base --is-ancestor`)
+- Inactive branches: branches not merged into default with last commit older than 30 days (`git for-each-ref --sort=-committerdate --format='%(refname:short) %(committerdate:unix)' refs/heads/`)
+
+### Step 3: Print Report
+
+Print a formatted report. Use this structure:
+
+```
+=== REPO STATUS ===
+
+Project:  <path>
+Branch:   <branch> [worktree] (if applicable)
+Default:  <default branch>
+
+Working Tree:
+  Staged:    <n> files
+  Unstaged:  <n> files
+  Untracked: <n> files
+
+Branch Position:
+  <n> commits ahead of <default|origin>
+  <n> commits behind <default|origin>
+  (or: up to date)
+
+Repo Hygiene:
+  Stale branches:      <n>
+  Merged branches:     <n>
+  Prunable worktrees:  <n>
+  Finished worktrees:  <n>
+  Inactive branches:   <n>
+```
+
+If all hygiene counts are zero, print:
+```
+Repo Hygiene:
+  Clean — no issues found
+```
+
+If any hygiene issues exist, print at the bottom:
+```
+Run `/repo-tools clean` to fix interactively.
+```
+
+Omit sections with no data (e.g., if staged/unstaged/untracked are all 0, print `Working Tree: clean`).
+
+---
+
+## Clean
+
+Interactive repo cleanup. Scans for hygiene issues and offers to fix each one.
+
+### Guards
 
 - **Never force-deletes** — uses `git branch -d` (safe delete), never `-D`, unless the user explicitly approves
 - **Never discards uncommitted work** — only offers to stash, commit, or show what's dirty
@@ -37,18 +171,13 @@ Iteratively scan a git repository for hygiene issues — stale branches, merged 
 - **Always confirms before destructive actions** — each fix is offered individually
 - **`--dry-run` mode is read-only** — reports issues but modifies nothing
 
----
+### Step 1: Parse Arguments
 
-## Step 1: Parse Arguments
-
-Parse `$ARGUMENTS`:
+Parse remaining `$ARGUMENTS` after `clean`:
 
 1. **`--dry-run`** → set dry-run mode (scan and report only, no modifications)
-2. **`--version`** → handled above
 
----
-
-## Step 2: Verify Context
+### Step 2: Verify Context
 
 1. Confirm the current directory is a git repository (`git rev-parse --git-dir`). If not, print:
    > ERROR: Not a git repository.
@@ -67,24 +196,22 @@ Parse `$ARGUMENTS`:
    Current branch: <branch>
    ```
 
----
-
-## Step 3: Scan
+### Step 3: Scan
 
 Run all scans and collect findings into categories. For each category, record the items found.
 
-### 3a: Uncommitted Changes
+#### 3a: Uncommitted Changes
 
 Run `git status --porcelain`. Categorize:
 - **Staged but uncommitted** — files in the index not yet committed
 - **Unstaged modifications** — tracked files with local changes
 - **Untracked files** — files not in the index (exclude common generated dirs: `node_modules/`, `.build/`, `dist/`, `__pycache__/`, `.venv/`)
 
-### 3b: Stale Branches (gone remotes)
+#### 3b: Stale Branches (gone remotes)
 
 Run `git branch -vv`. Find local branches whose upstream is marked `[gone]` — the remote branch was deleted but the local tracking branch remains.
 
-### 3c: Merged Branches
+#### 3c: Merged Branches
 
 Find local branches fully merged into the default branch:
 ```
@@ -92,7 +219,7 @@ git branch --merged <default-branch>
 ```
 Exclude the default branch itself and the current branch from the list.
 
-### 3d: Unmerged Branches with No Recent Activity
+#### 3d: Unmerged Branches with No Recent Activity
 
 Find local branches NOT merged into the default branch where the last commit is older than 30 days:
 ```
@@ -100,7 +227,7 @@ git for-each-ref --sort=-committerdate --format='%(refname:short) %(committerdat
 ```
 Flag branches with no commits in the last 30 days that are not merged. These are informational only — do not offer to delete without explicit user approval.
 
-### 3e: Worktrees
+#### 3e: Worktrees
 
 Run `git worktree list`. For each worktree (excluding the main working tree):
 1. Check if the worktree directory still exists on disk
@@ -113,13 +240,11 @@ Categorize:
 - **Dirty** — worktree has uncommitted changes (flag only, do not offer removal)
 - **Active** — worktree branch is not merged, has no issues (skip)
 
-### 3f: Dangling Worktree References
+#### 3f: Dangling Worktree References
 
 Run `git worktree list --porcelain` and check for worktrees pointing to paths that no longer exist. These can be cleaned with `git worktree prune`.
 
----
-
-## Step 4: Report
+### Step 4: Report
 
 Print the full scan results:
 
@@ -180,18 +305,16 @@ And stop.
 
 ```
 === DRY RUN COMPLETE ===
-No changes were made. Run `/cleanup-repo` (without --dry-run) to fix issues.
+No changes were made. Run `/repo-tools clean` (without --dry-run) to fix issues.
 ```
 
 And stop.
 
----
-
-## Step 5: Fix Loop
+### Step 5: Fix Loop
 
 Process issues in this order, one category at a time. After each fix, re-scan that category to confirm the fix worked before moving on.
 
-### Priority order:
+#### Priority order:
 
 1. **Dangling worktree refs** — `git worktree prune` (safe, no data loss)
 2. **Orphaned worktrees** — `git worktree prune` (same command covers these)
@@ -222,17 +345,15 @@ Process issues in this order, one category at a time. After each fix, re-scan th
 7. **Uncommitted changes** — use AskUserQuestion:
    > There are uncommitted changes. What would you like to do?
    - **Show details** → print `git status` and `git diff --stat`
-   - **Stash all** → `git stash push -m "cleanup-repo stash <date>"`
+   - **Stash all** → `git stash push -m "repo-tools stash <date>"`
    - **Skip** → leave them
    - **Stop** → exit the fix loop
 
-### After each category, re-verify
+#### After each category, re-verify
 
 After processing all items in a category, re-run that specific scan. If new issues appeared (e.g., removing a worktree revealed a branch to delete), process them before moving to the next category.
 
----
-
-## Step 6: Final Report
+### Step 6: Final Report
 
 After the fix loop completes (all categories processed or user stopped), run the full scan one more time and print:
 
@@ -247,23 +368,3 @@ Remaining: <n> issues (skipped or stopped)
 
 Repository status: <CLEAN | <n> remaining issues>
 ```
-
----
-
-## Examples
-
-**Full interactive cleanup:**
-```
-/cleanup-repo
-```
-
-**Preview issues without fixing:**
-```
-/cleanup-repo --dry-run
-```
-
----
-
-## Done
-
-The cleanup is complete. Any skipped issues can be addressed by running `/cleanup-repo` again.

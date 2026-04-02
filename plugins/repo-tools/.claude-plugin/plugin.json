@@ -1,0 +1,9 @@
+{
+  "name": "repo-tools",
+  "description": "Repository status overview and interactive cleanup for git repos",
+  "version": "1.0.0",
+  "author": {
+    "name": "Mike Fullerton"
+  },
+  "license": "MIT"
+}
