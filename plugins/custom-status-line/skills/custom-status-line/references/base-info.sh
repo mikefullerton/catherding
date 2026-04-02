@@ -128,9 +128,9 @@ DAILY_AVG=$(( RATE_7D / ELAPSED_DAYS ))
 
 RED=$'\033[38;5;210m'
 if [ "$DAILY_AVG" -gt 14 ] 2>/dev/null; then
-  RATE_7D_DISPLAY="${RATE_7D}% ${RED}(${DAILY_AVG}%/d)${RST}"
+  RATE_7D_DISPLAY="${RATE_7D}% ${RED}[${ELAPSED_DAYS}d, ${DAILY_AVG}% ave]${RST}"
 else
-  RATE_7D_DISPLAY="${RATE_7D}% (${DAILY_AVG}%/d)"
+  RATE_7D_DISPLAY="${RATE_7D}% [${ELAPSED_DAYS}d, ${DAILY_AVG}% ave]"
 fi
 
 LINE2="${LINE2}${SEP}${DURATION}${SEP}${TOTAL_CHANGES} changes${SEP}\$${TOTAL_COST}${SEP}5h: ${RATE_5H}%${SEP}7d: ${RATE_7D_DISPLAY}"
