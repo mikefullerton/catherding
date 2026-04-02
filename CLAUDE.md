@@ -14,9 +14,10 @@ rules/                 # 6 distributable rules + 1 script
 
 | Skill | Purpose |
 |-------|---------|
-| `/install-status-enhancements` | Install enhanced Claude Code status line |
-| `/uninstall-status-enhancements` | Remove enhanced status line |
-| `/cleanup-repo` | Find and fix stale branches, worktree issues, repo hygiene |
+| `/custom-status-line install` | Install composable status line pipeline |
+| `/custom-status-line uninstall` | Remove status line pipeline |
+| `/repo-tools status` | Quick repo status overview (branch, dirty files, hygiene) |
+| `/repo-tools clean` | Interactive repo cleanup (stale branches, worktrees, etc.) |
 | `/install-worktree-rule` | Install the worktree/PR git workflow rule |
 | `/optimize-rules` | Consolidate multiple rule files into a single optimized file |
 | `/lint-rule` | Lint a rule file against best practices |
