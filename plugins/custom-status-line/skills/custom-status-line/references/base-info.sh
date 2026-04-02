@@ -128,16 +128,16 @@ DAILY_AVG=$(( RATE_7D / ELAPSED_DAYS ))
 PREDICTED_7D=$(( DAILY_AVG * 7 ))
 
 RED=$'\033[38;5;210m'
-OVERAGE_COST=""
+OVERAGE_DISPLAY=""
 PREDICTED_DISPLAY="${PREDICTED_7D}% projected"
 if [ "$PREDICTED_7D" -gt 100 ] 2>/dev/null; then
   OVERAGE_DOLLARS=$(( (PREDICTED_7D - 100) * 2 ))
-  OVERAGE_COST=", \$${OVERAGE_DOLLARS} overage"
+  OVERAGE_DISPLAY="${SEP}\$${OVERAGE_DOLLARS} overage"
   PREDICTED_DISPLAY="${RED}${PREDICTED_7D}%${RST} projected"
 fi
-RATE_7D_DISPLAY="${RATE_7D}% [${ELAPSED_DAYS}d, ${DAILY_AVG}% ave, ${PREDICTED_DISPLAY}${OVERAGE_COST}]"
+LINE3="Weekly usage ${RATE_7D}%${SEP}day: ${ELAPSED_DAYS}${SEP}daily ave usage: ${DAILY_AVG}%${SEP}${PREDICTED_DISPLAY}${OVERAGE_DISPLAY}"
 
-LINE2="${LINE2}${SEP}${DURATION}${SEP}${TOTAL_CHANGES} changes${SEP}\$${TOTAL_COST}${SEP}5h: ${RATE_5H}%${SEP}7d: ${RATE_7D_DISPLAY}"
+LINE2="${LINE2}${SEP}${DURATION}${SEP}${TOTAL_CHANGES} changes${SEP}\$${TOTAL_COST}${SEP}5h: ${RATE_5H}%"
 
 # Context used — yellow at 18%+, red at 20%+ (Opus 1M only)
 USED_PCT=$(( 100 - REM_PCT ))
@@ -156,4 +156,4 @@ else
 fi
 
 # Output pipeline JSON
-jq -n --arg l1 "$LINE1" --arg l2 "$LINE2" '{"lines": [$l1, $l2]}'
+jq -n --arg l1 "$LINE1" --arg l2 "$LINE2" --arg l3 "$LINE3" '{"lines": [$l1, $l2, $l3]}'
