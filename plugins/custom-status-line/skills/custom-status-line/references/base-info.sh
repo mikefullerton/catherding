@@ -107,7 +107,33 @@ fi
 if [ -n "$EFFORT" ]; then
   LINE2="${LINE2}${SEP}${EFFORT}"
 fi
-LINE2="${LINE2}${SEP}${DURATION}${SEP}${TOTAL_CHANGES} changes${SEP}\$${TOTAL_COST}${SEP}5h: ${RATE_5H}%${SEP}7d: ${RATE_7D}%"
+# Calculate daily average for 7-day quota (resets every Wed 10am)
+NOW_EPOCH=$(date +%s)
+DOW=$(date +%u)  # 1=Mon ... 7=Sun
+HOUR=$(date +%H)
+# Days since last Wednesday (dow=3)
+DAYS_SINCE_WED=$(( (DOW - 3 + 7) % 7 ))
+# If it's Wednesday but before 10am, go back to previous Wednesday
+if [ "$DAYS_SINCE_WED" -eq 0 ] && [ "$HOUR" -lt 10 ]; then
+  DAYS_SINCE_WED=7
+fi
+# Calculate epoch of last Wednesday 10am
+LAST_WED_10AM=$(( NOW_EPOCH - (DAYS_SINCE_WED * 86400) ))
+LAST_WED_10AM=$(date -j -f "%s" "$LAST_WED_10AM" "+%Y%m%d" 2>/dev/null)
+LAST_WED_10AM=$(date -j -f "%Y%m%d%H%M%S" "${LAST_WED_10AM}100000" "+%s" 2>/dev/null)
+ELAPSED_S=$(( NOW_EPOCH - LAST_WED_10AM ))
+ELAPSED_DAYS=$(( ELAPSED_S / 86400 ))
+[ "$ELAPSED_DAYS" -lt 1 ] && ELAPSED_DAYS=1
+DAILY_AVG=$(( RATE_7D / ELAPSED_DAYS ))
+
+RED=$'\033[38;5;210m'
+if [ "$DAILY_AVG" -gt 14 ] 2>/dev/null; then
+  RATE_7D_DISPLAY="${RATE_7D}% ${RED}(${DAILY_AVG}%/d)${RST}"
+else
+  RATE_7D_DISPLAY="${RATE_7D}% (${DAILY_AVG}%/d)"
+fi
+
+LINE2="${LINE2}${SEP}${DURATION}${SEP}${TOTAL_CHANGES} changes${SEP}\$${TOTAL_COST}${SEP}5h: ${RATE_5H}%${SEP}7d: ${RATE_7D_DISPLAY}"
 
 # Context used — yellow at 18%+, red at 20%+ (Opus 1M only)
 USED_PCT=$(( 100 - REM_PCT ))
