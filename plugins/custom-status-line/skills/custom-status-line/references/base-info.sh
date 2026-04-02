@@ -135,7 +135,7 @@ if [ "$PREDICTED_7D" -gt 100 ] 2>/dev/null; then
   OVERAGE_DISPLAY="${SEP}\$${OVERAGE_DOLLARS} overage"
   PREDICTED_DISPLAY="${RED}${PREDICTED_7D}%${RST} projected"
 fi
-LINE3="Weekly usage ${RATE_7D}%${SEP}day: ${ELAPSED_DAYS}${SEP}daily ave usage: ${DAILY_AVG}%${SEP}${PREDICTED_DISPLAY}${OVERAGE_DISPLAY}"
+LINE3="- Weekly usage ${RATE_7D}%${SEP}day: ${ELAPSED_DAYS}${SEP}daily ave usage: ${DAILY_AVG}%${SEP}${PREDICTED_DISPLAY}${OVERAGE_DISPLAY}"
 
 LINE2="${LINE2}${SEP}${DURATION}${SEP}${TOTAL_CHANGES} changes${SEP}\$${TOTAL_COST}${SEP}5h: ${RATE_5H}%"
 
