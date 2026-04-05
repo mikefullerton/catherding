@@ -98,14 +98,14 @@ allowed-tools: Read, Write, Edit, Bash(bash *), Bash(brew *), Bash(npm *), Bash(
 
 ## Phase 3: Shared Package Templates
 
-- [ ] `shared/package.json.tmpl`
-- [ ] `shared/tsconfig.json.tmpl`
-- [ ] `shared/src/index.ts.tmpl` — re-exports
-- [ ] `shared/src/types.ts.tmpl` — User, FeatureFlag, MessageLog, FeedbackSubmission API types
-- [ ] `shared/src/constants.ts.tmpl` — Settings keys registry, feature flag key constants
-- [ ] `shared/src/api-client.ts.tmpl` — Typed fetch wrapper with exponential backoff + jitter, circuit breaker
+- [x] `shared/package.json.tmpl`
+- [x] `shared/tsconfig.json.tmpl`
+- [x] `shared/src/index.ts.tmpl` — re-exports
+- [x] `shared/src/types.ts.tmpl` — User, FeatureFlag, MessageLog, FeedbackSubmission API types
+- [x] `shared/src/constants.ts.tmpl` — Settings keys registry, feature flag key constants
+- [x] `shared/src/api-client.ts.tmpl` — Typed fetch wrapper with exponential backoff + jitter, circuit breaker
 
-### Commit: `feat(site-manager): add shared package templates`
+### Commit: `feat(site-manager): add shared package templates` (d850bf0)
 
 ---
 
@@ -113,27 +113,27 @@ allowed-tools: Read, Write, Edit, Bash(bash *), Bash(brew *), Bash(npm *), Bash(
 
 **The public-facing site at foo.com — React SPA served by CF Worker.**
 
-- [ ] `sites/main/wrangler.jsonc.tmpl` — worker name, custom domain routes
-- [ ] `sites/main/package.json.tmpl` — react, vite, tailwindcss, @tanstack/react-query, @tanstack/react-router, wrangler
-- [ ] `sites/main/vite.config.ts.tmpl`
-- [ ] `sites/main/tailwind.config.ts.tmpl`
-- [ ] `sites/main/tsconfig.json.tmpl`
-- [ ] `sites/main/src/worker.ts.tmpl` — proxy /api/*, /auth/* → Railway, SPA fallback
-- [ ] `sites/main/src/main.tsx.tmpl` — React entry with QueryClient + RouterProvider
-- [ ] `sites/main/src/router.tsx.tmpl` — Tanstack Router with routes
-- [ ] `sites/main/src/index.html.tmpl`
-- [ ] `sites/main/src/context/auth.tsx.tmpl` — AuthContext with login/register/logout
-- [ ] `sites/main/src/context/feature-flags.tsx.tmpl` — FeatureFlagContext
-- [ ] `sites/main/src/hooks/use-auth.ts.tmpl`
-- [ ] `sites/main/src/hooks/use-feature-flag.ts.tmpl`
-- [ ] `sites/main/src/api/auth.ts.tmpl` — Tanstack Query hooks for auth endpoints
-- [ ] `sites/main/src/api/flags.ts.tmpl` — Tanstack Query hook for feature flags
-- [ ] `sites/main/src/routes/index.tsx.tmpl` — Home page
-- [ ] `sites/main/src/routes/login.tsx.tmpl` — Login form
-- [ ] `sites/main/src/routes/register.tsx.tmpl` — Registration form
-- [ ] `sites/main/src/components/layout.tsx.tmpl` — App shell with nav
+- [x] `sites/main/wrangler.jsonc.tmpl` — worker name, custom domain routes
+- [x] `sites/main/package.json.tmpl` — react, vite, tailwindcss, @tanstack/react-query, @tanstack/react-router, wrangler
+- [x] `sites/main/vite.config.ts.tmpl`
+- [x] `sites/main/tailwind.config.ts.tmpl`
+- [x] `sites/main/tsconfig.json.tmpl`
+- [x] `sites/main/src/worker.ts.tmpl` — proxy /api/*, /auth/* → Railway, SPA fallback
+- [x] `sites/main/src/main.tsx.tmpl` — React entry with QueryClient + RouterProvider
+- [x] `sites/main/src/router.tsx.tmpl` — Tanstack Router with routes
+- [x] `sites/main/src/index.html.tmpl`
+- [x] `sites/main/src/context/auth.tsx.tmpl` — AuthContext with login/register/logout
+- [x] `sites/main/src/context/feature-flags.tsx.tmpl` — FeatureFlagContext
+- [x] `sites/main/src/hooks/use-auth.ts.tmpl`
+- [x] `sites/main/src/hooks/use-feature-flag.ts.tmpl`
+- [x] `sites/main/src/api/auth.ts.tmpl` — Tanstack Query hooks for auth endpoints
+- [x] `sites/main/src/api/flags.ts.tmpl` — Tanstack Query hook for feature flags
+- [x] `sites/main/src/routes/index.tsx.tmpl` — Home page
+- [x] `sites/main/src/routes/login.tsx.tmpl` — Login form
+- [x] `sites/main/src/routes/register.tsx.tmpl` — Registration form
+- [x] `sites/main/src/components/layout.tsx.tmpl` — App shell with nav
 
-### Commit: `feat(site-manager): add main site templates`
+### Commit: `feat(site-manager): add main site templates` (3a1c5e9)
 
 ---
 
@@ -141,26 +141,26 @@ allowed-tools: Read, Write, Edit, Bash(bash *), Bash(brew *), Bash(npm *), Bash(
 
 **Admin dashboard at admin.foo.com — same auth, requires admin role.**
 
-- [ ] `sites/admin/wrangler.jsonc.tmpl`
-- [ ] `sites/admin/package.json.tmpl`
-- [ ] `sites/admin/vite.config.ts.tmpl`
-- [ ] `sites/admin/tailwind.config.ts.tmpl`
-- [ ] `sites/admin/tsconfig.json.tmpl`
-- [ ] `sites/admin/src/worker.ts.tmpl` — proxy + SPA
-- [ ] `sites/admin/src/main.tsx.tmpl`
-- [ ] `sites/admin/src/router.tsx.tmpl`
-- [ ] `sites/admin/src/index.html.tmpl`
-- [ ] `sites/admin/src/context/auth.tsx.tmpl` — same auth, but redirects non-admin to error
-- [ ] `sites/admin/src/api/admin.ts.tmpl` — Tanstack Query hooks for admin endpoints
-- [ ] `sites/admin/src/routes/index.tsx.tmpl` — Admin dashboard home
-- [ ] `sites/admin/src/routes/users.tsx.tmpl` — User table + role editing
-- [ ] `sites/admin/src/routes/flags.tsx.tmpl` — Feature flag list + toggles
-- [ ] `sites/admin/src/routes/messaging.tsx.tmpl` — Send email/SMS, view message log
-- [ ] `sites/admin/src/routes/feedback.tsx.tmpl` — Feedback submissions table
-- [ ] `sites/admin/src/routes/login.tsx.tmpl` — Admin login (same form, role-checked after)
-- [ ] `sites/admin/src/components/layout.tsx.tmpl` — Admin shell with sidebar nav
+- [x] `sites/admin/wrangler.jsonc.tmpl`
+- [x] `sites/admin/package.json.tmpl`
+- [x] `sites/admin/vite.config.ts.tmpl`
+- [x] `sites/admin/tailwind.config.ts.tmpl`
+- [x] `sites/admin/tsconfig.json.tmpl`
+- [x] `sites/admin/src/worker.ts.tmpl` — proxy + SPA
+- [x] `sites/admin/src/main.tsx.tmpl`
+- [x] `sites/admin/src/router.tsx.tmpl`
+- [x] `sites/admin/src/index.html.tmpl`
+- [x] `sites/admin/src/context/auth.tsx.tmpl` — same auth, but redirects non-admin to error
+- [x] `sites/admin/src/api/admin.ts.tmpl` — Tanstack Query hooks for admin endpoints
+- [x] `sites/admin/src/routes/index.tsx.tmpl` — Admin dashboard home
+- [x] `sites/admin/src/routes/users.tsx.tmpl` — User table + role editing
+- [x] `sites/admin/src/routes/flags.tsx.tmpl` — Feature flag list + toggles
+- [x] `sites/admin/src/routes/messaging.tsx.tmpl` — Send email/SMS, view message log
+- [x] `sites/admin/src/routes/feedback.tsx.tmpl` — Feedback submissions table
+- [x] `sites/admin/src/routes/login.tsx.tmpl` — Admin login (same form, role-checked after)
+- [x] `sites/admin/src/components/layout.tsx.tmpl` — Admin shell with sidebar nav
 
-### Commit: `feat(site-manager): add admin site templates`
+### Commit: `feat(site-manager): add admin site templates` (48df02b)
 
 ---
 
@@ -168,42 +168,42 @@ allowed-tools: Read, Write, Edit, Bash(bash *), Bash(brew *), Bash(npm *), Bash(
 
 **Status dashboard at dashboard.foo.com — CF Worker + D1 SQLite, runs independently.**
 
-- [ ] `sites/dashboard/wrangler.jsonc.tmpl` — D1 binding, cron triggers (every min, every 5 min, hourly)
-- [ ] `sites/dashboard/package.json.tmpl`
-- [ ] `sites/dashboard/vite.config.ts.tmpl`
-- [ ] `sites/dashboard/tsconfig.json.tmpl`
-- [ ] `sites/dashboard/worker/index.ts.tmpl` — CF Worker: serves API routes + cron handlers (health check ping, deployment sync, metrics rollup)
-- [ ] `sites/dashboard/migrations/0001_health_checks.sql.tmpl`
-- [ ] `sites/dashboard/migrations/0002_incidents.sql.tmpl`
-- [ ] `sites/dashboard/migrations/0003_deployments.sql.tmpl`
-- [ ] `sites/dashboard/migrations/0004_metrics.sql.tmpl`
-- [ ] `sites/dashboard/src/main.tsx.tmpl`
-- [ ] `sites/dashboard/src/router.tsx.tmpl`
-- [ ] `sites/dashboard/src/index.html.tmpl`
-- [ ] `sites/dashboard/src/routes/health.tsx.tmpl` — Service status cards, uptime chart
-- [ ] `sites/dashboard/src/routes/incidents.tsx.tmpl` — Incident timeline
-- [ ] `sites/dashboard/src/routes/deployments.tsx.tmpl` — Deployment history table
-- [ ] `sites/dashboard/src/context/auth.tsx.tmpl` — Auth (admin-only access)
-- [ ] `sites/dashboard/src/components/layout.tsx.tmpl`
+- [x] `sites/dashboard/wrangler.jsonc.tmpl` — D1 binding, cron triggers (every min, every 5 min, hourly)
+- [x] `sites/dashboard/package.json.tmpl`
+- [x] `sites/dashboard/vite.config.ts.tmpl`
+- [x] `sites/dashboard/tsconfig.json.tmpl`
+- [x] `sites/dashboard/worker/index.ts.tmpl` — CF Worker: serves API routes + cron handlers (health check ping, deployment sync, metrics rollup)
+- [x] `sites/dashboard/migrations/0001_health_checks.sql.tmpl`
+- [x] `sites/dashboard/migrations/0002_incidents.sql.tmpl`
+- [x] `sites/dashboard/migrations/0003_deployments.sql.tmpl`
+- [x] `sites/dashboard/migrations/0004_metrics.sql.tmpl`
+- [x] `sites/dashboard/src/main.tsx.tmpl`
+- [x] `sites/dashboard/src/router.tsx.tmpl`
+- [x] `sites/dashboard/src/index.html.tmpl`
+- [x] `sites/dashboard/src/routes/health.tsx.tmpl` — Service status cards, uptime chart
+- [x] `sites/dashboard/src/routes/incidents.tsx.tmpl` — Incident timeline
+- [x] `sites/dashboard/src/routes/deployments.tsx.tmpl` — Deployment history table
+- [x] `sites/dashboard/src/context/auth.tsx.tmpl` — Auth (admin-only access)
+- [x] `sites/dashboard/src/components/layout.tsx.tmpl`
 
-### Commit: `feat(site-manager): add dashboard templates with D1`
+### Commit: `feat(site-manager): add dashboard templates with D1` (3da7402)
 
 ---
 
 ## Phase 7: Root + CI Templates
 
-- [ ] `root/package.json.tmpl` — root build scripts (build:all, deploy:all, dev)
-- [ ] `root/Dockerfile.tmpl` — multi-stage Node 22 Alpine (builds shared → backend)
-- [ ] `root/railway.toml.tmpl` — builder: dockerfile, health check
-- [ ] `root/docker-compose.yml.tmpl` — PostgreSQL 16 for local dev
-- [ ] `root/env.example.tmpl` — all env vars with comments
-- [ ] `root/gitignore.tmpl`
-- [ ] `root/site-manifest.json.tmpl` — initial manifest with all services as not_created
-- [ ] `github/deploy-main.yml.tmpl` — GH Actions: deploy main site on push
-- [ ] `github/deploy-admin.yml.tmpl` — GH Actions: deploy admin site on push
-- [ ] `github/deploy-dashboard.yml.tmpl` — GH Actions: deploy dashboard on push
+- [x] `root/package.json.tmpl` — root build scripts (build:all, deploy:all, dev)
+- [x] `root/Dockerfile.tmpl` — multi-stage Node 22 Alpine (builds shared → backend)
+- [x] `root/railway.toml.tmpl` — builder: dockerfile, health check
+- [x] `root/docker-compose.yml.tmpl` — PostgreSQL 16 for local dev
+- [x] `root/env.example.tmpl` — all env vars with comments
+- [x] `root/gitignore.tmpl`
+- [x] `root/site-manifest.json.tmpl` — initial manifest with all services as not_created (Phase 1)
+- [x] `github/deploy-main.yml.tmpl` — GH Actions: deploy main site on push
+- [x] `github/deploy-admin.yml.tmpl` — GH Actions: deploy admin site on push
+- [x] `github/deploy-dashboard.yml.tmpl` — GH Actions: deploy dashboard on push
 
-### Commit: `feat(site-manager): add root config and CI templates`
+### Commit: `feat(site-manager): add root config and CI templates` (6b412b8)
 
 ---
 
