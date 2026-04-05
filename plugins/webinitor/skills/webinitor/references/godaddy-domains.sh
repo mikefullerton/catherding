@@ -1,9 +1,10 @@
 #!/bin/bash
 # godaddy-domains.sh — GoDaddy domain portfolio management
 # Usage:
-#   godaddy-domains.sh list [--status STATUS] [--expiring]
+#   godaddy-domains.sh list [--status STATUS] [--expiring] [--privacy-off] [--autorenew-off] [--name PATTERN]
 #   godaddy-domains.sh search <query>
 #   godaddy-domains.sh info <domain>
+#   godaddy-domains.sh privacy-check
 # Output: JSON
 
 CONFIG_FILE="$HOME/.webinitor/config.json"
@@ -35,10 +36,16 @@ case "$ACTION" in
     get_auth
     STATUS_FILTER=""
     EXPIRING=false
+    PRIVACY_OFF=false
+    AUTORENEW_OFF=false
+    NAME_FILTER=""
     while [ $# -gt 0 ]; do
       case "$1" in
         --status) STATUS_FILTER="$2"; shift 2 ;;
         --expiring) EXPIRING=true; shift ;;
+        --privacy-off) PRIVACY_OFF=true; shift ;;
+        --autorenew-off) AUTORENEW_OFF=true; shift ;;
+        --name) NAME_FILTER="$2"; shift 2 ;;
         *) shift ;;
       esac
     done
@@ -55,12 +62,42 @@ case "$ACTION" in
         '{"error":"API returned HTTP "+$code,"details":$body}'
       exit 1
     fi
+    # Apply client-side filters
+    FILTER='.'
     if [ "$EXPIRING" = true ]; then
       CUTOFF=$(date -v+30d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -d "+30 days" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null)
-      echo "$BODY" | jq --arg cutoff "$CUTOFF" '[.[] | select(.expires <= $cutoff)]'
-    else
-      echo "$BODY" | jq '.'
+      FILTER="[.[] | select(.expires <= \"$CUTOFF\")]"
     fi
+    if [ "$PRIVACY_OFF" = true ]; then
+      FILTER="$FILTER | [.[] | select(.privacy == false)]"
+    fi
+    if [ "$AUTORENEW_OFF" = true ]; then
+      FILTER="$FILTER | [.[] | select(.renewAuto == false)]"
+    fi
+    if [ -n "$NAME_FILTER" ]; then
+      FILTER="$FILTER | [.[] | select(.domain | ascii_downcase | contains(\"$(echo "$NAME_FILTER" | tr '[:upper:]' '[:lower:]')\"))]"
+    fi
+    echo "$BODY" | jq "$FILTER"
+    ;;
+
+  privacy-check)
+    get_auth
+    RESPONSE=$(curl -s -w "\n%{http_code}" \
+      -H "$AUTH_HEADER" "${BASE_URL}/v1/domains?limit=500&statuses=ACTIVE" 2>/dev/null)
+    HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+    BODY=$(echo "$RESPONSE" | sed '$d')
+    if [ "$HTTP_CODE" != "200" ]; then
+      jq -n --arg code "$HTTP_CODE" '{"error":"API returned HTTP "+$code}'
+      exit 1
+    fi
+    echo "$BODY" | jq '{
+      total: length,
+      privacy_off: [.[] | select(.privacy == false) | .domain],
+      autorenew_off: [.[] | select(.renewAuto == false) | .domain],
+      unlocked: [.[] | select(.locked == false) | .domain],
+      expiration_protection_off: [.[] | select(.expirationProtected == false) | .domain],
+      transfer_protection_off: [.[] | select(.transferProtected == false) | .domain]
+    }'
     ;;
 
   search)
