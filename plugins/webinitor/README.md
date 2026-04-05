@@ -28,6 +28,10 @@ Website infrastructure management plugin for Claude Code. Manages setup, status,
 | `/webinitor dns update <domain>` | Update a DNS record |
 | `/webinitor dns delete <domain>` | Delete a DNS record |
 | `/webinitor connect <domain>` | End-to-end: GoDaddy → Cloudflare → Railway |
+| `/webinitor deploy init` | Scaffold full-stack web app (Worker + Hono + PostgreSQL) |
+| `/webinitor deploy init --config-only` | Generate config files only (no app code) |
+| `/webinitor deploy push` | Deploy to Railway (server) + Cloudflare (client) |
+| `/webinitor deploy status` | Check deployment health and status |
 | `/webinitor --help` | Show help |
 | `/webinitor --version` | Show version |
 
