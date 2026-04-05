@@ -1,0 +1,116 @@
+import { useQuery } from "@tanstack/react-query";
+
+interface HealthCheck {
+  id: number;
+  service: string;
+  status: "up" | "degraded" | "down";
+  response_time_ms: number;
+  checked_at: string;
+}
+
+interface UptimeEntry {
+  service: string;
+  total: number;
+  up_count: number;
+  uptime_pct: number;
+}
+
+function useHealthChecks() {
+  return useQuery<{ checks: HealthCheck[] }>({
+    queryKey: ["dashboard", "health-checks"],
+    queryFn: () => fetch("/api/dashboard/health-checks").then((r) => r.json()),
+    refetchInterval: 60_000,
+  });
+}
+
+function useUptime() {
+  return useQuery<{ uptime: UptimeEntry[] }>({
+    queryKey: ["dashboard", "uptime"],
+    queryFn: () => fetch("/api/dashboard/uptime").then((r) => r.json()),
+    refetchInterval: 60_000,
+  });
+}
+
+const STATUS_COLORS = {
+  up: "bg-green-500",
+  degraded: "bg-yellow-500",
+  down: "bg-red-500",
+};
+
+export function HealthPage() {
+  const { data: checksData } = useHealthChecks();
+  const { data: uptimeData } = useUptime();
+
+  // Get latest check per service
+  const latestByService = new Map<string, HealthCheck>();
+  for (const check of checksData?.checks ?? []) {
+    if (!latestByService.has(check.service)) {
+      latestByService.set(check.service, check);
+    }
+  }
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-6">Service Health</h1>
+
+      {/* Status cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        {Array.from(latestByService.entries()).map(([service, check]) => {
+          const uptime = uptimeData?.uptime.find((u) => u.service === service);
+          return (
+            <div key={service} className="p-4 bg-white border rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <div className={`w-3 h-3 rounded-full ${STATUS_COLORS[check.status]}`} />
+                <h2 className="font-semibold capitalize">{service}</h2>
+              </div>
+              <p className="text-sm text-gray-500">
+                Response: {check.response_time_ms}ms
+              </p>
+              {uptime && (
+                <p className="text-sm text-gray-500">
+                  24h uptime: {uptime.uptime_pct}%
+                </p>
+              )}
+              <p className="text-xs text-gray-400 mt-1">
+                {new Date(check.checked_at).toLocaleString()}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Recent checks table */}
+      <h2 className="font-semibold mb-3">Recent Checks</h2>
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="border-b text-left">
+            <th className="py-2 px-3">Service</th>
+            <th className="py-2 px-3">Status</th>
+            <th className="py-2 px-3">Response</th>
+            <th className="py-2 px-3">Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(checksData?.checks ?? []).slice(0, 20).map((check) => (
+            <tr key={check.id} className="border-b">
+              <td className="py-2 px-3 capitalize">{check.service}</td>
+              <td className="py-2 px-3">
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+                  check.status === "up" ? "bg-green-100 text-green-700" :
+                  check.status === "degraded" ? "bg-yellow-100 text-yellow-700" :
+                  "bg-red-100 text-red-700"
+                }`}>
+                  {check.status}
+                </span>
+              </td>
+              <td className="py-2 px-3 text-sm">{check.response_time_ms}ms</td>
+              <td className="py-2 px-3 text-sm text-gray-500">
+                {new Date(check.checked_at).toLocaleString()}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
