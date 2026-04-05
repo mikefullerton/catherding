@@ -1,0 +1,14 @@
+import { useQuery } from "@tanstack/react-query";
+import type { PublicFeatureFlag } from "{{PROJECT_NAME}}-shared";
+
+export function usePublicFlags() {
+  return useQuery<{ flags: PublicFeatureFlag[] }>({
+    queryKey: ["public", "flags"],
+    queryFn: async () => {
+      const res = await fetch("/api/public/flags");
+      if (!res.ok) throw new Error("Failed to fetch flags");
+      return res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}

@@ -1,0 +1,42 @@
+import { useAuth } from "../hooks/use-auth";
+
+export function IndexPage() {
+  const { user, isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-12">
+      <h1 className="text-4xl font-bold mb-4">{{PROJECT_NAME}}</h1>
+      {isAuthenticated ? (
+        <div>
+          <p className="text-lg text-gray-600">
+            Welcome back, {user?.displayName ?? user?.email}
+          </p>
+        </div>
+      ) : (
+        <div>
+          <p className="text-lg text-gray-600 mb-6">
+            Get started by creating an account or logging in.
+          </p>
+          <div className="flex gap-4">
+            <a
+              href="/register"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
+              Create Account
+            </a>
+            <a
+              href="/login"
+              className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+            >
+              Log In
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

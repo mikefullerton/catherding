@@ -1,0 +1,21 @@
+import { useQuery } from "@tanstack/react-query";
+import type { User } from "{{PROJECT_NAME}}-shared";
+
+export function useCurrentUser() {
+  return useQuery<User>({
+    queryKey: ["auth", "me"],
+    queryFn: async () => {
+      const tokens = localStorage.getItem("auth_tokens");
+      if (!tokens) throw new Error("Not authenticated");
+
+      const { accessToken } = JSON.parse(tokens);
+      const res = await fetch("/api/auth/me", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (!res.ok) throw new Error("Failed to fetch user");
+      return res.json();
+    },
+    retry: false,
+  });
+}
