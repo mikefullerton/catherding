@@ -83,10 +83,43 @@ GitHub:    mikefullerton/foo (private)
 Auth:      email/password, GitHub OAuth
 ```
 
-### Step 2: Create directory structure
+### Step 2: Create GitHub repo and set up target directory
+
+**If GitHub repo was requested:**
+
+Create the repo on GitHub first, then clone it as the target directory:
 
 ```bash
-mkdir -p <target>/{backend/src/{config,db,auth,routes/admin,services,middleware},shared/src,sites/{main,admin,dashboard}/src}
+gh repo create <org>/<repo-name> --private --clone
+```
+
+If org is "personal", omit the org prefix:
+
+```bash
+gh repo create <repo-name> --private --clone
+```
+
+The `--clone` flag clones the repo into `./<repo-name>/`. This becomes `<target>`.
+
+Change the working directory into the cloned repo:
+
+```bash
+cd <target>
+```
+
+If repo creation fails, print the error and fall back to creating a local directory (Step 2b).
+
+**If no GitHub repo (Step 2b):**
+
+```bash
+mkdir -p <target>
+cd <target>
+```
+
+Then create the subdirectory structure:
+
+```bash
+mkdir -p {backend/src/{config,db,auth,routes/admin,services,middleware},shared/src,sites/{main,admin,dashboard}/src}
 ```
 
 ### Step 3: Copy templates
@@ -129,37 +162,27 @@ Strip the `.tmpl` extension from output filenames. Preserve directory structure 
 - `root/env.example.tmpl` → write as `.env.example` AND copy to `.env` (so dev works immediately)
 - `root/site-manifest.json.tmpl` → write as `site-manifest.json`
 
-### Step 4: Initialize git repo
+### Step 4: Commit and push
 
 ```bash
-cd <target> && git init && git add -A && git commit -m "feat: initial scaffold from site-manager v1.2.0"
+git add -A && git commit -m "feat: initial scaffold from site-manager v1.2.0"
 ```
 
-### Step 5: Create GitHub repo (if requested)
-
-If the user chose to create a GitHub repo:
+If a GitHub repo was created in Step 2, push the initial commit:
 
 ```bash
-cd <target> && gh repo create <org>/<repo-name> --private --source=. --push
+git push -u origin main
 ```
 
-If org is "personal", omit the org prefix:
+### Step 5: Install dependencies
 
 ```bash
-cd <target> && gh repo create <repo-name> --private --source=. --push
-```
-
-Report the repo URL. If this fails, print the error and continue.
-
-### Step 6: Install dependencies
-
-```bash
-cd <target> && npm install
+npm install
 ```
 
 If this fails, print the error and continue — the user can fix it manually.
 
-### Step 7: Report
+### Step 6: Report
 
 Print a summary:
 
