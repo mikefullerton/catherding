@@ -36,7 +36,7 @@
 - [x] Add entry to `.claude-plugin/marketplace.json`
 - [x] Create `plugins/site-manager/skills/site-manager/references/templates/` directory structure
 - [x] Define `site-manifest.json` schema as a template (`root/site-manifest.json.tmpl`)
-- [ ] Commit: `feat(site-manager): initial plugin structure and manifest schema`
+- [x] Commit: `feat(site-manager): initial plugin structure and manifest schema` (6674e0e, 6806906)
 
 **Allowed tools for SKILL.md frontmatter:**
 ```yaml
@@ -50,46 +50,47 @@ allowed-tools: Read, Write, Edit, Bash(bash *), Bash(brew *), Bash(npm *), Bash(
 **The Hono API server — auth, admin, feature flags, messaging, health.**
 
 ### Core
-- [ ] `backend/package.json.tmpl` — hono, @hono/node-server, drizzle-orm, pg, jose, zod, bcrypt
-- [ ] `backend/tsconfig.json.tmpl`
-- [ ] `backend/drizzle.config.ts.tmpl`
-- [ ] `backend/src/index.ts.tmpl` — Hono node server on PORT
-- [ ] `backend/src/app.ts.tmpl` — Hono app: CORS, logger, error handler, route mounting
-- [ ] `backend/src/config/env.ts.tmpl` — Zod schema (DATABASE_URL, PORT, CORS_ORIGIN, CLIENT_URL, JWT_SECRET, admin email, optional OAuth + messaging env vars)
+- [x] `backend/package.json.tmpl` — hono, @hono/node-server, drizzle-orm, pg, jose, zod, bcrypt
+- [x] `backend/tsconfig.json.tmpl`
+- [x] `backend/drizzle.config.ts.tmpl`
+- [x] `backend/src/index.ts.tmpl` — Hono node server on PORT
+- [x] `backend/src/app.ts.tmpl` — Hono app: CORS, logger, error handler, route mounting
+- [x] `backend/src/config/env.ts.tmpl` — Zod schema (DATABASE_URL, PORT, CORS_ORIGIN, CLIENT_URL, JWT_SECRET, admin email, optional OAuth + messaging env vars)
 
 ### Database
-- [ ] `backend/src/db/schema.ts.tmpl` — users, oauth_accounts, refresh_tokens, feature_flags, message_log, feedback_submissions
-- [ ] `backend/src/db/client.ts.tmpl` — Drizzle PostgreSQL client
-- [ ] `backend/src/db/migrate.ts.tmpl` — Run drizzle migrations
-- [ ] `backend/src/db/seed.ts.tmpl` — Seed admin account (read email/password from env or prompt)
+- [x] `backend/src/db/schema.ts.tmpl` — users, oauth_accounts, refresh_tokens, feature_flags, message_log, feedback_submissions
+- [x] `backend/src/db/client.ts.tmpl` — Drizzle PostgreSQL client
+- [x] `backend/src/db/migrate.ts.tmpl` — Run drizzle migrations
+- [x] `backend/src/db/seed.ts.tmpl` — Seed admin account (read email/password from env or prompt)
 
 ### Auth
-- [ ] `backend/src/auth/password.ts.tmpl` — bcrypt hash + verify
-- [ ] `backend/src/auth/session.ts.tmpl` — JWT create (15 min TTL), verify, refresh token rotation
-- [ ] `backend/src/auth/middleware.ts.tmpl` — extractAuth, requireAuth, requireAdmin
-- [ ] `backend/src/auth/github.ts.tmpl` — GitHub OAuth (conditional)
-- [ ] `backend/src/auth/google.ts.tmpl` — Google OAuth with refresh tokens (conditional)
-- [ ] `backend/src/routes/auth.ts.tmpl` — POST /register, /login, /refresh, /logout, /me
+- [x] `backend/src/auth/password.ts.tmpl` — bcrypt hash + verify
+- [x] `backend/src/auth/session.ts.tmpl` — JWT create (15 min TTL), verify, refresh token rotation
+- [x] `backend/src/auth/middleware.ts.tmpl` — extractAuth, requireAuth, requireAdmin
+- [x] `backend/src/auth/github.ts.tmpl` — GitHub OAuth (conditional)
+- [x] `backend/src/auth/google.ts.tmpl` — Google OAuth with refresh tokens (conditional)
+- [x] `backend/src/routes/auth.ts.tmpl` — POST /register, /login, /refresh, /logout, /me
 
 ### Admin Routes
-- [ ] `backend/src/routes/admin/users.ts.tmpl` — GET /admin/users (paginated, search), PATCH /admin/users/:id/role
-- [ ] `backend/src/routes/admin/flags.ts.tmpl` — GET/POST/PATCH/DELETE /admin/flags
-- [ ] `backend/src/routes/admin/messaging.ts.tmpl` — POST /admin/messaging/send, GET /admin/messaging/log
-- [ ] `backend/src/routes/admin/feedback.ts.tmpl` — GET /admin/feedback, PATCH /admin/feedback/:id
+- [x] `backend/src/routes/admin/users.ts.tmpl` — GET /admin/users (paginated, search), PATCH /admin/users/:id/role
+- [x] `backend/src/routes/admin/flags.ts.tmpl` — GET/POST/PATCH/DELETE /admin/flags
+- [x] `backend/src/routes/admin/messaging.ts.tmpl` — POST /admin/messaging/send, GET /admin/messaging/log
+- [x] `backend/src/routes/admin/feedback.ts.tmpl` — GET /admin/feedback, PATCH /admin/feedback/:id
 
 ### Services
-- [ ] `backend/src/services/feature-flags.ts.tmpl` — getAll, get, set, delete
-- [ ] `backend/src/services/messaging.ts.tmpl` — sendEmail, sendSms (Postmark + Twilio abstraction)
-- [ ] `backend/src/services/settings.ts.tmpl` — Settings key registry (centralized constants)
+- [x] `backend/src/services/feature-flags.ts.tmpl` — getAll, get, set, delete
+- [x] `backend/src/services/messaging.ts.tmpl` — sendEmail, sendSms (Postmark + Twilio abstraction)
+- [x] `backend/src/services/settings.ts.tmpl` — Settings key registry (centralized constants)
 
 ### Middleware
-- [ ] `backend/src/middleware/error.ts.tmpl` — RFC 9457 Problem Details
-- [ ] `backend/src/middleware/logger.ts.tmpl` — Structured logging with requestId, userId MDC
-- [ ] `backend/src/middleware/rate-limit.ts.tmpl` — Per-IP rate limiting
+- [x] `backend/src/middleware/error.ts.tmpl` — RFC 9457 Problem Details
+- [x] `backend/src/middleware/logger.ts.tmpl` — Structured logging with requestId, userId MDC
+- [x] `backend/src/middleware/rate-limit.ts.tmpl` — Per-IP rate limiting
+- [x] `backend/src/middleware/cors.ts.tmpl` — Environment-driven CORS with dev-friendly localhost support
 
 ### Health + Public
-- [ ] `backend/src/routes/health.ts.tmpl` — /health, /health/live, /health/ready (DB check)
-- [ ] `backend/src/routes/public.ts.tmpl` — Public API endpoints (feature flags for client)
+- [x] `backend/src/routes/health.ts.tmpl` — /health, /health/live, /health/ready (DB check)
+- [x] `backend/src/routes/public.ts.tmpl` — Public API endpoints (feature flags for client)
 
 ### Commit: `feat(site-manager): add backend API templates`
 

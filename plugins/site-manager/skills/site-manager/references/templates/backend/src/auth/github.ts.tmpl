@@ -1,0 +1,111 @@
+{{#IF_GITHUB_OAUTH}}
+import { Hono } from "hono";
+import { db } from "../db/client.js";
+import { users, oauthAccounts } from "../db/schema.js";
+import { eq, and } from "drizzle-orm";
+import { createAccessToken, createRefreshToken } from "./session.js";
+import { env } from "../config/env.js";
+import type { AppEnv } from "../app.js";
+
+export const githubAuth = new Hono<AppEnv>();
+
+githubAuth.get("/", (c) => {
+  const params = new URLSearchParams({
+    client_id: env.GITHUB_CLIENT_ID!,
+    scope: "read:user user:email",
+  });
+  return c.redirect(`https://github.com/login/oauth/authorize?${params}`);
+});
+
+githubAuth.get("/callback", async (c) => {
+  const code = c.req.query("code");
+  if (!code) {
+    return c.json({ type: "about:blank", title: "Missing code parameter", status: 400 }, 400);
+  }
+
+  // Exchange code for access token
+  const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({
+      client_id: env.GITHUB_CLIENT_ID,
+      client_secret: env.GITHUB_CLIENT_SECRET,
+      code,
+    }),
+  });
+  const tokenData = (await tokenRes.json()) as { access_token?: string; error?: string };
+
+  if (!tokenData.access_token) {
+    return c.json({ type: "about:blank", title: "GitHub OAuth failed", status: 400 }, 400);
+  }
+
+  // Fetch GitHub user
+  const userRes = await fetch("https://api.github.com/user", {
+    headers: { Authorization: `Bearer ${tokenData.access_token}` },
+  });
+  const ghUser = (await userRes.json()) as { id: number; login: string; email: string; avatar_url: string };
+
+  // Fetch email if not public
+  let email = ghUser.email;
+  if (!email) {
+    const emailRes = await fetch("https://api.github.com/user/emails", {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+    const emails = (await emailRes.json()) as Array<{ email: string; primary: boolean; verified: boolean }>;
+    const primary = emails.find((e) => e.primary && e.verified);
+    email = primary?.email ?? emails[0]?.email ?? "";
+  }
+
+  const providerId = String(ghUser.id);
+
+  // Check for existing OAuth link
+  const [existingOauth] = await db
+    .select()
+    .from(oauthAccounts)
+    .where(and(eq(oauthAccounts.provider, "github"), eq(oauthAccounts.providerAccountId, providerId)));
+
+  let userId: string;
+
+  if (existingOauth) {
+    userId = existingOauth.userId;
+    await db
+      .update(oauthAccounts)
+      .set({ accessToken: tokenData.access_token })
+      .where(eq(oauthAccounts.id, existingOauth.id));
+  } else {
+    // Check if user exists by email
+    const [existingUser] = await db.select().from(users).where(eq(users.email, email));
+
+    if (existingUser) {
+      userId = existingUser.id;
+    } else {
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          email,
+          passwordHash: "",
+          displayName: ghUser.login,
+          avatarUrl: ghUser.avatar_url,
+          emailVerified: true,
+        })
+        .returning();
+      userId = newUser.id;
+    }
+
+    await db.insert(oauthAccounts).values({
+      userId,
+      provider: "github",
+      providerAccountId: providerId,
+      accessToken: tokenData.access_token,
+    });
+  }
+
+  const [user] = await db.select().from(users).where(eq(users.id, userId));
+  const accessToken = await createAccessToken({ sub: user.id, email: user.email, role: user.role });
+  const refreshToken = await createRefreshToken(user.id);
+
+  return c.redirect(
+    `${env.CLIENT_URL}/auth/callback?access_token=${accessToken}&refresh_token=${refreshToken}`,
+  );
+});
+{{/IF_GITHUB_OAUTH}}

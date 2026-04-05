@@ -1,0 +1,124 @@
+import {
+  pgTable,
+  uuid,
+  varchar,
+  text,
+  boolean,
+  integer,
+  timestamp,
+  jsonb,
+  index,
+  uniqueIndex,
+} from "drizzle-orm/pg-core";
+
+// ── Users ────────────────────────────────────────────────────────────────
+
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: varchar("email", { length: 255 }).notNull().unique(),
+    passwordHash: varchar("password_hash", { length: 255 }).notNull(),
+    role: varchar("role", { length: 50 }).notNull().default("user"),
+    displayName: varchar("display_name", { length: 255 }),
+    avatarUrl: varchar("avatar_url", { length: 500 }),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("users_email_idx").on(table.email)],
+);
+
+// ── OAuth Accounts ───────────────────────────────────────────────────────
+
+export const oauthAccounts = pgTable(
+  "oauth_accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: varchar("provider", { length: 50 }).notNull(),
+    providerAccountId: varchar("provider_account_id", { length: 255 }).notNull(),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("oauth_provider_account_idx").on(table.provider, table.providerAccountId),
+    index("oauth_user_idx").on(table.userId),
+  ],
+);
+
+// ── Refresh Tokens ───────────────────────────────────────────────────────
+
+export const refreshTokens = pgTable(
+  "refresh_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: varchar("token_hash", { length: 255 }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    replacedByTokenId: uuid("replaced_by_token_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("refresh_tokens_user_idx").on(table.userId)],
+);
+
+// ── Feature Flags ────────────────────────────────────────────────────────
+
+export const featureFlags = pgTable("feature_flags", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  key: varchar("key", { length: 100 }).notNull().unique(),
+  description: text("description"),
+  enabled: boolean("enabled").notNull().default(false),
+  rules: jsonb("rules").$type<Record<string, unknown>>(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+// ── Message Log ──────────────────────────────────────────────────────────
+
+export const messageLog = pgTable(
+  "message_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    channel: varchar("channel", { length: 20 }).notNull(),
+    recipientEmail: varchar("recipient_email", { length: 255 }),
+    recipientPhone: varchar("recipient_phone", { length: 50 }),
+    subject: varchar("subject", { length: 500 }),
+    body: text("body").notNull(),
+    status: varchar("status", { length: 20 }).notNull().default("pending"),
+    providerMessageId: varchar("provider_message_id", { length: 255 }),
+    error: text("error"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("message_log_status_idx").on(table.status)],
+);
+
+// ── Feedback Submissions ─────────────────────────────────────────────────
+
+export const feedbackSubmissions = pgTable(
+  "feedback_submissions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    email: varchar("email", { length: 255 }),
+    category: varchar("category", { length: 50 }).notNull().default("general"),
+    subject: varchar("subject", { length: 500 }),
+    body: text("body").notNull(),
+    status: varchar("status", { length: 20 }).notNull().default("new"),
+    adminNotes: text("admin_notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("feedback_status_idx").on(table.status),
+    index("feedback_user_idx").on(table.userId),
+  ],
+);
