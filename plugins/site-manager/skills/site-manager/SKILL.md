@@ -179,44 +179,163 @@ If a GitHub repo was created in Step 2, push the initial commit:
 git push -u origin main
 ```
 
-### Step 5: Install dependencies
+### Step 5: Install dependencies and build
 
 ```bash
 npm install
+npm run build:shared
 ```
 
-If this fails, print the error and continue — the user can fix it manually.
+If this fails, print the error and stop — something is wrong with the scaffold.
 
-### Step 6: Report
+### Step 6: Generate initial database migration
 
-Print a summary:
+```bash
+cd backend && npx drizzle-kit generate && cd ..
+```
+
+Commit the migration:
+
+```bash
+git add -A && git commit -m "chore: add initial database migration"
+```
+
+If a GitHub repo exists, push:
+
+```bash
+git push
+```
+
+### Step 7: Deploy backend to Railway
+
+Create Railway project and Postgres:
+
+```bash
+railway init --name <project-name>
+railway add --database postgres
+railway add --service backend
+railway link --project <project-id> --service backend --environment production
+```
+
+Set environment variables:
+
+```bash
+railway variables set JWT_SECRET="$(openssl rand -hex 32)"
+railway variables set NODE_ENV=production
+railway variables set CORS_ORIGIN="*"
+railway variables set DATABASE_URL='${{Postgres.DATABASE_URL}}'
+```
+
+Deploy:
+
+```bash
+railway up --detach
+railway domain
+```
+
+Wait for the deployment to become healthy (poll `/api/health` every 10 seconds, timeout after 3 minutes).
+
+### Step 8: Seed admin account
+
+Get the public DATABASE_URL from the Postgres service:
+
+```bash
+railway link --project <project-id> --service Postgres --environment production
+```
+
+Extract `DATABASE_PUBLIC_URL` from `railway variables list --json`.
+
+Ask the user for their admin email and password (min 12 chars).
+
+```bash
+cd backend && DATABASE_URL="<public-db-url>" ADMIN_EMAIL="<email>" ADMIN_PASSWORD="<password>" npx tsx src/db/seed.ts
+```
+
+Re-link to backend service after seeding:
+
+```bash
+railway link --project <project-id> --service backend --environment production
+```
+
+### Step 9: Deploy Cloudflare Worker sites
+
+Update all wrangler.jsonc files with the real Railway backend URL.
+
+Remove custom domain routes from wrangler.jsonc for now (workers.dev URLs will be used until DNS is configured).
+
+Build and deploy each site:
+
+```bash
+cd sites/main && npx vite build && npx wrangler deploy
+cd sites/admin && npx vite build && npx wrangler deploy
+```
+
+For dashboard, create D1 database first:
+
+```bash
+cd sites/dashboard
+npx wrangler d1 create <project-name>-dashboard-db
+```
+
+Update `wrangler.jsonc` with the real D1 database ID, then:
+
+```bash
+npx wrangler d1 migrations apply <project-name>-dashboard-db --remote
+npx vite build && npx wrangler deploy
+```
+
+Capture all deployed URLs from the wrangler output.
+
+### Step 10: Run smoke tests
+
+```bash
+python3 ${CLAUDE_SKILL_DIR}/references/smoke-test.py smoke \
+  --base-url <railway-url> \
+  --main-url <main-worker-url> \
+  --admin-url <admin-worker-url> \
+  --dashboard-url <dashboard-worker-url>
+```
+
+If any tests fail, report the failures but continue.
+
+### Step 11: Update manifest and push
+
+Update `site-manifest.json` with:
+- All service URLs and statuses set to `"deployed"`
+- `lastDeployed` timestamps
+- `features.auth.adminSeeded` set to `true`
+
+Commit and push:
+
+```bash
+git add -A && git commit -m "chore: update manifest with deployment URLs"
+git push
+```
+
+### Step 12: Report and open in browser
+
+Print the final summary and open all sites in the browser:
 
 ```
-=== PROJECT CREATED ===
+=== {{DISPLAY_NAME}} is live! ===
 
-  foo (foo.com)
-  Directory: ./foo/
-  GitHub:    https://github.com/mikefullerton/foo (or "not created")
+  Main site:     <main-worker-url>
+  Admin site:    <admin-worker-url>
+  Dashboard:     <dashboard-worker-url>
+  Backend API:   <railway-url>
+  GitHub:        <repo-url>
 
-  backend/              Hono API + PostgreSQL (Railway)
-  sites/main/           foo.com (Cloudflare Worker)
-  sites/admin/          admin.foo.com (Cloudflare Worker)
-  sites/dashboard/      dashboard.foo.com (CF Worker + D1)
-  shared/               Shared types + API client
+  Admin login:
+    Email:    <admin-email>
+    Password: <admin-password>
 
-  Auth:  email/password, GitHub OAuth
-  Files: <N> files created
+  Smoke tests: <N>/<N> passed
 
-Next steps:
-  1. cd foo
-  2. docker compose up -d              # Start PostgreSQL
-  3. cp .env.example .env              # Configure environment
-  4. npm run db:migrate                # Run database migrations
-  5. npm run db:seed                   # Create admin account (set ADMIN_EMAIL/ADMIN_PASSWORD in .env)
-  6. npm run dev                       # Start all services
-  7. /site-manager deploy              # Deploy to production
-  8. /webinitor connect foo.com        # Configure DNS
+  To connect your domain:
+    /webinitor connect <domain>
 ```
+
+Open all three site URLs in the browser.
 
 ---
 
