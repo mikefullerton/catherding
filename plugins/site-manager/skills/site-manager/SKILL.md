@@ -35,15 +35,14 @@ Then stop.
 | `$ARGUMENTS` | Action |
 |---|---|
 | `init` or `init <domain>` | Go to **Init** |
-| `deploy` or `deploy all` | Go to **Deploy** |
-| `deploy backend` | Go to **Deploy** (backend only) |
-| `deploy main` | Go to **Deploy** (main site only) |
-| `deploy admin` | Go to **Deploy** (admin site only) |
-| `deploy dashboard` | Go to **Deploy** (dashboard only) |
+| `deploy` or `deploy all` | Go to **Deploy All** |
+| `deploy backend` | Go to **Deploy Single** (service=backend) |
+| `deploy main` | Go to **Deploy Single** (service=main) |
+| `deploy admin` | Go to **Deploy Single** (service=admin) |
+| `deploy dashboard` | Go to **Deploy Single** (service=dashboard) |
 | `status` or empty | Go to **Status** |
-| `manifest` | Go to **Manifest** |
-| `manifest show` | Go to **Manifest** (show current) |
-| `manifest validate` | Go to **Manifest** (validate) |
+| `manifest` or `manifest show` | Go to **Manifest Show** |
+| `manifest validate` | Go to **Manifest Validate** |
 | `seed-admin` | Go to **Seed Admin** |
 | `--help` | Go to **Help** |
 | `--version` | Print version (handled in Startup) |
@@ -55,80 +54,280 @@ Then stop.
 
 **Scaffold a new project with all 4 sites.**
 
-*See Phase 2–6 for full implementation.*
-
 ### Step 1: Gather project info
 
-Ask the user for:
-- **Project name** (lowercase, alphanumeric + hyphens)
-- **Domain** (e.g., `foo.com`)
-- **Target directory** (default: `./<project-name>/`)
-- **Auth providers** — email/password is always included; optionally add GitHub and/or Google OAuth
+Ask the user for all of the following. If `$ARGUMENTS` contains a domain (e.g., `init foo.com`), use it and skip the domain question.
 
-### Step 2: Scaffold project
+| Field | Validation | Default |
+|-------|-----------|---------|
+| Project name | lowercase, `[a-z0-9-]+` | derived from domain (e.g., `foo` from `foo.com`) |
+| Domain | valid domain name | — (required) |
+| Target directory | absolute or relative path | `./<project-name>/` |
+| GitHub OAuth | yes/no | no |
+| Google OAuth | yes/no | no |
 
-Using templates from `${CLAUDE_SKILL_DIR}/references/templates/`, create the full project structure:
+Wait for the user to confirm before proceeding. Display a summary:
 
 ```
-<project>/
-├── backend/                    # Hono API server
-├── sites/
-│   ├── main/                   # Public site (domain.com)
-│   ├── admin/                  # Admin dashboard (admin.domain.com)
-│   └── dashboard/              # Status dashboard (dashboard.domain.com)
-├── shared/                     # Shared types, constants, API client
-├── site-manifest.json          # Tracks deployment state + features
-├── Dockerfile
-├── railway.toml
-├── docker-compose.yml
-└── package.json                # Root workspace
+Project:   foo
+Domain:    foo.com
+Directory: ./foo/
+Auth:      email/password, GitHub OAuth
 ```
 
-### Step 3: Initialize site-manifest.json
+### Step 2: Create directory structure
 
-Create `site-manifest.json` from the template with all services in `"scaffolded"` status.
+```bash
+mkdir -p <target>/{backend/src/{config,db,auth,routes/admin,services,middleware},shared/src,sites/{main,admin,dashboard}/src}
+```
 
-### Step 4: Install dependencies
+### Step 3: Copy templates
 
-Run `npm install` in the project root (workspace mode).
+For each template in `${CLAUDE_SKILL_DIR}/references/templates/`, read the `.tmpl` file, perform placeholder substitution, and write the output file.
 
-### Step 5: Report
+**Placeholder substitution table:**
 
-Print a summary of what was created and next steps (`/site-manager deploy`, `/site-manager seed-admin`).
+| Placeholder | Value |
+|------------|-------|
+| `{{PROJECT_NAME}}` | Project name (e.g., `foo`) |
+| `{{DOMAIN}}` | Domain (e.g., `foo.com`) |
+| `{{DB_NAME}}` | `<project-name>_dev` |
+| `{{API_BACKEND_URL}}` | `https://<project-name>-production.up.railway.app` |
+| `{{CREATED_AT}}` | Current ISO 8601 timestamp |
+| `{{D1_DATABASE_ID}}` | `placeholder-run-wrangler-d1-create` |
+
+**Template mapping** — read each `.tmpl` file and write to the corresponding path:
+
+| Template directory | Output directory |
+|---|---|
+| `templates/root/*` | `<target>/` |
+| `templates/backend/*` | `<target>/backend/` |
+| `templates/shared/*` | `<target>/shared/` |
+| `templates/sites/main/*` | `<target>/sites/main/` |
+| `templates/sites/admin/*` | `<target>/sites/admin/` |
+| `templates/sites/dashboard/*` | `<target>/sites/dashboard/` |
+| `templates/github/*` | `<target>/.github/workflows/` |
+
+Strip the `.tmpl` extension from output filenames. Preserve directory structure within each template directory.
+
+**Conditional templates:**
+- `backend/src/auth/github.ts.tmpl` — only if GitHub OAuth selected. Remove `{{#IF_GITHUB_OAUTH}}` / `{{/IF_GITHUB_OAUTH}}` wrappers when including; skip entire file when not.
+- `backend/src/auth/google.ts.tmpl` — only if Google OAuth selected. Same conditional wrapper logic.
+- If GitHub OAuth is selected, add `"github"` to `features.auth.providers` in site-manifest.json.
+- If Google OAuth is selected, add `"google"` to `features.auth.providers` in site-manifest.json.
+
+**Special files:**
+- `root/gitignore.tmpl` → write as `.gitignore`
+- `root/env.example.tmpl` → write as `.env.example` AND copy to `.env` (so dev works immediately)
+- `root/site-manifest.json.tmpl` → write as `site-manifest.json`
+
+### Step 4: Initialize git repo
+
+```bash
+cd <target> && git init && git add -A && git commit -m "feat: initial scaffold from site-manager v1.0.0"
+```
+
+### Step 5: Install dependencies
+
+```bash
+cd <target> && npm install
+```
+
+If this fails, print the error and continue — the user can fix it manually.
+
+### Step 6: Report
+
+Print a summary:
+
+```
+=== PROJECT CREATED ===
+
+  foo (foo.com)
+  Directory: ./foo/
+
+  backend/              Hono API + PostgreSQL (Railway)
+  sites/main/           foo.com (Cloudflare Worker)
+  sites/admin/          admin.foo.com (Cloudflare Worker)
+  sites/dashboard/      dashboard.foo.com (CF Worker + D1)
+  shared/               Shared types + API client
+
+  Auth:  email/password, GitHub OAuth
+  Files: <N> files created
+
+Next steps:
+  1. cd foo
+  2. docker compose up -d              # Start PostgreSQL
+  3. cp .env.example .env              # Configure environment
+  4. npm run db:migrate                # Run database migrations
+  5. npm run db:seed                   # Create admin account (set ADMIN_EMAIL/ADMIN_PASSWORD in .env)
+  6. npm run dev                       # Start all services
+  7. /site-manager deploy              # Deploy to production
+  8. /webinitor connect foo.com        # Configure DNS
+```
 
 ---
 
-## Deploy
+## Deploy All
 
-**Deploy services to their platforms.**
-
-*See Phase 8 for full implementation.*
-
-### Prerequisites
-
-- Project must have a `site-manifest.json` in the current directory
-- Webinitor must be configured (`/webinitor status` to check)
+**Deploy all services to their platforms.**
 
 ### Step 1: Read manifest
 
-Read `site-manifest.json` to determine what needs deploying.
+Read `site-manifest.json` from the current directory. If not found:
+> No site-manifest.json found. Run `/site-manager init` to create a project.
 
-### Step 2: Deploy services
+Then stop.
 
-Deploy the requested services (or all if no argument):
+### Step 2: Pre-flight checks
 
-1. **Backend** → Railway (via `railway up`)
-2. **Main site** → Cloudflare (via `wrangler deploy`)
-3. **Admin site** → Cloudflare (via `wrangler deploy`)
-4. **Dashboard** → Cloudflare (via `wrangler deploy`, create D1 database if needed)
+Verify tools are available:
 
-### Step 3: Update manifest
+```bash
+which railway && which wrangler
+```
 
-Update `site-manifest.json` with deployment URLs and timestamps.
+If either is missing, print:
+> Missing required tools. Run `/webinitor setup` to install them.
 
-### Step 4: Report
+Then stop.
 
-Print deployment status for each service.
+Check Railway auth:
+```bash
+railway whoami 2>&1
+```
+
+Check Wrangler auth:
+```bash
+wrangler whoami 2>&1
+```
+
+If either is not authenticated, guide the user to authenticate.
+
+### Step 3: Deploy backend
+
+```bash
+cd backend && railway up --detach
+```
+
+Wait for the deployment to report success. Get the deployment URL:
+
+```bash
+railway domain
+```
+
+Update `site-manifest.json`:
+- `services.backend.status` → `"deployed"`
+- `services.backend.url` → the Railway URL
+- `services.backend.lastDeployed` → current ISO timestamp
+
+### Step 4: Deploy main site
+
+```bash
+cd sites/main && wrangler deploy
+```
+
+Update `site-manifest.json`:
+- `services.main.status` → `"deployed"`
+- `services.main.lastDeployed` → current ISO timestamp
+
+### Step 5: Deploy admin site
+
+```bash
+cd sites/admin && wrangler deploy
+```
+
+Update `site-manifest.json`:
+- `services.admin.status` → `"deployed"`
+- `services.admin.lastDeployed` → current ISO timestamp
+
+### Step 6: Deploy dashboard
+
+First, check if D1 database exists:
+
+```bash
+wrangler d1 list 2>&1 | grep "<project-name>-dashboard-db"
+```
+
+If not found, create it:
+
+```bash
+wrangler d1 create <project-name>-dashboard-db
+```
+
+Extract the database ID from the output and update `wrangler.jsonc` with the real ID.
+
+Run D1 migrations:
+
+```bash
+cd sites/dashboard && wrangler d1 migrations apply <project-name>-dashboard-db
+```
+
+Deploy:
+
+```bash
+cd sites/dashboard && wrangler deploy
+```
+
+Update `site-manifest.json`:
+- `services.dashboard.status` → `"deployed"`
+- `services.dashboard.lastDeployed` → current ISO timestamp
+
+### Step 7: Health check
+
+For each deployed service with a URL, verify it responds:
+
+```bash
+curl -sf <backend-url>/api/health
+curl -sf https://<domain>
+curl -sf https://admin.<domain>
+curl -sf https://dashboard.<domain>
+```
+
+### Step 8: Report
+
+```
+=== DEPLOYMENT COMPLETE ===
+
+  Backend API        ✅ deployed    <backend-url>
+  Main site          ✅ deployed    https://<domain>
+  Admin site         ✅ deployed    https://admin.<domain>
+  Dashboard          ✅ deployed    https://dashboard.<domain>
+
+Next: /site-manager seed-admin (if not done)
+      /webinitor connect <domain> (to configure DNS)
+```
+
+---
+
+## Deploy Single
+
+**Deploy a single service.** The service name is extracted from `$ARGUMENTS` (e.g., `deploy backend`).
+
+### Step 1: Read manifest
+
+Same as Deploy All Step 1.
+
+### Step 2: Pre-flight checks
+
+Same as Deploy All Step 2, but only check the tool needed for the target service:
+- `backend` → check `railway`
+- `main`, `admin`, `dashboard` → check `wrangler`
+
+### Step 3: Deploy
+
+Run the deployment step for the specific service (same as the corresponding step in Deploy All).
+
+### Step 4: Update manifest
+
+Update only the targeted service in `site-manifest.json`.
+
+### Step 5: Report
+
+```
+=== DEPLOYED: <service> ===
+
+  <Service name>     ✅ deployed    <url>
+```
 
 ---
 
@@ -136,52 +335,125 @@ Print deployment status for each service.
 
 **Check the status of all services.**
 
-*See Phase 9 for full implementation.*
-
 ### Step 1: Read manifest
 
-Read `site-manifest.json` from the current directory. If not found, print:
+Read `site-manifest.json` from the current directory. If not found:
 > No site-manifest.json found. Run `/site-manager init` to create a project.
 
-### Step 2: Check services
+Then stop.
+
+### Step 2: Check each service
 
 For each service in the manifest:
-- **Backend**: Hit `/health` endpoint
-- **Main/Admin/Dashboard**: Check if Worker is deployed via `wrangler` or HTTP check
+
+**Backend** (if status is `"deployed"` and url is set):
+```bash
+curl -sf <url>/api/health --max-time 5
+```
+- If response is 200 with `{"status":"ok"}`: mark as ✅ healthy
+- If non-200 or timeout: mark as ⚠️ unhealthy
+- If url is null: mark as ⬜ not deployed
+
+**Main / Admin / Dashboard** (if status is `"deployed"`):
+```bash
+curl -sf https://<domain> --max-time 5 -o /dev/null -w "%{http_code}"
+```
+- If 200: mark as ✅ healthy
+- If non-200 or timeout: mark as ⚠️ unhealthy
+- If status is `"scaffolded"`: mark as ⬜ not deployed
 
 ### Step 3: Report
 
 ```
 === SITE MANAGER STATUS ===
 
-Project: foo (foo.com)
-Manifest: v1.0.0
+Project: <name> (<domain>)
+Manifest: v<version>
 
-  Backend API        ✅ deployed    https://foo-production.up.railway.app
-  Main site          ✅ deployed    https://foo.com
-  Admin site         ✅ deployed    https://admin.foo.com
-  Dashboard          ✅ deployed    https://dashboard.foo.com
+  Backend API        <status>    <url or "not deployed">
+  Main site          <status>    <domain or "not deployed">
+  Admin site         <status>    <domain or "not deployed">
+  Dashboard          <status>    <domain or "not deployed">
 
 Features:
-  Auth               ✅ email, github
-  Feature flags      ✅ enabled
-  Email              ❌ not configured
-  SMS                ❌ not configured
+  Auth               <✅/❌> <providers list>
+  Admin seeded       <✅/❌>
+  Feature flags      <✅/❌> <enabled/disabled>
+  Email              <✅/❌> <provider or "not configured">
+  SMS                <✅/❌> <provider or "not configured">
+  Observability      <✅/❌> <provider>
+  Logging            <✅/❌> <structured: yes/no>
 ```
 
 ---
 
-## Manifest
+## Manifest Show
 
-**View or validate the site-manifest.json.**
+Read and pretty-print `site-manifest.json` from the current directory.
 
-### manifest show (default)
+If not found:
+> No site-manifest.json found. Run `/site-manager init` to create a project.
 
-Read and pretty-print the current `site-manifest.json`.
+Otherwise, read the file and display it formatted with sections:
 
-### manifest validate
+```
+=== SITE MANIFEST ===
 
-Validate the manifest against the expected schema. Report any missing or invalid fields.
+Project: <name> (<domain>)
+Version: <version>
+Created: <created date>
+
+Services:
+  backend      <status>  <platform>  <url>
+  main         <status>  <platform>  <domain>
+  admin        <status>  <platform>  <domain>
+  dashboard    <status>  <platform>  <domain>
+
+Features:
+  auth:           <enabled> providers=<list> adminSeeded=<bool>
+  featureFlags:   <enabled>
+  email:          <enabled> provider=<provider>
+  sms:            <enabled> provider=<provider>
+  abTesting:      <enabled>
+  observability:  <enabled> provider=<provider>
+  logging:        <enabled> structured=<bool>
+
+DNS:
+  provider:     <provider>
+  zoneId:       <id or "not set">
+  nameservers:  <list or "not set">
+  records:      <count> records
+```
+
+---
+
+## Manifest Validate
+
+Read `site-manifest.json` and validate its structure.
+
+**Required fields:**
+- `version` — must be a semver string
+- `project.name` — non-empty string
+- `project.domain` — valid domain
+- `project.created` — ISO 8601 timestamp
+- `services.backend`, `services.main`, `services.admin`, `services.dashboard` — each must have `status`, `platform`
+- `features.auth.enabled` — boolean
+- `features.auth.providers` — non-empty array
+
+**Report:**
+
+If valid:
+```
+✅ Manifest is valid (v<version>)
+```
+
+If invalid, list each issue:
+```
+❌ Manifest validation errors:
+  - project.domain: missing or empty
+  - services.backend.status: invalid value "foo" (expected: scaffolded, deployed, error)
+  - features.auth.providers: empty array
+```
 
 ---
 
@@ -189,26 +461,55 @@ Validate the manifest against the expected schema. Report any missing or invalid
 
 **Create the initial admin account.**
 
-*See Phase 2 for full implementation.*
-
 ### Step 1: Check prerequisites
 
-- Backend must be deployed (check manifest)
-- Database must be migrated
+Read `site-manifest.json`. Verify:
+- `services.backend.status` is `"deployed"` — if not, print:
+  > Backend is not deployed. Run `/site-manager deploy backend` first.
+- `features.auth.adminSeeded` is not `true` — if already seeded, print:
+  > Admin account already seeded. Check site-manifest.json for details.
+
+  Ask the user if they want to re-seed anyway (this will skip if the email already exists in the DB).
 
 ### Step 2: Gather credentials
 
-Ask the user for:
-- **Admin email**
-- **Admin password** (minimum 12 characters)
+Ask the user:
 
-### Step 3: Seed
+| Field | Validation |
+|-------|-----------|
+| Admin email | valid email address |
+| Admin password | minimum 12 characters |
 
-Run the backend seed script to create the admin account with the `admin` role.
+### Step 3: Run seed
+
+Set the environment variables and run the seed script against the deployed backend:
+
+```bash
+cd backend && ADMIN_EMAIL="<email>" ADMIN_PASSWORD="<password>" DATABASE_URL="<from Railway>" npm run db:seed
+```
+
+To get the DATABASE_URL from Railway:
+```bash
+cd backend && railway variables --json 2>/dev/null | jq -r '.DATABASE_URL // empty'
+```
+
+If the DATABASE_URL can't be retrieved, ask the user to provide it.
 
 ### Step 4: Update manifest
 
-Set `features.auth.adminSeeded: true` in the manifest.
+Update `site-manifest.json`:
+- `features.auth.adminSeeded` → `true`
+
+### Step 5: Report
+
+```
+✅ Admin account created
+
+  Email: <email>
+  Role:  admin
+
+  Login at: https://admin.<domain>/login
+```
 
 ---
 
@@ -220,14 +521,14 @@ Print:
 Site Manager v1.0.0 — Scaffold, deploy, and manage website suites
 
 Commands:
-  /site-manager init [domain]     Scaffold a new project (backend + 3 sites)
-  /site-manager deploy [service]  Deploy all services (or: backend, main, admin, dashboard)
-  /site-manager status            Check status of all services
-  /site-manager manifest          View site-manifest.json
-  /site-manager manifest validate Validate manifest schema
-  /site-manager seed-admin        Create initial admin account
-  /site-manager --help            Show this help
-  /site-manager --version         Show version
+  /site-manager init [domain]       Scaffold a new project (backend + 3 sites)
+  /site-manager deploy [service]    Deploy all services (or: backend, main, admin, dashboard)
+  /site-manager status              Check status of all services
+  /site-manager manifest            View site-manifest.json
+  /site-manager manifest validate   Validate manifest schema
+  /site-manager seed-admin          Create initial admin account
+  /site-manager --help              Show this help
+  /site-manager --version           Show version
 
 Tech Stack:
   Backend:    Hono + Drizzle + PostgreSQL (Railway)
@@ -235,4 +536,11 @@ Tech Stack:
   Edge:       Cloudflare Workers
   Dashboard:  Cloudflare Workers + D1 SQLite
   Auth:       Email/password + optional GitHub/Google OAuth
+
+Template Placeholders:
+  {{PROJECT_NAME}}     Project name (lowercase, hyphens)
+  {{DOMAIN}}           Primary domain (e.g., foo.com)
+  {{DB_NAME}}          Database name (<project>_dev)
+  {{API_BACKEND_URL}}  Railway backend URL
+  {{D1_DATABASE_ID}}   Cloudflare D1 database ID
 ```

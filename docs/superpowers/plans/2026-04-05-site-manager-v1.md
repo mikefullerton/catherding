@@ -211,15 +211,15 @@ allowed-tools: Read, Write, Edit, Bash(bash *), Bash(brew *), Bash(npm *), Bash(
 
 **Fill in the SKILL.md stub sections with full implementation instructions.**
 
-- [ ] **Init section** — full interactive flow: project name, domain, auth providers, admin seed, generate files, write manifest, offer /webinitor connect
-- [ ] **Deploy section** — read manifest, pre-flight checks, deploy backend (railway up), deploy 3 sites (wrangler deploy), update manifest, health check
-- [ ] **Deploy <service> section** — deploy single service
-- [ ] **Status section** — read manifest, check each service health, report
-- [ ] **Manifest section** — show/edit site-manifest.json
-- [ ] **Seed Admin section** — create admin account via backend seed script
-- [ ] **Help section** — full command listing
-- [ ] **Routing table** — all subcommands
-- [ ] Update plugin.json, README.md
+- [x] **Init section** — full interactive flow: project name, domain, auth providers, admin seed, generate files, write manifest, offer /webinitor connect
+- [x] **Deploy section** — read manifest, pre-flight checks, deploy backend (railway up), deploy 3 sites (wrangler deploy), update manifest, health check
+- [x] **Deploy <service> section** — deploy single service
+- [x] **Status section** — read manifest, check each service health, report
+- [x] **Manifest section** — show/validate site-manifest.json
+- [x] **Seed Admin section** — create admin account via backend seed script
+- [x] **Help section** — full command listing
+- [x] **Routing table** — all subcommands
+- [x] Update plugin.json, README.md (verified — already correct)
 
 ### Commit: `feat(site-manager): complete SKILL.md with all sections (v1.0.0)`
 
