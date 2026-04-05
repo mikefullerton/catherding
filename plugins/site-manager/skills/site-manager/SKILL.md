@@ -63,6 +63,7 @@ Ask the user for all of the following. If `$ARGUMENTS` contains a domain (e.g., 
 | Field | Validation | Default |
 |-------|-----------|---------|
 | Project name | lowercase, `[a-z0-9-]+` | derived from domain (e.g., `foo` from `foo.com`) |
+| Display name | free text | title-cased project name (e.g., `Foo`) |
 | Domain | valid domain name | — (required) |
 | Target directory | absolute or relative path | `./<project-name>/` |
 | GitHub repo | yes/no | yes |
@@ -71,12 +72,15 @@ Ask the user for all of the following. If `$ARGUMENTS` contains a domain (e.g., 
 | GitHub OAuth | yes/no | no |
 | Google OAuth | yes/no | no |
 
+The **display name** is used in page titles, nav headers, and the HTML `<title>` tag. The **project name** is used for package names, worker names, database names, and directory names.
+
 If the user wants a GitHub repo, ask for the org (or personal) and repo name. Skip these questions if they say no to GitHub repo.
 
 Wait for the user to confirm before proceeding. Display a summary:
 
 ```
 Project:   foo
+Name:      Foo Bar
 Domain:    foo.com
 Directory: ./foo/
 GitHub:    mikefullerton/foo (private)
@@ -131,6 +135,7 @@ For each template in `${CLAUDE_SKILL_DIR}/references/templates/`, read the `.tmp
 | Placeholder | Value |
 |------------|-------|
 | `{{PROJECT_NAME}}` | Project name (e.g., `foo`) |
+| `{{DISPLAY_NAME}}` | Display name (e.g., `Foo Bar`) |
 | `{{DOMAIN}}` | Domain (e.g., `foo.com`) |
 | `{{DB_NAME}}` | `<project-name>_dev` |
 | `{{API_BACKEND_URL}}` | `https://<project-name>-production.up.railway.app` |
@@ -656,6 +661,7 @@ Tech Stack:
 
 Template Placeholders:
   {{PROJECT_NAME}}     Project name (lowercase, hyphens)
+  {{DISPLAY_NAME}}     Display name (e.g., My Agentic Projects)
   {{DOMAIN}}           Primary domain (e.g., foo.com)
   {{DB_NAME}}          Database name (<project>_dev)
   {{API_BACKEND_URL}}  Railway backend URL
