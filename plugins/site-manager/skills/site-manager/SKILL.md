@@ -1,9 +1,9 @@
 ---
 name: site-manager
 description: "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform. /site-manager init, /site-manager deploy, /site-manager status, /site-manager manifest, /site-manager seed-admin, /site-manager --help"
-version: "1.1.0"
+version: "1.2.0"
 argument-hint: "[init|deploy|status|manifest|seed-admin|test|--help|--version]"
-allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), AskUserQuestion
+allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), AskUserQuestion
 model: sonnet
 ---
 
@@ -23,10 +23,10 @@ Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
 **CRITICAL**: The very first thing you output MUST be the version line:
 
-site-manager v1.1.0
+site-manager v1.2.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> site-manager v1.1.0
+> site-manager v1.2.0
 
 Then stop.
 
@@ -65,8 +65,13 @@ Ask the user for all of the following. If `$ARGUMENTS` contains a domain (e.g., 
 | Project name | lowercase, `[a-z0-9-]+` | derived from domain (e.g., `foo` from `foo.com`) |
 | Domain | valid domain name | — (required) |
 | Target directory | absolute or relative path | `./<project-name>/` |
+| GitHub repo | yes/no | yes |
+| GitHub org | org name or personal | personal (user's account) |
+| GitHub repo name | string | `<project-name>` |
 | GitHub OAuth | yes/no | no |
 | Google OAuth | yes/no | no |
+
+If the user wants a GitHub repo, ask for the org (or personal) and repo name. Skip these questions if they say no to GitHub repo.
 
 Wait for the user to confirm before proceeding. Display a summary:
 
@@ -74,6 +79,7 @@ Wait for the user to confirm before proceeding. Display a summary:
 Project:   foo
 Domain:    foo.com
 Directory: ./foo/
+GitHub:    mikefullerton/foo (private)
 Auth:      email/password, GitHub OAuth
 ```
 
@@ -126,10 +132,26 @@ Strip the `.tmpl` extension from output filenames. Preserve directory structure 
 ### Step 4: Initialize git repo
 
 ```bash
-cd <target> && git init && git add -A && git commit -m "feat: initial scaffold from site-manager v1.1.0"
+cd <target> && git init && git add -A && git commit -m "feat: initial scaffold from site-manager v1.2.0"
 ```
 
-### Step 5: Install dependencies
+### Step 5: Create GitHub repo (if requested)
+
+If the user chose to create a GitHub repo:
+
+```bash
+cd <target> && gh repo create <org>/<repo-name> --private --source=. --push
+```
+
+If org is "personal", omit the org prefix:
+
+```bash
+cd <target> && gh repo create <repo-name> --private --source=. --push
+```
+
+Report the repo URL. If this fails, print the error and continue.
+
+### Step 6: Install dependencies
 
 ```bash
 cd <target> && npm install
@@ -137,7 +159,7 @@ cd <target> && npm install
 
 If this fails, print the error and continue — the user can fix it manually.
 
-### Step 6: Report
+### Step 7: Report
 
 Print a summary:
 
@@ -146,6 +168,7 @@ Print a summary:
 
   foo (foo.com)
   Directory: ./foo/
+  GitHub:    https://github.com/mikefullerton/foo (or "not created")
 
   backend/              Hono API + PostgreSQL (Railway)
   sites/main/           foo.com (Cloudflare Worker)
