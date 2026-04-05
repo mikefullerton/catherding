@@ -7,6 +7,8 @@ Usage:
         --admin-email admin@example.com --admin-password secret123
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import sys
