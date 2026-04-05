@@ -1,0 +1,76 @@
+{
+  "version": "1.0.0",
+  "project": {
+    "name": "{{PROJECT_NAME}}",
+    "domain": "{{DOMAIN}}",
+    "created": "{{CREATED_AT}}"
+  },
+  "services": {
+    "backend": {
+      "status": "scaffolded",
+      "platform": "railway",
+      "url": null,
+      "database": "postgresql",
+      "lastDeployed": null
+    },
+    "main": {
+      "status": "scaffolded",
+      "platform": "cloudflare",
+      "domain": "{{DOMAIN}}",
+      "workerName": "{{PROJECT_NAME}}-main",
+      "lastDeployed": null
+    },
+    "admin": {
+      "status": "scaffolded",
+      "platform": "cloudflare",
+      "domain": "admin.{{DOMAIN}}",
+      "workerName": "{{PROJECT_NAME}}-admin",
+      "lastDeployed": null
+    },
+    "dashboard": {
+      "status": "scaffolded",
+      "platform": "cloudflare",
+      "domain": "dashboard.{{DOMAIN}}",
+      "workerName": "{{PROJECT_NAME}}-dashboard",
+      "d1Database": "{{PROJECT_NAME}}-dashboard-db",
+      "lastDeployed": null
+    }
+  },
+  "features": {
+    "auth": {
+      "enabled": true,
+      "providers": ["email"],
+      "adminSeeded": false,
+      "twoFactor": false,
+      "emailVerification": false
+    },
+    "featureFlags": {
+      "enabled": true
+    },
+    "email": {
+      "enabled": false,
+      "provider": null
+    },
+    "sms": {
+      "enabled": false,
+      "provider": null
+    },
+    "abTesting": {
+      "enabled": false
+    },
+    "observability": {
+      "enabled": true,
+      "provider": "built-in"
+    },
+    "logging": {
+      "enabled": true,
+      "structured": true
+    }
+  },
+  "dns": {
+    "provider": "cloudflare",
+    "zoneId": null,
+    "nameservers": [],
+    "records": []
+  }
+}
