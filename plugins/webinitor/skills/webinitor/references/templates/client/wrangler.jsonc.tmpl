@@ -1,0 +1,17 @@
+{
+  "name": "{{PROJECT_NAME}}",
+  "main": "src/worker.ts",
+  "compatibility_date": "2025-09-27",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "none",
+    "binding": "ASSETS"
+  },
+  "routes": [
+    { "pattern": "{{CUSTOM_DOMAIN}}", "custom_domain": true },
+    { "pattern": "www.{{CUSTOM_DOMAIN}}", "custom_domain": true }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

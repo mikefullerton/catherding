@@ -1,0 +1,32 @@
+document.addEventListener("DOMContentLoaded", () => {
+  const app = document.getElementById("app");
+  if (app) {
+    const h1 = document.createElement("h1");
+    h1.textContent = "{{PROJECT_NAME}}";
+
+    const p1 = document.createElement("p");
+    p1.textContent = "Hello, world! Your app is running.";
+
+    const p2 = document.createElement("p");
+    p2.textContent = "API health: ";
+    const span = document.createElement("span");
+    span.id = "health";
+    span.textContent = "checking...";
+    p2.appendChild(span);
+
+    app.appendChild(h1);
+    app.appendChild(p1);
+    app.appendChild(p2);
+
+    fetch("/health")
+      .then((res) => res.json())
+      .then((data) => {
+        const el = document.getElementById("health");
+        if (el) el.textContent = data.status ?? "unknown";
+      })
+      .catch(() => {
+        const el = document.getElementById("health");
+        if (el) el.textContent = "unreachable";
+      });
+  }
+});

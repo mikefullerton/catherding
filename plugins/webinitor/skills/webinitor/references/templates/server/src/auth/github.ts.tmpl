@@ -1,0 +1,128 @@
+import { Hono } from "hono";
+import { eq, and } from "drizzle-orm";
+import { getEnv } from "../config/env.js";
+import { getDb } from "../db/client.js";
+import { userAuthentication } from "../db/schema.js";
+import {
+  createSessionToken,
+  sessionCookieHeader,
+  clearSessionCookieHeader,
+} from "./session.js";
+
+const app = new Hono();
+
+// Step 1: Redirect to GitHub
+app.get("/github", (c) => {
+  const env = getEnv();
+  const params = new URLSearchParams({
+    client_id: env.GITHUB_CLIENT_ID!,
+    redirect_uri: env.GITHUB_CALLBACK_URL!,
+    scope: "read:user user:email",
+  });
+  return c.redirect(`https://github.com/login/oauth/authorize?${params}`);
+});
+
+// Step 2: GitHub callback
+app.get("/github/callback", async (c) => {
+  const env = getEnv();
+  const code = c.req.query("code");
+
+  if (!code) {
+    return c.redirect(`${env.CLIENT_URL}?error=missing_code`);
+  }
+
+  // Exchange code for access token
+  const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      client_id: env.GITHUB_CLIENT_ID,
+      client_secret: env.GITHUB_CLIENT_SECRET,
+      code,
+    }),
+  });
+
+  const tokenData = (await tokenRes.json()) as { access_token?: string; error?: string };
+  if (!tokenData.access_token) {
+    return c.redirect(`${env.CLIENT_URL}?error=token_exchange_failed`);
+  }
+
+  // Fetch GitHub user profile
+  const userRes = await fetch("https://api.github.com/user", {
+    headers: { Authorization: `Bearer ${tokenData.access_token}` },
+  });
+
+  if (!userRes.ok) {
+    return c.redirect(`${env.CLIENT_URL}?error=github_api_failed`);
+  }
+
+  const ghUser = (await userRes.json()) as {
+    id: number;
+    login: string;
+    name: string | null;
+    avatar_url: string;
+    email: string | null;
+  };
+
+  // Upsert into user_authentication
+  const db = getDb();
+  const providerId = String(ghUser.id);
+
+  let [user] = await db
+    .select()
+    .from(userAuthentication)
+    .where(
+      and(
+        eq(userAuthentication.provider, "github"),
+        eq(userAuthentication.providerId, providerId)
+      )
+    )
+    .limit(1);
+
+  if (user) {
+    [user] = await db
+      .update(userAuthentication)
+      .set({
+        displayName: ghUser.name ?? ghUser.login,
+        avatarUrl: ghUser.avatar_url,
+        email: ghUser.email,
+        accessToken: tokenData.access_token,
+        updatedAt: new Date(),
+      })
+      .where(eq(userAuthentication.id, user.id))
+      .returning();
+  } else {
+    [user] = await db
+      .insert(userAuthentication)
+      .values({
+        provider: "github",
+        providerId,
+        email: ghUser.email,
+        displayName: ghUser.name ?? ghUser.login,
+        avatarUrl: ghUser.avatar_url,
+        accessToken: tokenData.access_token,
+      })
+      .returning();
+  }
+
+  // Create session JWT and set cookie
+  const token = await createSessionToken({
+    userId: user.id,
+    provider: "github",
+    displayName: user.displayName ?? ghUser.login,
+  });
+
+  c.header("Set-Cookie", sessionCookieHeader(token));
+  return c.redirect(env.CLIENT_URL);
+});
+
+// Logout
+app.post("/logout", (c) => {
+  c.header("Set-Cookie", clearSessionCookieHeader());
+  return c.json({ message: "Logged out" });
+});
+
+export default app;

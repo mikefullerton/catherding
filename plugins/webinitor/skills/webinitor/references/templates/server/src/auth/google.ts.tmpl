@@ -1,0 +1,136 @@
+import { Hono } from "hono";
+import { eq, and } from "drizzle-orm";
+import { getEnv } from "../config/env.js";
+import { getDb } from "../db/client.js";
+import { userAuthentication } from "../db/schema.js";
+import {
+  createSessionToken,
+  sessionCookieHeader,
+  clearSessionCookieHeader,
+} from "./session.js";
+
+const app = new Hono();
+
+// Step 1: Redirect to Google
+app.get("/google", (c) => {
+  const env = getEnv();
+  const params = new URLSearchParams({
+    client_id: env.GOOGLE_CLIENT_ID!,
+    redirect_uri: env.GOOGLE_CALLBACK_URL!,
+    response_type: "code",
+    scope: "openid email profile",
+    access_type: "offline",
+    prompt: "consent",
+  });
+  return c.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+});
+
+// Step 2: Google callback
+app.get("/google/callback", async (c) => {
+  const env = getEnv();
+  const code = c.req.query("code");
+
+  if (!code) {
+    return c.redirect(`${env.CLIENT_URL}?error=missing_code`);
+  }
+
+  // Exchange code for tokens
+  const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: env.GOOGLE_CLIENT_ID!,
+      client_secret: env.GOOGLE_CLIENT_SECRET!,
+      code,
+      grant_type: "authorization_code",
+      redirect_uri: env.GOOGLE_CALLBACK_URL!,
+    }),
+  });
+
+  const tokenData = (await tokenRes.json()) as {
+    access_token?: string;
+    refresh_token?: string;
+    id_token?: string;
+    error?: string;
+  };
+
+  if (!tokenData.access_token) {
+    return c.redirect(`${env.CLIENT_URL}?error=token_exchange_failed`);
+  }
+
+  // Fetch Google user profile
+  const userRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+    headers: { Authorization: `Bearer ${tokenData.access_token}` },
+  });
+
+  if (!userRes.ok) {
+    return c.redirect(`${env.CLIENT_URL}?error=google_api_failed`);
+  }
+
+  const googleUser = (await userRes.json()) as {
+    id: string;
+    email: string;
+    name: string;
+    picture: string;
+  };
+
+  // Upsert into user_authentication
+  const db = getDb();
+
+  let [user] = await db
+    .select()
+    .from(userAuthentication)
+    .where(
+      and(
+        eq(userAuthentication.provider, "google"),
+        eq(userAuthentication.providerId, googleUser.id)
+      )
+    )
+    .limit(1);
+
+  if (user) {
+    [user] = await db
+      .update(userAuthentication)
+      .set({
+        displayName: googleUser.name,
+        avatarUrl: googleUser.picture,
+        email: googleUser.email,
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token ?? user.refreshToken,
+        updatedAt: new Date(),
+      })
+      .where(eq(userAuthentication.id, user.id))
+      .returning();
+  } else {
+    [user] = await db
+      .insert(userAuthentication)
+      .values({
+        provider: "google",
+        providerId: googleUser.id,
+        email: googleUser.email,
+        displayName: googleUser.name,
+        avatarUrl: googleUser.picture,
+        accessToken: tokenData.access_token,
+        refreshToken: tokenData.refresh_token,
+      })
+      .returning();
+  }
+
+  // Create session JWT and set cookie
+  const token = await createSessionToken({
+    userId: user.id,
+    provider: "google",
+    displayName: user.displayName ?? googleUser.name,
+  });
+
+  c.header("Set-Cookie", sessionCookieHeader(token));
+  return c.redirect(env.CLIENT_URL);
+});
+
+// Logout (shared with github — either endpoint works)
+app.post("/logout", (c) => {
+  c.header("Set-Cookie", clearSessionCookieHeader());
+  return c.json({ message: "Logged out" });
+});
+
+export default app;

@@ -1,0 +1,40 @@
+import { createMiddleware } from "hono/factory";
+import { HTTPException } from "hono/http-exception";
+import {
+  getSessionCookie,
+  verifySessionToken,
+  createSessionToken,
+  sessionCookieHeader,
+} from "./session.js";
+
+export interface AuthContext {
+  userId: string;
+  provider: string;
+  displayName: string;
+}
+
+export const extractAuth = createMiddleware<{ Variables: { auth: AuthContext } }>(
+  async (c, next) => {
+    const cookieHeader = c.req.header("Cookie");
+    const sessionToken = getSessionCookie(cookieHeader);
+
+    if (sessionToken) {
+      const result = await verifySessionToken(sessionToken);
+      if (result) {
+        // Sliding window: reissue token if past halfway through its lifetime
+        if (result.needsRefresh) {
+          const newToken = await createSessionToken(result.session);
+          c.header("Set-Cookie", sessionCookieHeader(newToken));
+        }
+        c.set("auth", {
+          userId: result.session.userId,
+          provider: result.session.provider,
+          displayName: result.session.displayName,
+        });
+        return next();
+      }
+    }
+
+    throw new HTTPException(401, { message: "Authentication required" });
+  }
+);
