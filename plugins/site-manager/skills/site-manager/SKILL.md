@@ -1,13 +1,13 @@
 ---
 name: site-manager
 description: "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform. /site-manager init, /site-manager deploy, /site-manager status, /site-manager manifest, /site-manager seed-admin, /site-manager --help"
-version: "1.0.0"
-argument-hint: "[init|deploy|status|manifest|seed-admin|--help|--version]"
+version: "1.1.0"
+argument-hint: "[init|deploy|status|manifest|seed-admin|test|--help|--version]"
 allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), AskUserQuestion
 model: sonnet
 ---
 
-# Site Manager v1.0.0
+# Site Manager v1.1.0
 
 Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
@@ -23,10 +23,10 @@ Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
 **CRITICAL**: The very first thing you output MUST be the version line:
 
-site-manager v1.0.0
+site-manager v1.1.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> site-manager v1.0.0
+> site-manager v1.1.0
 
 Then stop.
 
@@ -44,9 +44,11 @@ Then stop.
 | `manifest` or `manifest show` | Go to **Manifest Show** |
 | `manifest validate` | Go to **Manifest Validate** |
 | `seed-admin` | Go to **Seed Admin** |
+| `test` or `test smoke` | Go to **Test Smoke** |
+| `test validate` | Go to **Test Validate** |
 | `--help` | Go to **Help** |
 | `--version` | Print version (handled in Startup) |
-| anything else | Print: "Usage: /site-manager [init\|deploy\|status\|manifest\|seed-admin\|--help\|--version]" and stop |
+| anything else | Print: "Usage: /site-manager [init\|deploy\|status\|manifest\|seed-admin\|test\|--help\|--version]" and stop |
 
 ---
 
@@ -124,7 +126,7 @@ Strip the `.tmpl` extension from output filenames. Preserve directory structure 
 ### Step 4: Initialize git repo
 
 ```bash
-cd <target> && git init && git add -A && git commit -m "feat: initial scaffold from site-manager v1.0.0"
+cd <target> && git init && git add -A && git commit -m "feat: initial scaffold from site-manager v1.1.0"
 ```
 
 ### Step 5: Install dependencies
@@ -513,12 +515,79 @@ Update `site-manifest.json`:
 
 ---
 
+## Test Smoke
+
+**Run essential health and auth tests against a deployed project.**
+
+### Step 1: Resolve URLs
+
+Read `site-manifest.json` from the current directory. Extract:
+- `services.backend.url` → `--base-url`
+- `project.domain` → derive `--main-url` (`https://<domain>`), `--admin-url` (`https://admin.<domain>`), `--dashboard-url` (`https://dashboard.<domain>`)
+
+If no `site-manifest.json`, ask the user for `--base-url`.
+
+If `services.backend.url` is null or status is not `deployed`, print:
+> Backend is not deployed. Run `/site-manager deploy backend` first.
+
+Then stop.
+
+### Step 2: Run tests
+
+```bash
+python3 ${CLAUDE_SKILL_DIR}/references/smoke-test.py smoke \
+  --base-url <backend-url> \
+  --main-url <main-url> \
+  --admin-url <admin-url> \
+  --dashboard-url <dashboard-url>
+```
+
+### Step 3: Report
+
+Display the test output directly — it is self-formatting.
+
+---
+
+## Test Validate
+
+**Run comprehensive validation tests including admin CRUD.**
+
+### Step 1: Resolve URLs
+
+Same as Test Smoke Step 1.
+
+### Step 2: Get admin credentials
+
+Ask the user for:
+- Admin email
+- Admin password
+
+These are needed for admin endpoint tests (users, flags, messaging, feedback).
+
+### Step 3: Run tests
+
+```bash
+python3 ${CLAUDE_SKILL_DIR}/references/smoke-test.py validate \
+  --base-url <backend-url> \
+  --main-url <main-url> \
+  --admin-url <admin-url> \
+  --dashboard-url <dashboard-url> \
+  --admin-email <email> \
+  --admin-password <password>
+```
+
+### Step 4: Report
+
+Display the test output directly — it is self-formatting.
+
+---
+
 ## Help
 
 Print:
 
 ```
-Site Manager v1.0.0 — Scaffold, deploy, and manage website suites
+Site Manager v1.1.0 — Scaffold, deploy, and manage website suites
 
 Commands:
   /site-manager init [domain]       Scaffold a new project (backend + 3 sites)
@@ -527,6 +596,8 @@ Commands:
   /site-manager manifest            View site-manifest.json
   /site-manager manifest validate   Validate manifest schema
   /site-manager seed-admin          Create initial admin account
+  /site-manager test [smoke]        Run smoke tests (health + auth)
+  /site-manager test validate       Run full validation tests (admin CRUD, flags, etc.)
   /site-manager --help              Show this help
   /site-manager --version           Show version
 
