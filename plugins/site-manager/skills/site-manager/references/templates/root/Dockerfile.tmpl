@@ -28,7 +28,7 @@ RUN npm ci --omit=dev
 
 COPY --from=builder /app/shared/dist/ shared/dist/
 COPY --from=builder /app/backend/dist/ backend/dist/
-COPY --from=builder /app/backend/src/db/migrations/ backend/src/db/migrations/
+COPY backend/src/db/migrations/ backend/dist/db/migrations/
 
 EXPOSE 3000
 
