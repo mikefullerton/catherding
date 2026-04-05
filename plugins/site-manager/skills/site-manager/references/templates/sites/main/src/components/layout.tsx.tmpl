@@ -5,31 +5,33 @@ export function Layout({ children }: { children: ReactNode }) {
   const { user, isAuthenticated, logout } = useAuth();
 
   return (
-    <div className="min-h-screen bg-white">
-      <nav className="border-b border-gray-200">
+    <div className="min-h-screen" style={{ background: "#0c0c0f" }}>
+      <nav style={{ borderBottom: "1px solid #2a2a36" }}>
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <a href="/" className="text-xl font-semibold">
+          <a href="/" className="text-xl font-semibold" style={{ color: "#c4a35a" }}>
             {{DISPLAY_NAME}}
           </a>
           <div className="flex items-center gap-4">
             {isAuthenticated ? (
               <>
-                <span className="text-sm text-gray-600">{user?.email}</span>
+                <span className="text-sm" style={{ color: "#8a8a9a" }}>{user?.email}</span>
                 <button
                   onClick={logout}
-                  className="text-sm text-gray-500 hover:text-gray-700"
+                  className="text-sm hover:opacity-80"
+                  style={{ color: "#8a8a9a" }}
                 >
                   Log out
                 </button>
               </>
             ) : (
               <>
-                <a href="/login" className="text-sm text-gray-600 hover:text-gray-900">
+                <a href="/login" className="text-sm hover:opacity-80" style={{ color: "#8a8a9a" }}>
                   Log in
                 </a>
                 <a
                   href="/register"
-                  className="text-sm px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                  className="text-sm px-4 py-2 rounded-lg transition hover:opacity-90"
+                  style={{ background: "#c4a35a", color: "#0c0c0f" }}
                 >
                   Sign up
                 </a>

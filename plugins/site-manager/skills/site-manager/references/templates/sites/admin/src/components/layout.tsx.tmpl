@@ -13,35 +13,66 @@ export function Layout({ children }: { children: ReactNode }) {
   const { user, isAuthenticated, isLoading, logout } = useAdminAuth();
 
   if (isLoading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen" style={{ background: "#0c0c0f", color: "#8a8a9a" }}>
+        Loading...
+      </div>
+    );
   }
 
+  // If not authenticated and not already on login page, redirect
   if (!isAuthenticated) {
-    window.location.href = "/login";
-    return null;
+    if (window.location.pathname !== "/login") {
+      window.location.href = "/login";
+      return null;
+    }
+    // On login page — render children without sidebar
+    return (
+      <div className="min-h-screen" style={{ background: "#0c0c0f" }}>
+        {children}
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
-      <aside className="w-56 bg-white border-r flex flex-col">
-        <div className="p-4 border-b">
-          <h1 className="font-bold text-lg">{{DISPLAY_NAME}}</h1>
-          <p className="text-xs text-gray-500">Admin</p>
+    <div className="min-h-screen flex" style={{ background: "#0c0c0f" }}>
+      <aside
+        className="w-56 flex flex-col"
+        style={{ background: "#14141a", borderRight: "1px solid #2a2a36" }}
+      >
+        <div className="p-4" style={{ borderBottom: "1px solid #2a2a36" }}>
+          <h1 className="font-bold text-lg" style={{ color: "#c4a35a" }}>
+            {{DISPLAY_NAME}}
+          </h1>
+          <p className="text-xs" style={{ color: "#5a5a6a" }}>Admin</p>
         </div>
         <nav className="flex-1 p-2">
           {NAV_ITEMS.map((item) => (
             <a
               key={item.href}
               href={item.href}
-              className="block px-3 py-2 rounded text-sm hover:bg-gray-100 transition"
+              className="block px-3 py-2 rounded text-sm transition"
+              style={{ color: "#8a8a9a" }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = "#1c1c24";
+                e.currentTarget.style.color = "#e8e6e3";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = "transparent";
+                e.currentTarget.style.color = "#8a8a9a";
+              }}
             >
               {item.label}
             </a>
           ))}
         </nav>
-        <div className="p-4 border-t">
-          <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-          <button onClick={logout} className="text-xs text-gray-400 hover:text-gray-600 mt-1">
+        <div className="p-4" style={{ borderTop: "1px solid #2a2a36" }}>
+          <p className="text-xs truncate" style={{ color: "#5a5a6a" }}>{user?.email}</p>
+          <button
+            onClick={logout}
+            className="text-xs mt-1 hover:opacity-80"
+            style={{ color: "#8a8a9a" }}
+          >
             Log out
           </button>
         </div>
