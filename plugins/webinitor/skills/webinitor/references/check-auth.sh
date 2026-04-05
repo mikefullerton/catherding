@@ -90,6 +90,20 @@ case "$SERVICE" in
     fi
     ;;
 
+  github)
+    if ! command -v gh >/dev/null 2>&1; then
+      jq -n '{"service":"github","authenticated":false,"error":"gh not installed"}'
+      exit 0
+    fi
+    OUTPUT=$(gh auth status --json user,activeAccount 2>&1)
+    if [ $? -eq 0 ]; then
+      USER=$(echo "$OUTPUT" | jq -r '.user // .activeAccount // "authenticated"' 2>/dev/null)
+      jq -n --arg acct "$USER" '{"service":"github","authenticated":true,"account":$acct}'
+    else
+      jq -n '{"service":"github","authenticated":false,"error":"not logged in"}'
+    fi
+    ;;
+
   *)
     jq -n --arg s "$SERVICE" '{"service":$s,"error":"unknown service"}'
     ;;

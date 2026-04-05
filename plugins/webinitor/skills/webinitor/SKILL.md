@@ -1,15 +1,15 @@
 ---
 name: webinitor
-description: "Website infrastructure management — setup, status, and configuration for Cloudflare (Wrangler), Railway, and GoDaddy. /webinitor status, /webinitor setup, /webinitor configure, /webinitor --help"
-version: "2.2.0"
+description: "Website infrastructure management — setup, status, and configuration for Cloudflare (Wrangler), Railway, GoDaddy, and GitHub. /webinitor status, /webinitor setup, /webinitor configure, /webinitor --help"
+version: "2.3.0"
 argument-hint: "[status|setup|configure|domains|dns|connect|deploy|--help|--version]"
-allowed-tools: Read, Write, Edit, Bash(bash *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), AskUserQuestion
+allowed-tools: Read, Write, Edit, Bash(bash *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(gh *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), AskUserQuestion
 model: sonnet
 ---
 
-# Webinitor v2.2.0
+# Webinitor v2.3.0
 
-Website infrastructure management for Cloudflare, Railway, and GoDaddy.
+Website infrastructure management for Cloudflare, Railway, GoDaddy, and GitHub.
 
 ## Startup
 
@@ -17,10 +17,10 @@ Website infrastructure management for Cloudflare, Railway, and GoDaddy.
 
 **CRITICAL**: The very first thing you output MUST be the version line:
 
-webinitor v2.2.0
+webinitor v2.3.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> webinitor v2.2.0
+> webinitor v2.3.0
 
 Then stop.
 
@@ -33,6 +33,7 @@ Then stop.
 | `setup cloudflare` | Go to **Setup Cloudflare** |
 | `setup railway` | Go to **Setup Railway** |
 | `setup godaddy` | Go to **Setup GoDaddy** |
+| `setup github` | Go to **Setup GitHub** |
 | `configure` | Go to **Configure** |
 | `configure godaddy` | Go to **Configure GoDaddy** |
 | `configure cloudflare` | Go to **Configure Cloudflare** |
@@ -90,6 +91,10 @@ Railway
 GoDaddy (API)
   Env:  <production> or <ote>
   Auth: <configured (key: abcd...efgh)> or <not configured — reason>
+
+GitHub (gh)
+  CLI:  <installed (vX.X.X)> or <not installed>
+  Auth: <authenticated (username)> or <not authenticated — reason>
 ```
 
 If any service has issues, add an **Issues** section at the bottom:
@@ -100,6 +105,8 @@ Issues:
   - Cloudflare API not configured → /webinitor setup cloudflare
   - Railway not authenticated → /webinitor setup railway
   - GoDaddy API not configured → /webinitor setup godaddy
+  - GitHub CLI not installed → /webinitor setup github
+  - GitHub not authenticated → /webinitor setup github
 ```
 
 If everything is healthy, print: "All services ready."
@@ -351,6 +358,63 @@ If `status` is `failed`, print the error and use AskUserQuestion:
 - Question: "GoDaddy API test failed. What would you like to do?"
 - Option 1: "Re-enter credentials" — Go back to Step 3
 - Option 2: "Skip for now" — Keep saved credentials and continue
+
+---
+
+## Setup GitHub
+
+### Step 1: Check CLI
+
+```bash
+bash ${CLAUDE_SKILL_DIR}/references/check-cli.sh gh --version
+```
+
+If installed, print the version and skip to Step 3.
+
+### Step 2: Install CLI
+
+Use AskUserQuestion:
+- Question: "GitHub CLI (gh) is not installed. How would you like to install it?"
+- Option 1: "brew" — Install via Homebrew
+- Option 2: "Skip" — Skip GitHub setup
+
+If "Skip", print "GitHub setup skipped." and stop this section.
+
+Run the install:
+```bash
+bash ${CLAUDE_SKILL_DIR}/references/install-cli.sh gh gh brew
+```
+
+Parse the JSON output. If `status` is `failed`, print the error and stop this section.
+
+### Step 3: Check auth
+
+```bash
+bash ${CLAUDE_SKILL_DIR}/references/check-auth.sh github
+```
+
+If authenticated, print: "GitHub: authenticated as <account>." and stop this section.
+
+### Step 4: Guide authentication
+
+Print:
+> GitHub CLI needs to authenticate. This opens a browser window.
+>
+> Type `! gh auth login` in the prompt to authenticate.
+
+Use AskUserQuestion:
+- Question: "Have you completed `gh auth login`?"
+- Option 1: "Yes, check again"
+- Option 2: "Skip for now"
+
+If "Yes, check again":
+```bash
+bash ${CLAUDE_SKILL_DIR}/references/check-auth.sh github
+```
+
+Report the result. If still not authenticated, print the error and suggest trying again or running `/webinitor setup github` later.
+
+If "Skip for now", print: "GitHub auth skipped. Run `/webinitor setup github` later."
 
 ---
 

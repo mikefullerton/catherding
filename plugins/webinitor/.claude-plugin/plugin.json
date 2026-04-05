@@ -1,7 +1,7 @@
 {
   "name": "webinitor",
-  "description": "Website infrastructure management — setup, status, and configuration for Cloudflare, Railway, and GoDaddy",
-  "version": "2.2.0",
+  "description": "Website infrastructure management — setup, status, and configuration for Cloudflare, Railway, GoDaddy, and GitHub",
+  "version": "2.3.0",
   "author": {
     "name": "Mike Fullerton"
   },

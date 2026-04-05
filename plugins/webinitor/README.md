@@ -1,10 +1,11 @@
 # Webinitor
 
-Website infrastructure management plugin for Claude Code. Manages setup, status, configuration, domain portfolio, DNS records, and end-to-end workflows for three services:
+Website infrastructure management plugin for Claude Code. Manages setup, status, configuration, domain portfolio, DNS records, and end-to-end workflows for four services:
 
 - **Cloudflare** — DNS, zones, Workers via API + Wrangler CLI
 - **Railway** — App hosting and databases via Railway CLI
 - **GoDaddy** — Domain portfolio management via REST API
+- **GitHub** — Repositories, actions, and secrets via gh CLI
 
 ## Commands
 
@@ -16,6 +17,7 @@ Website infrastructure management plugin for Claude Code. Manages setup, status,
 | `/webinitor setup cloudflare` | Setup Cloudflare (CLI + API token) |
 | `/webinitor setup railway` | Setup Railway CLI |
 | `/webinitor setup godaddy` | Setup GoDaddy API credentials |
+| `/webinitor setup github` | Setup GitHub CLI |
 | `/webinitor configure` | Edit service configuration |
 | `/webinitor configure godaddy` | Edit GoDaddy API credentials |
 | `/webinitor configure cloudflare` | Edit Cloudflare API token |
@@ -42,6 +44,7 @@ Credentials are stored at `~/.webinitor/config.json` with restricted permissions
 - **GoDaddy**: API key + secret
 - **Cloudflare**: API token + account ID (auto-fetched)
 - **Railway**: Uses its own CLI auth (`railway login`)
+- **GitHub**: Uses its own CLI auth (`gh auth login`)
 
 ## Installation
 
