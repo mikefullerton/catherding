@@ -1,13 +1,13 @@
 ---
 name: webinitor
 description: "Website infrastructure management — setup, status, and configuration for Cloudflare (Wrangler), Railway, and GoDaddy. /webinitor status, /webinitor setup, /webinitor configure, /webinitor --help"
-version: "2.0.0"
-argument-hint: "[status|setup|configure|domains|dns|connect|--help|--version]"
-allowed-tools: Read, Write, Edit, Bash(bash *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), AskUserQuestion
+version: "2.2.0"
+argument-hint: "[status|setup|configure|domains|dns|connect|deploy|--help|--version]"
+allowed-tools: Read, Write, Edit, Bash(bash *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), AskUserQuestion
 model: sonnet
 ---
 
-# Webinitor v2.0.0
+# Webinitor v2.2.0
 
 Website infrastructure management for Cloudflare, Railway, and GoDaddy.
 
@@ -17,10 +17,10 @@ Website infrastructure management for Cloudflare, Railway, and GoDaddy.
 
 **CRITICAL**: The very first thing you output MUST be the version line:
 
-webinitor v2.0.0
+webinitor v2.2.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> webinitor v2.0.0
+> webinitor v2.2.0
 
 Then stop.
 
@@ -39,16 +39,25 @@ Then stop.
 | `domains` or `domains list` | Go to **Domains List** |
 | `domains list --status <S>` | Go to **Domains List** (with status filter) |
 | `domains list --expiring` | Go to **Domains List** (expiring filter) |
+| `domains list --privacy-off` | Go to **Domains List** (privacy off filter) |
+| `domains list --autorenew-off` | Go to **Domains List** (auto-renew off filter) |
+| `domains list --name <pattern>` | Go to **Domains List** (name filter) |
 | `domains search <query>` | Go to **Domains Search** |
 | `domains info <domain>` | Go to **Domains Info** |
+| `domains privacy-check` | Go to **Domains Privacy Check** |
+| `domains chat` | Go to **Domains Chat** |
 | `dns list <domain>` | Go to **DNS List** |
 | `dns add <domain>` | Go to **DNS Add** |
 | `dns update <domain>` | Go to **DNS Update** |
 | `dns delete <domain>` | Go to **DNS Delete** |
 | `connect <domain>` | Go to **Connect** |
+| `deploy init` | Go to **Deploy Init** |
+| `deploy init --config-only` | Go to **Deploy Init** (config-only mode) |
+| `deploy push` | Go to **Deploy Push** |
+| `deploy status` | Go to **Deploy Status** |
 | `--help` | Go to **Help** |
 | `--version` | Print version (handled in Startup) |
-| anything else | Print: "Usage: /webinitor [status\|setup\|configure\|domains\|dns\|connect\|--help\|--version]" and stop |
+| anything else | Print: "Usage: /webinitor [status\|setup\|configure\|domains\|dns\|connect\|deploy\|--help\|--version]" and stop |
 
 ---
 
@@ -446,14 +455,16 @@ After each action, loop back to Step 1 to show updated config.
 bash ${CLAUDE_SKILL_DIR}/references/godaddy-domains.sh list
 ```
 
-If `$ARGUMENTS` contains `--status`, pass the status filter:
-```bash
-bash ${CLAUDE_SKILL_DIR}/references/godaddy-domains.sh list --status <STATUS>
-```
+Pass any flags from `$ARGUMENTS` directly. Supported flags can be combined:
+- `--status <STATUS>` — filter by domain status (e.g., ACTIVE)
+- `--expiring` — domains expiring within 30 days
+- `--privacy-off` — domains with WHOIS privacy disabled
+- `--autorenew-off` — domains with auto-renew disabled
+- `--name <pattern>` — filter by domain name substring
 
-If `$ARGUMENTS` contains `--expiring`:
+Example:
 ```bash
-bash ${CLAUDE_SKILL_DIR}/references/godaddy-domains.sh list --expiring
+bash ${CLAUDE_SKILL_DIR}/references/godaddy-domains.sh list --privacy-off --name fullerton
 ```
 
 ### Step 2: Format and display
@@ -522,6 +533,83 @@ Nameservers:
 
 DNS Provider: Cloudflare
 ```
+
+---
+
+## Domains Privacy Check
+
+Audit all active domains for security and privacy settings.
+
+### Step 1: Run privacy check
+
+```bash
+bash ${CLAUDE_SKILL_DIR}/references/godaddy-domains.sh privacy-check
+```
+
+### Step 2: Format and display
+
+Parse the JSON output and print a report:
+
+```
+=== DOMAIN PRIVACY & SECURITY AUDIT ===
+
+Total active domains: N
+
+Privacy OFF (N):
+  - domain1.us
+  - domain2.us
+
+Auto-Renew OFF (N):
+  - domain3.com
+  - domain4.org
+
+Unlocked (N):
+  - domain5.com
+
+Expiration Protection OFF (N):
+  - (lists domains or "None — all protected")
+
+Transfer Protection OFF (N):
+  - (lists domains or "None — all protected")
+```
+
+For each category, if the list is empty, print "None — all good."
+
+At the end, print a summary: "N issue(s) found across N domains." or "All domains look good."
+
+---
+
+## Domains Chat
+
+Freeform discussion mode about the user's domain portfolio. Fetch the full domain list first, then answer the user's questions.
+
+### Step 1: Fetch all domains
+
+```bash
+bash ${CLAUDE_SKILL_DIR}/references/godaddy-domains.sh list
+```
+
+### Step 2: Interactive discussion
+
+Print: "Domain portfolio loaded (N active domains). What would you like to know?"
+
+Use AskUserQuestion:
+- Question: "What would you like to discuss about your domains?"
+- Option 1: "Find domains by keyword"
+- Option 2: "Analyze domain groups/categories"
+- Option 3: "Check expiration dates"
+- Option 4: "Ask a custom question"
+
+Based on the user's choice, analyze the domain data and respond. If "Ask a custom question", let the user type their question in "Other" and answer it based on the domain data.
+
+After answering, ask if they have more questions. Continue until the user is done.
+
+The key advantage of this mode: you have the full domain list in context and can answer arbitrary questions like:
+- "Which domains are expiring soonest?"
+- "Group my domains by project/brand"
+- "Which TLDs do I have the most of?"
+- "Do I have any domains I should probably drop?"
+- "Show me all domains related to 'agentic'"
 
 ---
 
@@ -858,12 +946,275 @@ Next steps:
 
 ---
 
+## Deploy Init
+
+Scaffold a new full-stack web app: Cloudflare Worker (SPA + proxy) + Hono API on Railway + PostgreSQL.
+
+### Step 1: Detect existing project
+
+```bash
+ls wrangler.jsonc railway.toml Dockerfile client/wrangler.jsonc 2>/dev/null
+```
+
+If any files found, print what was detected and use AskUserQuestion:
+- "Project files already exist. Continue and overwrite?"
+- Option 1: "Yes, continue"
+- Option 2: "Cancel"
+
+Check if `--config-only` is in `$ARGUMENTS`. If so, set CONFIG_ONLY mode.
+
+### Step 2: Collect project configuration
+
+Use AskUserQuestion:
+- Question: "Project name (lowercase, hyphens ok — used for worker name, packages, DB):"
+- (User types in "Other")
+
+Validate: lowercase, alphanumeric with hyphens, 2-64 chars. If invalid, ask again.
+
+Use AskUserQuestion:
+- Question: "Custom domain (e.g., mysite.com, or 'none'):"
+- (User types in "Other")
+
+If not CONFIG_ONLY:
+Use AskUserQuestion:
+- Question: "Authentication providers:"
+- Option 1: "None — no auth"
+- Option 2: "GitHub OAuth"
+- Option 3: "Google OAuth"
+- Option 4: "Both GitHub + Google"
+
+### Step 3: Generate files
+
+Set template variables:
+- `{{PROJECT_NAME}}` = user's project name
+- `{{CUSTOM_DOMAIN}}` = user's domain (or remove domain routes if 'none')
+- `{{API_BACKEND_URL}}` = `https://REPLACE_AFTER_FIRST_DEPLOY.up.railway.app`
+- `{{PACKAGE_SCOPE}}` = `@` + project name
+
+**If CONFIG_ONLY**, read and generate only:
+- `client/wrangler.jsonc` from `${CLAUDE_SKILL_DIR}/references/templates/client/wrangler.jsonc.tmpl`
+- `railway.toml` from `${CLAUDE_SKILL_DIR}/references/templates/root/railway.toml.tmpl`
+- `Dockerfile` from `${CLAUDE_SKILL_DIR}/references/templates/root/Dockerfile.tmpl`
+- `docker-compose.yml` from `${CLAUDE_SKILL_DIR}/references/templates/root/docker-compose.yml.tmpl`
+- `.github/workflows/deploy-client.yml` from `${CLAUDE_SKILL_DIR}/references/templates/github/deploy-client.yml.tmpl`
+- `.env.example` from `${CLAUDE_SKILL_DIR}/references/templates/root/env.example.tmpl`
+
+**If full scaffold**, read and generate ALL template files. For each `.tmpl` file under `${CLAUDE_SKILL_DIR}/references/templates/`:
+1. Read the template
+2. Replace all `{{PLACEHOLDER}}` values with the user's input
+3. Write the output file (strip `.tmpl` extension, use the template's relative path)
+
+**Auth-conditional logic:**
+- If auth=none: use `schema-no-auth.ts.tmpl` instead of `schema.ts.tmpl`, skip `auth/` directory entirely, remove auth routes from `app.ts` (delete lines between `// AUTH_ROUTES_START` and `// AUTH_ROUTES_END`)
+- If auth=github: include `auth/github.ts.tmpl`, `auth/session.ts.tmpl`, `auth/middleware.ts.tmpl`. In `app.ts`, keep GitHub auth route, remove Google auth route.
+- If auth=google: include `auth/google.ts.tmpl`, `auth/session.ts.tmpl`, `auth/middleware.ts.tmpl`. In `app.ts`, keep Google auth route, remove GitHub auth route.
+- If auth=both: include all auth files, keep all auth routes in `app.ts`.
+
+### Step 4: Post-scaffold summary
+
+Print all generated files grouped by directory.
+
+Print next steps:
+```
+Next steps:
+  1. docker compose up -d              (start local PostgreSQL)
+  2. cd server && npm install && npm run migrate && npm run dev
+  3. cd client && npm install && npm run dev
+  4. Open http://localhost:5173
+
+For auth setup, configure these in server/.env:
+  - GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET (if GitHub)
+  - GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET (if Google)
+  - SESSION_SECRET (generate with: openssl rand -hex 32)
+```
+
+### Step 5: Offer to connect domain
+
+If a custom domain was provided (not 'none'):
+Use AskUserQuestion:
+- "Wire up DNS for <domain>? This runs the connect workflow (GoDaddy → Cloudflare → Railway)."
+- Option 1: "Yes, connect now"
+- Option 2: "Later — I'll run /webinitor connect <domain>"
+
+If yes, go to the **Connect** section with the domain.
+
+---
+
+## Deploy Push
+
+Deploy the current project to Railway (server) and Cloudflare (client).
+
+### Step 1: Detect project structure
+
+```bash
+ls client/wrangler.jsonc railway.toml Dockerfile 2>/dev/null
+```
+
+If `railway.toml` not found: print "No railway.toml found. Run `/webinitor deploy init` first." and stop.
+
+### Step 2: Pre-flight checks
+
+```bash
+bash ${CLAUDE_SKILL_DIR}/references/status-all.sh
+```
+
+Verify Wrangler and Railway CLIs are installed and authenticated. If any check fails, print the issue and suggest `/webinitor setup`.
+
+Check Railway project link:
+```bash
+railway status 2>&1
+```
+
+If not linked:
+Print: "No Railway project linked. Type `! railway link` to link, or `! railway init` to create one."
+
+Use AskUserQuestion:
+- "Have you linked a Railway project?"
+- Option 1: "Yes, check again"
+- Option 2: "Cancel deploy"
+
+If cancel, stop.
+
+### Step 3: Check for placeholder URL
+
+```bash
+grep -r "REPLACE_AFTER_FIRST_DEPLOY" client/src/worker.ts 2>/dev/null
+```
+
+If found and this is the first deploy, note that the Railway URL will need to be updated after deploy. Proceed anyway — server deploys first.
+
+### Step 4: Deploy server to Railway
+
+Print: "Deploying server to Railway..."
+
+```bash
+railway up --detach 2>&1
+```
+
+Report the output. After deploy, get the Railway URL:
+```bash
+railway status 2>&1
+```
+
+If the worker.ts still has the placeholder URL, tell the user:
+> Update `client/src/worker.ts` — replace `REPLACE_AFTER_FIRST_DEPLOY` with your Railway URL (shown above).
+
+### Step 5: Deploy client to Cloudflare
+
+If `client/wrangler.jsonc` exists:
+Print: "Deploying client to Cloudflare..."
+
+```bash
+cd client && npm install && npm run build && npx wrangler deploy 2>&1
+```
+
+Report the result.
+
+If no client config, skip this step.
+
+### Step 6: Health check
+
+If a custom domain is configured (check `client/wrangler.jsonc` for routes):
+```bash
+curl -sf https://<domain>/health 2>/dev/null
+```
+
+Report health status.
+
+### Step 7: Summary
+
+Print:
+```
+=== DEPLOY COMPLETE ===
+
+Server (Railway):    deployed
+Client (Cloudflare): deployed
+
+Endpoints:
+  Frontend: https://<domain>
+  Health:   https://<domain>/health
+```
+
+---
+
+## Deploy Status
+
+Check deployment status of the current project.
+
+### Step 1: Detect project
+
+```bash
+ls client/wrangler.jsonc railway.toml 2>/dev/null
+```
+
+If neither found, print: "No deploy configuration found. Run `/webinitor deploy init` first." and stop.
+
+### Step 2: Railway status
+
+```bash
+railway status 2>&1
+```
+
+Parse and report project name, service, environment.
+
+### Step 3: Cloudflare Worker status
+
+If `client/wrangler.jsonc` exists, extract worker name:
+```bash
+cat client/wrangler.jsonc | grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1
+```
+
+```bash
+cd client && npx wrangler deployments list --limit 1 2>&1
+```
+
+Report latest deployment.
+
+### Step 4: Domain & DNS check
+
+Extract custom domain from `client/wrangler.jsonc` (look for domain in routes/custom_domains).
+
+If found:
+```bash
+bash ${CLAUDE_SKILL_DIR}/references/dns-detect.sh <domain>
+```
+
+Report DNS provider status.
+
+### Step 5: Health check
+
+```bash
+curl -sf https://<domain>/health 2>/dev/null | jq . 2>/dev/null
+```
+
+Report health status or error.
+
+### Step 6: Summary
+
+Print:
+```
+=== DEPLOY STATUS ===
+
+Railway:
+  Project: <name>
+  Status:  <status>
+
+Cloudflare Worker:
+  Name:    <worker-name>
+  Domains: <domain1>, <domain2>
+
+DNS:     <provider> (<ns1>, <ns2>)
+Health:  <status>
+```
+
+---
+
 ## Help
 
 Print:
 
 ```
-Webinitor v2.0.0
+Webinitor v2.2.0
 
 Website infrastructure management — setup, status, and configuration
 for Cloudflare (Wrangler + API), Railway, and GoDaddy.
@@ -880,14 +1231,25 @@ Commands:
   configure godaddy        Edit GoDaddy API credentials
   configure cloudflare     Edit Cloudflare API token
   domains                  List all domains
-  domains list             List domains (--status, --expiring)
+  domains list             List domains (filters below)
+    --status <STATUS>        Filter by status (e.g., ACTIVE)
+    --expiring               Expiring within 30 days
+    --privacy-off            WHOIS privacy disabled
+    --autorenew-off          Auto-renew disabled
+    --name <pattern>         Filter by domain name
   domains search <query>   Search domains by name
   domains info <domain>    Show detailed domain info
+  domains privacy-check    Audit privacy & security settings
+  domains chat             Discuss your domain portfolio
   dns list <domain>        List DNS records (auto-detects provider)
   dns add <domain>         Add a DNS record
   dns update <domain>      Update a DNS record
   dns delete <domain>      Delete a DNS record
   connect <domain>         GoDaddy → Cloudflare → Railway workflow
+  deploy init              Scaffold full-stack web app
+  deploy init --config-only  Config files only (no app code)
+  deploy push              Deploy to Railway + Cloudflare
+  deploy status            Check deployment health
   --help                   Show this help
   --version                Show version
 
