@@ -227,16 +227,16 @@ allowed-tools: Read, Write, Edit, Bash(bash *), Bash(brew *), Bash(npm *), Bash(
 
 ## Phase 9: Verification + Install
 
-- [ ] Install plugin: `claude plugin install site-manager@cat-herding`
-- [ ] Test `/site-manager init` in a temp directory
-- [ ] Verify generated project builds (backend + all sites)
-- [ ] Test seed admin account
-- [ ] Test login flow
-- [ ] Test admin dashboard
-- [ ] Test feature flag toggle
-- [ ] Test `/site-manager deploy`
-- [ ] Test `/site-manager status`
-- [ ] Test dashboard health checks (D1)
+- [x] Install plugin: `claude plugin install site-manager@cat-herding`
+- [x] Test `/site-manager init` in a temp directory
+- [x] Verify generated project builds (backend + all sites) — fixed 26 template files (3392c72)
+- [x] Test seed admin account — seeded via public DB URL
+- [x] Test login flow — smoke test passes (register, login, refresh, me, logout)
+- [x] Test admin dashboard — admin CRUD tests pass (users, flags, feedback, messaging)
+- [x] Test feature flag toggle — create/toggle/delete all pass
+- [x] Test `/site-manager deploy` — deployed to Railway + 2 CF Workers, all healthy
+- [x] Test `/site-manager status` — health endpoints all return 200
+- [x] Test dashboard health checks (D1) — skipped (CF API token lacks D1 permissions)
 
 ---
 
