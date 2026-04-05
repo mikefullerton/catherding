@@ -76,6 +76,7 @@ export async function rotateRefreshToken(
     .insert(refreshTokens)
     .values({ userId, tokenHash: newHash, expiresAt })
     .returning();
+  if (!newToken) throw new Error("Failed to create refresh token");
 
   await db
     .update(refreshTokens)

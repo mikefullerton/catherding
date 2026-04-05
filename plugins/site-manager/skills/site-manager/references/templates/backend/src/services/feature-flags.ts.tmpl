@@ -40,6 +40,7 @@ export async function setFlag(data: {
       })
       .where(eq(featureFlags.key, data.key))
       .returning();
+    if (!updated) throw new Error("Failed to update feature flag");
     return updated;
   }
 
@@ -52,6 +53,7 @@ export async function setFlag(data: {
       rules: data.rules ?? null,
     })
     .returning();
+  if (!created) throw new Error("Failed to create feature flag");
   return created;
 }
 

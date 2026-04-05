@@ -52,6 +52,7 @@ auth.post("/register", async (c) => {
     .insert(users)
     .values({ email, passwordHash, displayName })
     .returning();
+  if (!user) throw new Error("Failed to create user");
 
   const accessToken = await createAccessToken({ sub: user.id, email: user.email, role: user.role });
   const refreshToken = await createRefreshToken(user.id);
@@ -111,7 +112,7 @@ auth.post("/refresh", async (c) => {
 
   let userId: string;
   try {
-    const payload = JSON.parse(atob(tokenParts[1]));
+    const payload = JSON.parse(atob(tokenParts[1] ?? ""));
     userId = payload.sub;
   } catch {
     return c.json({ type: "about:blank", title: "Invalid token", status: 401 }, 401);

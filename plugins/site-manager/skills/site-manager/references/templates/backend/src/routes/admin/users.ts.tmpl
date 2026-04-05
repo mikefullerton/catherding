@@ -34,7 +34,7 @@ adminUsers.get("/", async (c) => {
 
   const where = search ? ilike(users.email, `%${search}%`) : undefined;
 
-  const [results, [{ count }]] = await Promise.all([
+  const [results, countResult] = await Promise.all([
     db
       .select({
         id: users.id,
@@ -54,6 +54,7 @@ adminUsers.get("/", async (c) => {
       .from(users)
       .where(where),
   ]);
+  const count = countResult[0]?.count ?? 0;
 
   return c.json({
     users: results.map((u) => ({
@@ -94,6 +95,7 @@ adminUsers.patch("/:id/role", async (c) => {
     .set({ role: body.data.role, updatedAt: new Date() })
     .where(eq(users.id, userId))
     .returning();
+  if (!updated) throw new Error("Failed to update user role");
 
   return c.json({
     id: updated.id,

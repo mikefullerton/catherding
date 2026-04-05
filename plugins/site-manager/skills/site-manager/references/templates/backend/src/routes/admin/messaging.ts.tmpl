@@ -64,7 +64,7 @@ adminMessaging.get("/log", async (c) => {
   const { page, limit } = query.data;
   const offset = (page - 1) * limit;
 
-  const [results, [{ count }]] = await Promise.all([
+  const [results, countResult] = await Promise.all([
     db
       .select()
       .from(messageLog)
@@ -73,6 +73,7 @@ adminMessaging.get("/log", async (c) => {
       .offset(offset),
     db.select({ count: sql<number>`count(*)::int` }).from(messageLog),
   ]);
+  const count = countResult[0]?.count ?? 0;
 
   return c.json({
     messages: results.map((m) => ({

@@ -93,6 +93,7 @@ googleAuth.get("/callback", async (c) => {
           emailVerified: true,
         })
         .returning();
+      if (!newUser) throw new Error("Failed to create user");
       userId = newUser.id;
     }
 
@@ -110,6 +111,7 @@ googleAuth.get("/callback", async (c) => {
   }
 
   const [user] = await db.select().from(users).where(eq(users.id, userId));
+  if (!user) throw new Error("User not found after OAuth link");
   const accessToken = await createAccessToken({ sub: user.id, email: user.email, role: user.role });
   const refreshToken = await createRefreshToken(user.id);
 

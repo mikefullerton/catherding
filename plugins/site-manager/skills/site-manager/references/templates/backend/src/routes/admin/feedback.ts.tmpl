@@ -35,7 +35,7 @@ adminFeedback.get("/", async (c) => {
 
   const where = status ? eq(feedbackSubmissions.status, status) : undefined;
 
-  const [results, [{ count }]] = await Promise.all([
+  const [results, countResult] = await Promise.all([
     db
       .select()
       .from(feedbackSubmissions)
@@ -48,6 +48,7 @@ adminFeedback.get("/", async (c) => {
       .from(feedbackSubmissions)
       .where(where),
   ]);
+  const count = countResult[0]?.count ?? 0;
 
   return c.json({
     feedback: results.map((f) => ({
@@ -91,6 +92,7 @@ adminFeedback.patch("/:id", async (c) => {
     .set({ ...body.data, updatedAt: new Date() })
     .where(eq(feedbackSubmissions.id, id))
     .returning();
+  if (!updated) throw new Error("Failed to update feedback");
 
   return c.json({
     id: updated.id,
