@@ -29,6 +29,18 @@
       "description": "HTML dashboard showing rules, skills, plugins, MCP servers, and dev tools",
       "source": "./plugins/show-project-setup",
       "category": "development"
+    },
+    {
+      "name": "webinitor",
+      "description": "Website infrastructure management — setup, status, and configuration for Cloudflare, Railway, and GoDaddy",
+      "source": "./plugins/webinitor",
+      "category": "infrastructure"
+    },
+    {
+      "name": "site-manager",
+      "description": "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform",
+      "source": "./plugins/site-manager",
+      "category": "infrastructure"
     }
   ]
 }
