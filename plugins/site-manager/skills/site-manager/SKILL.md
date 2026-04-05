@@ -2,7 +2,7 @@
 name: site-manager
 description: "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform. /site-manager init, /site-manager deploy, /site-manager status, /site-manager manifest, /site-manager seed-admin, /site-manager --help"
 version: "1.2.0"
-argument-hint: "[init|deploy|status|manifest|seed-admin|test|--help|--version]"
+argument-hint: "[init|deploy|update|status|manifest|seed-admin|test|--help|--version]"
 allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), AskUserQuestion
 model: sonnet
 ---
@@ -44,11 +44,12 @@ Then stop.
 | `manifest` or `manifest show` | Go to **Manifest Show** |
 | `manifest validate` | Go to **Manifest Validate** |
 | `seed-admin` | Go to **Seed Admin** |
+| `update` | Go to **Update** |
 | `test` or `test smoke` | Go to **Test Smoke** |
 | `test validate` | Go to **Test Validate** |
 | `--help` | Go to **Help** |
 | `--version` | Print version (handled in Startup) |
-| anything else | Print: "Usage: /site-manager [init\|deploy\|status\|manifest\|seed-admin\|test\|--help\|--version]" and stop |
+| anything else | Print: "Usage: /site-manager [init\|deploy\|update\|status\|manifest\|seed-admin\|test\|--help\|--version]" and stop |
 
 ---
 
@@ -335,7 +336,13 @@ Print the final summary and open all sites in the browser:
     /webinitor connect <domain>
 ```
 
-Open all three site URLs in the browser.
+Open all three site URLs in the browser:
+
+```bash
+open <main-url>
+open <admin-url>
+open <dashboard-url>
+```
 
 ---
 
@@ -685,6 +692,94 @@ Update `site-manifest.json`:
 
 ---
 
+## Update
+
+**Re-scaffold an existing project with the latest templates, rebuild, and redeploy.**
+
+### Step 1: Read manifest
+
+Read `site-manifest.json` from the current directory. If not found:
+> No site-manifest.json found. Run `/site-manager init` to create a project.
+
+Then stop.
+
+Extract project info: `project.name`, `project.domain`, `project.displayName`, and all service URLs/statuses.
+
+### Step 2: Re-scaffold templates
+
+For each template in `${CLAUDE_SKILL_DIR}/references/templates/`, read the `.tmpl` file, perform placeholder substitution (same table as Init Step 3), and **overwrite** the output file.
+
+**Preserve these files** (do not overwrite):
+- `.env` and `.env.example` — user may have customized
+- `site-manifest.json` — contains deployment state
+- `backend/src/db/migrations/` — user's migration history
+- `backend/src/db/seed.ts` — user may have customized
+- Any file not generated from a template
+
+For all other files, overwrite with the latest template output.
+
+### Step 3: Rebuild
+
+```bash
+npm install
+npm run build:shared
+npm run build:backend
+```
+
+### Step 4: Redeploy all services
+
+Follow the same deploy steps as Init Steps 9 (CF Workers) — build and deploy each site.
+
+For the backend, commit and push first (Railway auto-deploys from the repo, or use `railway up`).
+
+```bash
+git add -A && git commit -m "chore: update templates to site-manager v1.2.0"
+git push
+```
+
+Deploy each CF Worker site:
+
+```bash
+cd sites/main && npx vite build && npx wrangler deploy
+cd sites/admin && npx vite build && npx wrangler deploy
+cd sites/dashboard && npx vite build && npx wrangler deploy
+```
+
+### Step 5: Run smoke tests
+
+```bash
+python3 ${CLAUDE_SKILL_DIR}/references/smoke-test.py smoke \
+  --base-url <backend-url> \
+  --main-url <main-url> \
+  --admin-url <admin-url> \
+  --dashboard-url <dashboard-url>
+```
+
+### Step 6: Report and open
+
+Print what was updated and open all sites in the browser:
+
+```
+=== UPDATE COMPLETE ===
+
+  Templates updated to site-manager v1.2.0
+  Smoke tests: <N>/<N> passed
+
+  Main site:     <main-url>
+  Admin site:    <admin-url>
+  Dashboard:     <dashboard-url>
+```
+
+Open all three site URLs in the browser:
+
+```bash
+open <main-url>
+open <admin-url>
+open <dashboard-url>
+```
+
+---
+
 ## Test Smoke
 
 **Run essential health and auth tests against a deployed project.**
@@ -766,6 +861,7 @@ Commands:
   /site-manager manifest            View site-manifest.json
   /site-manager manifest validate   Validate manifest schema
   /site-manager seed-admin          Create initial admin account
+  /site-manager update              Re-scaffold with latest templates and redeploy
   /site-manager test [smoke]        Run smoke tests (health + auth)
   /site-manager test validate       Run full validation tests (admin CRUD, flags, etc.)
   /site-manager --help              Show this help
