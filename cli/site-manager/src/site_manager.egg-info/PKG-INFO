@@ -1,7 +1,0 @@
-Metadata-Version: 2.4
-Name: site-manager
-Version: 0.1.0
-Summary: CLI for managing multi-site web projects — deploy, status, verify, test
-Author: Mike Fullerton
-License-Expression: MIT
-Requires-Python: >=3.11

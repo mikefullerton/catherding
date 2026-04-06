@@ -1,2 +1,0 @@
-[console_scripts]
-site-manager = site_manager.cli:main
