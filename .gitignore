@@ -1,2 +1,9 @@
 .DS_Store
 .claude/worktrees/
+__pycache__/
+*.egg-info/
+*.pyc
+uv.lock
+.venv/
+.superpowers/
+.wrangler/
