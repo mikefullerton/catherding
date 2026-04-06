@@ -1,0 +1,11 @@
+pyproject.toml
+src/webinitor/__init__.py
+src/webinitor/api.py
+src/webinitor/cli.py
+src/webinitor/config.py
+src/webinitor/domains.py
+src/webinitor.egg-info/PKG-INFO
+src/webinitor.egg-info/SOURCES.txt
+src/webinitor.egg-info/dependency_links.txt
+src/webinitor.egg-info/entry_points.txt
+src/webinitor.egg-info/top_level.txt

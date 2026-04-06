@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "webinator"
+version = "0.1.0"
+description = "CLI for web infrastructure management — domains, DNS, deployments"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "Mike Fullerton" }]
+dependencies = []
+
+[project.scripts]
+webinator = "webinator.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
