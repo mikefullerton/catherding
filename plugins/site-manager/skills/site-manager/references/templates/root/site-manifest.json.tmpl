@@ -1,9 +1,11 @@
 {
   "version": "1.0.0",
+  "_site_manager_version": "{{SITE_MANAGER_VERSION}}",
   "project": {
     "name": "{{PROJECT_NAME}}",
     "displayName": "{{DISPLAY_NAME}}",
     "domain": "{{DOMAIN}}",
+    "type": "{{PROJECT_TYPE}}",
     "created": "{{CREATED_AT}}"
   },
   "services": {
@@ -40,6 +42,8 @@
   "features": {
     "auth": {
       "enabled": true,
+      "mode": "built-in",
+      "service": null,
       "providers": ["email"],
       "adminSeeded": false,
       "twoFactor": false,
