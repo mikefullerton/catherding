@@ -1,8 +1,8 @@
 ---
 name: site-manager
 description: "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform. /site-manager init, /site-manager deploy, /site-manager status, /site-manager manifest, /site-manager seed-admin, /site-manager --help"
-version: "1.2.0"
-argument-hint: "[init|deploy|update|status|manifest|seed-admin|test|--help|--version]"
+version: "1.3.0"
+argument-hint: "[init|deploy|update|verify|status|manifest|seed-admin|test|--help|--version]"
 allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), AskUserQuestion
 model: sonnet
 ---
@@ -23,10 +23,10 @@ Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
 **CRITICAL**: The very first thing you output MUST be the version line:
 
-site-manager v1.2.0
+site-manager v1.3.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> site-manager v1.2.0
+> site-manager v1.3.0
 
 Then stop.
 
@@ -45,11 +45,12 @@ Then stop.
 | `manifest validate` | Go to **Manifest Validate** |
 | `seed-admin` | Go to **Seed Admin** |
 | `update` | Go to **Update** |
+| `verify` | Go to **Verify** |
 | `test` or `test smoke` | Go to **Test Smoke** |
 | `test validate` | Go to **Test Validate** |
 | `--help` | Go to **Help** |
 | `--version` | Print version (handled in Startup) |
-| anything else | Print: "Usage: /site-manager [init\|deploy\|update\|status\|manifest\|seed-admin\|test\|--help\|--version]" and stop |
+| anything else | Print: "Usage: /site-manager [init\|deploy\|update\|verify\|status\|manifest\|seed-admin\|test\|--help\|--version]" and stop |
 
 ---
 
@@ -203,7 +204,7 @@ Add a divider between the OAuth buttons and the email/password form:
 ### Step 4: Commit and push
 
 ```bash
-git add -A && git commit -m "feat: initial scaffold from site-manager v1.2.0"
+git add -A && git commit -m "feat: initial scaffold from site-manager v1.3.0"
 ```
 
 If a GitHub repo was created in Step 2, push the initial commit:
@@ -333,7 +334,9 @@ If any tests fail, report the failures but continue.
 
 ### Step 11: Update manifest and push
 
-Update `site-manifest.json` with:
+**Read the existing `site-manifest.json` first, then merge changes into it — do NOT rewrite from scratch.** Specifically preserve `project.displayName`, `project.name`, `project.domain`, and `project.created`.
+
+Update these fields:
 - All service URLs and statuses set to `"deployed"`
 - `lastDeployed` timestamps
 - `features.auth.adminSeeded` set to `true`
@@ -345,7 +348,29 @@ git add -A && git commit -m "chore: update manifest with deployment URLs"
 git push
 ```
 
-### Step 12: Report and open in browser
+### Step 12: Post-deployment verification
+
+Run the verification suite:
+
+```bash
+python3 ${CLAUDE_SKILL_DIR}/references/verify.py \
+  --manifest site-manifest.json \
+  --check-oauth <comma-separated providers from manifest features.auth.providers, omit flag if email-only>
+```
+
+If any **blocking** checks fail, fix them before continuing:
+
+- **manifest.displayName fails:** Add/fix the `project.displayName` field in site-manifest.json.
+- **oauth.*.route fails (404):** The OAuth route is not mounted in `backend/src/app.ts`. Add the import and route mount per the conditional wiring instructions in Step 3. Rebuild and redeploy the backend.
+- **oauth.login_buttons.* fails:** The login pages are missing OAuth buttons. Add the buttons per the conditional wiring instructions in Step 3. Rebuild and redeploy the affected site(s).
+- **frontend.*.dark_theme fails:** Re-copy the login/register templates from the plugin, rebuild, and redeploy.
+
+After fixing any failures, re-run verify.py to confirm all fixes took effect.
+
+DNS/SSL warnings are expected for new projects using workers.dev URLs — print:
+> DNS not yet configured. Run `/webinitor connect <domain>` when ready.
+
+### Step 13: Report and open in browser
 
 Print the final summary and open all sites in the browser:
 
@@ -765,7 +790,7 @@ Follow the same deploy steps as Init Steps 9 (CF Workers) — build and deploy e
 For the backend, commit and push first (Railway auto-deploys from the repo, or use `railway up`).
 
 ```bash
-git add -A && git commit -m "chore: update templates to site-manager v1.2.0"
+git add -A && git commit -m "chore: update templates to site-manager v1.3.0"
 git push
 ```
 
@@ -794,7 +819,7 @@ Print what was updated and open all sites in the browser:
 ```
 === UPDATE COMPLETE ===
 
-  Templates updated to site-manager v1.2.0
+  Templates updated to site-manager v1.3.0
   Smoke tests: <N>/<N> passed
 
   Main site:     <main-url>
@@ -809,6 +834,52 @@ open <main-url>
 open <admin-url>
 open <dashboard-url>
 ```
+
+---
+
+## Verify
+
+**Run post-deployment verification on an existing project.**
+
+### Step 1: Read manifest
+
+Read `site-manifest.json` from the current directory. If not found:
+> No site-manifest.json found. Run `/site-manager init` to create a project.
+
+Then stop.
+
+### Step 2: Determine checks
+
+- Read `features.auth.providers` to determine OAuth checks (pass as `--check-oauth github,google`)
+- Check if the project domain is a custom domain (not `*.workers.dev`) for DNS/SSL checks
+
+### Step 3: Run verify.py
+
+```bash
+python3 ${CLAUDE_SKILL_DIR}/references/verify.py \
+  --manifest site-manifest.json \
+  [--check-oauth github,google] \
+  [--domain <domain>]
+```
+
+### Step 4: Auto-fix failures
+
+For each failing check, apply the fix described in the verification output:
+
+- **manifest.displayName:** Ask the user for the display name, update `site-manifest.json`
+- **oauth routes (404):** Add missing import and route to `backend/src/app.ts`, rebuild, redeploy backend
+- **oauth login buttons:** Add OAuth buttons to login pages per conditional wiring instructions, rebuild, redeploy sites
+- **dark theme missing:** Re-copy templates from plugin, rebuild, redeploy sites
+- **DNS/SSL warnings:** Print suggestion to run `/webinitor connect <domain>`
+
+After fixing, re-run verify.py to confirm.
+
+### Step 5: Report
+
+Display verify.py output. If all blocking checks pass:
+> All verifications passed.
+
+If failures remain after auto-fix attempts, list them with manual fix instructions.
 
 ---
 
@@ -894,6 +965,7 @@ Commands:
   /site-manager manifest validate   Validate manifest schema
   /site-manager seed-admin          Create initial admin account
   /site-manager update              Re-scaffold with latest templates and redeploy
+  /site-manager verify              Run post-deployment verification checks
   /site-manager test [smoke]        Run smoke tests (health + auth)
   /site-manager test validate       Run full validation tests (admin CRUD, flags, etc.)
   /site-manager --help              Show this help
