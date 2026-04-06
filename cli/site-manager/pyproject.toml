@@ -4,15 +4,21 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "site-manager"
-version = "0.1.0"
+dynamic = ["version"]
 description = "CLI for managing multi-site web projects — deploy, status, verify, test"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [{ name = "Mike Fullerton" }]
 dependencies = []
 
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+
 [project.scripts]
 site-manager = "site_manager.cli:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "site_manager.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["src"]

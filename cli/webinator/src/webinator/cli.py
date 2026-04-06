@@ -3,13 +3,17 @@
 import argparse
 import sys
 
+from webinator import __version__
+
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="webinator",
         description="Web infrastructure management CLI",
+        epilog="* invokes Claude",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    parser.add_argument("--version", action="version", version="webinator 0.1.0")
+    parser.add_argument("--version", action="version", version=f"webinator {__version__}")
     parser.add_argument("--json", action="store_true", dest="output_json", help="Output raw JSON")
 
     sub = parser.add_subparsers(dest="command")
@@ -18,7 +22,7 @@ def _build_parser() -> argparse.ArgumentParser:
     sub.add_parser("status", help="Show status of all services")
 
     # --- setup (Claude) ---
-    setup_p = sub.add_parser("setup", help="Interactive setup for services (uses Claude)")
+    setup_p = sub.add_parser("setup", help="* Interactive setup for services")
     setup_p.add_argument("service", nargs="?", choices=["cloudflare", "railway", "godaddy", "github"],
                          help="Specific service to setup")
 
@@ -41,7 +45,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     domains_sub.add_parser("privacy-check", help="Audit domain security settings")
 
-    domains_sub.add_parser("chat", help="Discuss your domain portfolio (uses Claude)")
+    domains_sub.add_parser("chat", help="* Discuss your domain portfolio")
 
     # --- dns ---
     dns_p = sub.add_parser("dns", help="DNS record management")
@@ -50,13 +54,13 @@ def _build_parser() -> argparse.ArgumentParser:
     dns_list = dns_sub.add_parser("list", help="List DNS records for a domain")
     dns_list.add_argument("domain", help="Domain name")
 
-    dns_add = dns_sub.add_parser("add", help="Add a DNS record (uses Claude)")
+    dns_add = dns_sub.add_parser("add", help="* Add a DNS record")
     dns_add.add_argument("domain", help="Domain name")
 
-    dns_update = dns_sub.add_parser("update", help="Update a DNS record (uses Claude)")
+    dns_update = dns_sub.add_parser("update", help="* Update a DNS record")
     dns_update.add_argument("domain", help="Domain name")
 
-    dns_delete = dns_sub.add_parser("delete", help="Delete a DNS record (uses Claude)")
+    dns_delete = dns_sub.add_parser("delete", help="* Delete a DNS record")
     dns_delete.add_argument("domain", help="Domain name")
 
     # --- configure ---
@@ -83,7 +87,7 @@ def _build_parser() -> argparse.ArgumentParser:
     cf_sub.add_parser("test", help="Test API connectivity")
 
     # --- connect (Claude) ---
-    connect_p = sub.add_parser("connect", help="GoDaddy → Cloudflare → Railway workflow (uses Claude)")
+    connect_p = sub.add_parser("connect", help="* GoDaddy → Cloudflare → Railway workflow")
     connect_p.add_argument("domain", help="Domain to connect")
 
     # --- deploy ---
@@ -92,7 +96,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     deploy_sub.add_parser("status", help="Check deployment health")
     deploy_sub.add_parser("push", help="Deploy backend + frontend")
-    deploy_sub.add_parser("init", help="Scaffold full-stack web app (uses Claude)")
+    deploy_sub.add_parser("init", help="* Scaffold full-stack web app")
 
     return parser
 
