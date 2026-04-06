@@ -163,6 +163,38 @@ Strip the `.tmpl` extension from output filenames. Preserve directory structure 
 - If GitHub OAuth is selected, add `"github"` to `features.auth.providers` in site-manifest.json.
 - If Google OAuth is selected, add `"google"` to `features.auth.providers` in site-manifest.json.
 
+**Conditional wiring — after copying templates, modify these files:**
+
+If GitHub OAuth is selected, add to `backend/src/app.ts`:
+- Import: `import { githubAuth } from "./auth/github.js";`
+- Route: `app.route("/api/auth/github", githubAuth);` (after the `/api/auth` route)
+
+If Google OAuth is selected, add to `backend/src/app.ts`:
+- Import: `import { googleAuth } from "./auth/google.js";`
+- Route: `app.route("/api/auth/google", googleAuth);` (after the `/api/auth` route)
+
+If GitHub OAuth is selected, add a "Sign in with GitHub" button to `sites/main/src/routes/login.tsx` and `sites/admin/src/routes/login.tsx`:
+```tsx
+<a
+  href="/api/auth/github"
+  className="w-full py-2 rounded-lg transition hover:opacity-90 font-medium text-center block"
+  style={{ background: "#2a2a36", color: "#e8e6e3", border: "1px solid #3d3d50" }}
+>
+  Sign in with GitHub
+</a>
+```
+
+If Google OAuth is selected, add a similar "Sign in with Google" button.
+
+Add a divider between the OAuth buttons and the email/password form:
+```tsx
+<div className="flex items-center gap-3 my-4">
+  <div className="flex-1 h-px" style={{ background: "#2a2a36" }} />
+  <span className="text-xs" style={{ color: "#5a5a6a" }}>or</span>
+  <div className="flex-1 h-px" style={{ background: "#2a2a36" }} />
+</div>
+```
+
 **Special files:**
 - `root/gitignore.tmpl` → write as `.gitignore`
 - `root/env.example.tmpl` → write as `.env.example` AND copy to `.env` (so dev works immediately)
