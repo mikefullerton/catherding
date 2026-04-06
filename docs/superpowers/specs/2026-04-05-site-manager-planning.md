@@ -183,7 +183,7 @@ A `site-manifest.json` tracks what's been created, deployed, and configured — 
 
 ## Cookbook Principles to Follow
 
-From `~/projects/agentic-cookbook/cookbook/`:
+From `~/projects/active/cookbook/`:
 
 | Principle | Application |
 |-----------|-------------|

@@ -18,9 +18,9 @@
 **Template location:** `plugins/site-manager/skills/site-manager/references/templates/`
 
 **Reference projects:**
-- `~/projects/apps/temporal` — full architecture reference (admin, dashboard, auth, flags, messaging)
-- `~/projects/agentic-cookbook/official-agent-registry` — simpler Hono + CF Worker reference
-- `~/projects/agentic-cookbook/cookbook` — principles and guidelines
+- `~/projects/active/temporal` — full architecture reference (admin, dashboard, auth, flags, messaging)
+- `~/projects/active/official-agent-registry` — simpler Hono + CF Worker reference
+- `~/projects/active/cookbook` — principles and guidelines
 
 **Existing webinitor templates (reusable patterns):** `plugins/webinitor/skills/webinitor/references/templates/`
 
@@ -244,10 +244,10 @@ allowed-tools: Read, Write, Edit, Bash(bash *), Bash(brew *), Bash(npm *), Bash(
 
 1. **Reuse webinitor template patterns** — the existing templates at `plugins/webinitor/skills/webinitor/references/templates/` have working patterns for wrangler.jsonc, Dockerfile, worker.ts, etc. Copy and extend, don't start from scratch.
 
-2. **Reference temporal code directly** — read the actual files from `~/projects/apps/temporal` for admin routes, feature flags, messaging, auth patterns. The temporal project is the production reference.
+2. **Reference temporal code directly** — read the actual files from `~/projects/active/temporal` for admin routes, feature flags, messaging, auth patterns. The temporal project is the production reference.
 
 3. **Template placeholders**: `{{PROJECT_NAME}}`, `{{CUSTOM_DOMAIN}}`, `{{API_BACKEND_URL}}`, `{{PACKAGE_SCOPE}}`, `{{ADMIN_EMAIL}}`, `{{DB_NAME}}`
 
 4. **Each phase is independently committable and testable** — don't batch phases.
 
-5. **The dashboard Worker is the most complex template** — it has cron triggers, D1 database, API routes, AND serves a React SPA. Reference `~/projects/apps/temporal/admin-apps/status-website/` closely.
+5. **The dashboard Worker is the most complex template** — it has cron triggers, D1 database, API routes, AND serves a React SPA. Reference `~/projects/active/temporal/admin-apps/status-website/` closely.

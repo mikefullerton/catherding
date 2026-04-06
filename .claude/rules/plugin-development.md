@@ -11,7 +11,7 @@ This repo is a **local marketplace** (`cat-herding`). The plugins under `plugins
 
 ```bash
 # Register the marketplace (one-time)
-claude plugin marketplace add ~/projects/personal/cat-herding
+claude plugin marketplace add ~/projects/active/cat-herding
 
 # Install plugins
 claude plugin install yolo@cat-herding
