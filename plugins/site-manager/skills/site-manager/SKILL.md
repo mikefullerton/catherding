@@ -3,7 +3,7 @@ name: site-manager
 description: "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform. /site-manager init, /site-manager deploy, /site-manager status, /site-manager manifest, /site-manager seed-admin, /site-manager --help"
 version: "1.3.0"
 argument-hint: "[init|deploy|update|verify|status|manifest|seed-admin|test|--help|--version]"
-allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), AskUserQuestion
+allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), AskUserQuestion
 model: sonnet
 ---
 
@@ -295,7 +295,7 @@ railway link --project <project-id> --service backend --environment production
 
 Update all wrangler.jsonc files with the real Railway backend URL.
 
-Remove custom domain routes from wrangler.jsonc for now (workers.dev URLs will be used until DNS is configured).
+Remove custom domain routes from wrangler.jsonc for the initial deploy (they will be re-added after DNS is configured in Step 10).
 
 Build and deploy each site:
 
@@ -320,19 +320,172 @@ npx vite build && npx wrangler deploy
 
 Capture all deployed URLs from the wrangler output.
 
-### Step 10: Run smoke tests
+### Step 10: Configure DNS (GoDaddy → Cloudflare)
+
+**Set up Cloudflare as the DNS provider and point GoDaddy nameservers to Cloudflare.**
+
+#### 10a: Get Cloudflare credentials
+
+Extract the Cloudflare API token and account ID. The API token should be available from wrangler's auth or environment:
 
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/references/smoke-test.py smoke \
-  --base-url <railway-url> \
-  --main-url <main-worker-url> \
-  --admin-url <admin-worker-url> \
-  --dashboard-url <dashboard-worker-url>
+CLOUDFLARE_API_TOKEN=$(grep -m1 'oauth_token' ~/.wrangler/config/default.toml 2>/dev/null | cut -d'"' -f2)
+```
+
+If not found, check environment variable `CLOUDFLARE_API_TOKEN`. If still not available, ask the user.
+
+Get the account ID:
+
+```bash
+curl -s "https://api.cloudflare.com/client/v4/accounts" \
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq -r '.result[0].id'
+```
+
+#### 10b: Get or create Cloudflare zone
+
+Check if the zone already exists:
+
+```bash
+curl -s "https://api.cloudflare.com/client/v4/zones?name=<domain>" \
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq '.result[0]'
+```
+
+If no zone exists (result is `null`), create one:
+
+```bash
+curl -s -X POST "https://api.cloudflare.com/client/v4/zones" \
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"<domain>","account":{"id":"<account-id>"},"type":"full"}'
+```
+
+Extract and save:
+- `zone_id` — for DNS record management and manifest
+- `name_servers` — array of Cloudflare nameservers (e.g., `["ada.ns.cloudflare.com","bob.ns.cloudflare.com"]`)
+
+#### 10c: Update GoDaddy nameservers
+
+Requires `GODADDY_API_KEY` and `GODADDY_API_SECRET` from `.env` or environment. If not set, ask the user.
+
+Point GoDaddy's nameservers to Cloudflare:
+
+```bash
+curl -s -X PATCH "https://api.godaddy.com/v1/domains/<domain>" \
+  -H "Authorization: sso-key $GODADDY_API_KEY:$GODADDY_API_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"nameServers":["<ns1>","<ns2>"]}'
+```
+
+Verify the update took effect:
+
+```bash
+curl -s "https://api.godaddy.com/v1/domains/<domain>" \
+  -H "Authorization: sso-key $GODADDY_API_KEY:$GODADDY_API_SECRET" | jq '.nameServers'
+```
+
+#### 10d: Wait for zone activation
+
+Poll Cloudflare zone status until active (nameservers verified). This can be quick (minutes) or slow (up to 24h). Poll every 30 seconds for up to 5 minutes:
+
+```bash
+curl -s "https://api.cloudflare.com/client/v4/zones/$ZONE_ID" \
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq -r '.result.status'
+```
+
+Also check with `dig`:
+
+```bash
+dig NS <domain> +short
+```
+
+If the zone becomes `"active"` within the polling window, proceed immediately. If still `"pending"` after 5 minutes, print a warning and proceed anyway — the custom domain routes may not work until the zone activates, but workers.dev URLs remain functional.
+
+#### 10e: Add custom domain routes and redeploy
+
+Add custom domain routes to each site's `wrangler.jsonc`:
+
+**sites/main/wrangler.jsonc** — add:
+```json
+"routes": [{"pattern": "<domain>", "custom_domain": true}]
+```
+
+**sites/admin/wrangler.jsonc** — add:
+```json
+"routes": [{"pattern": "admin.<domain>", "custom_domain": true}]
+```
+
+**sites/dashboard/wrangler.jsonc** — add:
+```json
+"routes": [{"pattern": "dashboard.<domain>", "custom_domain": true}]
+```
+
+Redeploy all workers with the new routes:
+
+```bash
+cd sites/main && npx wrangler deploy
+cd sites/admin && npx wrangler deploy
+cd sites/dashboard && npx wrangler deploy
+```
+
+Cloudflare automatically creates the DNS records when deploying workers with `custom_domain: true`.
+
+#### 10f: Verify DNS configuration
+
+Verify each domain resolves (retry up to 2 minutes if zone is active):
+
+```bash
+curl -sf https://<domain> -o /dev/null -w "%{http_code}" --max-time 10
+curl -sf https://admin.<domain> -o /dev/null -w "%{http_code}" --max-time 10
+curl -sf https://dashboard.<domain> -o /dev/null -w "%{http_code}" --max-time 10
+```
+
+Print verification results:
+
+```
+=== DNS VERIFICATION ===
+
+  Nameservers:          ✅ Pointing to Cloudflare (<ns1>, <ns2>)
+  Zone status:          ✅ Active (zone ID: <zone-id>)
+  <domain>:             ✅ Resolves (HTTP 200)
+  admin.<domain>:       ✅ Resolves (HTTP 200)
+  dashboard.<domain>:   ✅ Resolves (HTTP 200)
+```
+
+If zone is still pending:
+
+```
+=== DNS VERIFICATION ===
+
+  Nameservers:          ✅ Updated on GoDaddy → Cloudflare (<ns1>, <ns2>)
+  Zone status:          ⏳ Pending (waiting for nameserver verification — can take up to 24-48h)
+  Custom domain routes: ✅ Configured (will activate when zone becomes active)
+
+  Sites accessible via workers.dev URLs in the meantime.
+```
+
+#### 10g: Update manifest with DNS info
+
+Update `site-manifest.json`:
+- `dns.zoneId` → the Cloudflare zone ID
+- `dns.nameservers` → the Cloudflare nameservers array
+- `dns.records` → `[{"type":"CNAME","name":"@","target":"<project>-main.workers.dev"},{"type":"CNAME","name":"admin","target":"<project>-admin.workers.dev"},{"type":"CNAME","name":"dashboard","target":"<project>-dashboard.workers.dev"}]`
+
+Commit:
+
+```bash
+git add -A && git commit -m "chore: configure DNS for <domain>"
+git push
+```
+
+### Step 11: Run smoke tests
+
+```bash
+site-manager test smoke
 ```
 
 If any tests fail, report the failures but continue.
 
-### Step 11: Update manifest and push
+### Step 12: Update manifest and push
 
 **Read the existing `site-manifest.json` first, then merge changes into it — do NOT rewrite from scratch.** Specifically preserve `project.displayName`, `project.name`, `project.domain`, and `project.created`.
 
@@ -348,14 +501,12 @@ git add -A && git commit -m "chore: update manifest with deployment URLs"
 git push
 ```
 
-### Step 12: Post-deployment verification
+### Step 13: Post-deployment verification
 
 Run the verification suite:
 
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/references/verify.py \
-  --manifest site-manifest.json \
-  --check-oauth <comma-separated providers from manifest features.auth.providers, omit flag if email-only>
+site-manager verify
 ```
 
 If any **blocking** checks fail, fix them before continuing:
@@ -367,10 +518,10 @@ If any **blocking** checks fail, fix them before continuing:
 
 After fixing any failures, re-run verify.py to confirm all fixes took effect.
 
-DNS/SSL warnings are expected for new projects using workers.dev URLs — print:
-> DNS not yet configured. Run `/webinitor connect <domain>` when ready.
+DNS/SSL warnings should have been resolved by Step 10. If DNS is still pending (zone not yet active), print:
+> DNS zone is pending activation. Custom domains will work once Cloudflare verifies the nameservers (up to 24-48h). Sites are accessible via workers.dev URLs.
 
-### Step 13: Report and open in browser
+### Step 14: Report and open in browser
 
 Print the final summary and open all sites in the browser:
 
@@ -405,291 +556,61 @@ open <dashboard-url>
 
 ## Deploy All
 
-**Deploy all services to their platforms.**
-
-### Step 1: Read manifest
-
-Read `site-manifest.json` from the current directory. If not found:
-> No site-manifest.json found. Run `/site-manager init` to create a project.
-
-Then stop.
-
-### Step 2: Pre-flight checks
-
-Verify tools are available:
+Delegate to the `site-manager` CLI:
 
 ```bash
-which railway && which wrangler
+site-manager deploy all
 ```
 
-If either is missing, print:
-> Missing required tools. Run `/webinitor setup` to install them.
-
-Then stop.
-
-Check Railway auth:
-```bash
-railway whoami 2>&1
-```
-
-Check Wrangler auth:
-```bash
-wrangler whoami 2>&1
-```
-
-If either is not authenticated, guide the user to authenticate.
-
-### Step 3: Deploy backend
-
-```bash
-cd backend && railway up --detach
-```
-
-Wait for the deployment to report success. Get the deployment URL:
-
-```bash
-railway domain
-```
-
-Update `site-manifest.json`:
-- `services.backend.status` → `"deployed"`
-- `services.backend.url` → the Railway URL
-- `services.backend.lastDeployed` → current ISO timestamp
-
-### Step 4: Deploy main site
-
-```bash
-cd sites/main && wrangler deploy
-```
-
-Update `site-manifest.json`:
-- `services.main.status` → `"deployed"`
-- `services.main.lastDeployed` → current ISO timestamp
-
-### Step 5: Deploy admin site
-
-```bash
-cd sites/admin && wrangler deploy
-```
-
-Update `site-manifest.json`:
-- `services.admin.status` → `"deployed"`
-- `services.admin.lastDeployed` → current ISO timestamp
-
-### Step 6: Deploy dashboard
-
-First, check if D1 database exists:
-
-```bash
-wrangler d1 list 2>&1 | grep "<project-name>-dashboard-db"
-```
-
-If not found, create it:
-
-```bash
-wrangler d1 create <project-name>-dashboard-db
-```
-
-Extract the database ID from the output and update `wrangler.jsonc` with the real ID.
-
-Run D1 migrations:
-
-```bash
-cd sites/dashboard && wrangler d1 migrations apply <project-name>-dashboard-db
-```
-
-Deploy:
-
-```bash
-cd sites/dashboard && wrangler deploy
-```
-
-Update `site-manifest.json`:
-- `services.dashboard.status` → `"deployed"`
-- `services.dashboard.lastDeployed` → current ISO timestamp
-
-### Step 7: Health check
-
-For each deployed service with a URL, verify it responds:
-
-```bash
-curl -sf <backend-url>/api/health
-curl -sf https://<domain>
-curl -sf https://admin.<domain>
-curl -sf https://dashboard.<domain>
-```
-
-### Step 8: Report
-
-```
-=== DEPLOYMENT COMPLETE ===
-
-  Backend API        ✅ deployed    <backend-url>
-  Main site          ✅ deployed    https://<domain>
-  Admin site         ✅ deployed    https://admin.<domain>
-  Dashboard          ✅ deployed    https://dashboard.<domain>
-
-Next: /site-manager seed-admin (if not done)
-      /webinitor connect <domain> (to configure DNS)
-```
+Print the output as-is.
 
 ---
 
 ## Deploy Single
 
-**Deploy a single service.** The service name is extracted from `$ARGUMENTS` (e.g., `deploy backend`).
+Delegate to the `site-manager` CLI:
 
-### Step 1: Read manifest
-
-Same as Deploy All Step 1.
-
-### Step 2: Pre-flight checks
-
-Same as Deploy All Step 2, but only check the tool needed for the target service:
-- `backend` → check `railway`
-- `main`, `admin`, `dashboard` → check `wrangler`
-
-### Step 3: Deploy
-
-Run the deployment step for the specific service (same as the corresponding step in Deploy All).
-
-### Step 4: Update manifest
-
-Update only the targeted service in `site-manifest.json`.
-
-### Step 5: Report
-
+```bash
+site-manager deploy <service>
 ```
-=== DEPLOYED: <service> ===
 
-  <Service name>     ✅ deployed    <url>
-```
+Print the output as-is.
 
 ---
 
 ## Status
 
-**Check the status of all services.**
+Delegate to the `site-manager` CLI:
 
-### Step 1: Read manifest
-
-Read `site-manifest.json` from the current directory. If not found:
-> No site-manifest.json found. Run `/site-manager init` to create a project.
-
-Then stop.
-
-### Step 2: Check each service
-
-For each service in the manifest:
-
-**Backend** (if status is `"deployed"` and url is set):
 ```bash
-curl -sf <url>/api/health --max-time 5
+site-manager status
 ```
-- If response is 200 with `{"status":"ok"}`: mark as ✅ healthy
-- If non-200 or timeout: mark as ⚠️ unhealthy
-- If url is null: mark as ⬜ not deployed
 
-**Main / Admin / Dashboard** (if status is `"deployed"`):
-```bash
-curl -sf https://<domain> --max-time 5 -o /dev/null -w "%{http_code}"
-```
-- If 200: mark as ✅ healthy
-- If non-200 or timeout: mark as ⚠️ unhealthy
-- If status is `"scaffolded"`: mark as ⬜ not deployed
-
-### Step 3: Report
-
-```
-=== SITE MANAGER STATUS ===
-
-Project: <name> (<domain>)
-Manifest: v<version>
-
-  Backend API        <status>    <url or "not deployed">
-  Main site          <status>    <domain or "not deployed">
-  Admin site         <status>    <domain or "not deployed">
-  Dashboard          <status>    <domain or "not deployed">
-
-Features:
-  Auth               <✅/❌> <providers list>
-  Admin seeded       <✅/❌>
-  Feature flags      <✅/❌> <enabled/disabled>
-  Email              <✅/❌> <provider or "not configured">
-  SMS                <✅/❌> <provider or "not configured">
-  Observability      <✅/❌> <provider>
-  Logging            <✅/❌> <structured: yes/no>
-```
+Print the output as-is.
 
 ---
 
 ## Manifest Show
 
-Read and pretty-print `site-manifest.json` from the current directory.
+Delegate to the `site-manager` CLI:
 
-If not found:
-> No site-manifest.json found. Run `/site-manager init` to create a project.
-
-Otherwise, read the file and display it formatted with sections:
-
+```bash
+site-manager manifest show
 ```
-=== SITE MANIFEST ===
 
-Project: <name> (<domain>)
-Version: <version>
-Created: <created date>
-
-Services:
-  backend      <status>  <platform>  <url>
-  main         <status>  <platform>  <domain>
-  admin        <status>  <platform>  <domain>
-  dashboard    <status>  <platform>  <domain>
-
-Features:
-  auth:           <enabled> providers=<list> adminSeeded=<bool>
-  featureFlags:   <enabled>
-  email:          <enabled> provider=<provider>
-  sms:            <enabled> provider=<provider>
-  abTesting:      <enabled>
-  observability:  <enabled> provider=<provider>
-  logging:        <enabled> structured=<bool>
-
-DNS:
-  provider:     <provider>
-  zoneId:       <id or "not set">
-  nameservers:  <list or "not set">
-  records:      <count> records
-```
+Print the output as-is.
 
 ---
 
 ## Manifest Validate
 
-Read `site-manifest.json` and validate its structure.
+Delegate to the `site-manager` CLI:
 
-**Required fields:**
-- `version` — must be a semver string
-- `project.name` — non-empty string
-- `project.domain` — valid domain
-- `project.created` — ISO 8601 timestamp
-- `services.backend`, `services.main`, `services.admin`, `services.dashboard` — each must have `status`, `platform`
-- `features.auth.enabled` — boolean
-- `features.auth.providers` — non-empty array
-
-**Report:**
-
-If valid:
-```
-✅ Manifest is valid (v<version>)
+```bash
+site-manager manifest validate
 ```
 
-If invalid, list each issue:
-```
-❌ Manifest validation errors:
-  - project.domain: missing or empty
-  - services.backend.status: invalid value "foo" (expected: scaffolded, deployed, error)
-  - features.auth.providers: empty array
-```
+Print the output as-is.
 
 ---
 
@@ -802,24 +723,85 @@ cd sites/admin && npx vite build && npx wrangler deploy
 cd sites/dashboard && npx vite build && npx wrangler deploy
 ```
 
-### Step 5: Run smoke tests
+### Step 5: Verify and update DNS
+
+Check that DNS is still correctly configured. Read `dns.zoneId` from `site-manifest.json`.
+
+**If `dns.zoneId` is set (DNS was previously configured):**
+
+Verify the Cloudflare zone is still active:
 
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/references/smoke-test.py smoke \
-  --base-url <backend-url> \
-  --main-url <main-url> \
-  --admin-url <admin-url> \
-  --dashboard-url <dashboard-url>
+curl -s "https://api.cloudflare.com/client/v4/zones/$ZONE_ID" \
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" | jq -r '.result.status'
 ```
 
-### Step 6: Report and open
+Verify custom domain routes are present in each `wrangler.jsonc`. If routes were removed during template re-scaffolding (templates don't include routes), re-add them:
 
-Print what was updated and open all sites in the browser:
+**sites/main/wrangler.jsonc** — add if missing:
+```json
+"routes": [{"pattern": "<domain>", "custom_domain": true}]
+```
+
+**sites/admin/wrangler.jsonc** — add if missing:
+```json
+"routes": [{"pattern": "admin.<domain>", "custom_domain": true}]
+```
+
+**sites/dashboard/wrangler.jsonc** — add if missing:
+```json
+"routes": [{"pattern": "dashboard.<domain>", "custom_domain": true}]
+```
+
+If routes were re-added, redeploy the affected workers:
+
+```bash
+cd sites/main && npx wrangler deploy
+cd sites/admin && npx wrangler deploy
+cd sites/dashboard && npx wrangler deploy
+```
+
+Verify each custom domain resolves:
+
+```bash
+curl -sf https://<domain> -o /dev/null -w "%{http_code}" --max-time 10
+curl -sf https://admin.<domain> -o /dev/null -w "%{http_code}" --max-time 10
+curl -sf https://dashboard.<domain> -o /dev/null -w "%{http_code}" --max-time 10
+```
+
+Print verification results:
+
+```
+=== DNS VERIFICATION ===
+
+  Zone status:          ✅ Active
+  <domain>:             ✅ Resolves (HTTP 200)
+  admin.<domain>:       ✅ Resolves (HTTP 200)
+  dashboard.<domain>:   ✅ Resolves (HTTP 200)
+```
+
+If any domain fails to resolve, report the failure but continue to smoke tests.
+
+**If `dns.zoneId` is null (DNS was never configured):**
+
+Skip DNS verification. Print:
+> DNS not configured. Run `/site-manager init` or configure manually.
+
+### Step 6: Run smoke tests
+
+```bash
+site-manager test smoke
+```
+
+### Step 7: Report
+
+Print what was updated. Do **not** auto-open sites in the browser (only Init opens sites).
 
 ```
 === UPDATE COMPLETE ===
 
   Templates updated to site-manager v1.3.0
+  DNS:        <✅ verified / ⏳ pending / ⬜ not configured>
   Smoke tests: <N>/<N> passed
 
   Main site:     <main-url>
@@ -827,126 +809,49 @@ Print what was updated and open all sites in the browser:
   Dashboard:     <dashboard-url>
 ```
 
-Open all three site URLs in the browser:
-
-```bash
-open <main-url>
-open <admin-url>
-open <dashboard-url>
-```
-
 ---
 
 ## Verify
 
-**Run post-deployment verification on an existing project.**
-
-### Step 1: Read manifest
-
-Read `site-manifest.json` from the current directory. If not found:
-> No site-manifest.json found. Run `/site-manager init` to create a project.
-
-Then stop.
-
-### Step 2: Determine checks
-
-- Read `features.auth.providers` to determine OAuth checks (pass as `--check-oauth github,google`)
-- Check if the project domain is a custom domain (not `*.workers.dev`) for DNS/SSL checks
-
-### Step 3: Run verify.py
+Delegate to the `site-manager` CLI:
 
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/references/verify.py \
-  --manifest site-manifest.json \
-  [--check-oauth github,google] \
-  [--domain <domain>]
+site-manager verify
 ```
 
-### Step 4: Auto-fix failures
+The CLI auto-detects OAuth providers and domain from the manifest.
 
-For each failing check, apply the fix described in the verification output:
+If there are failures that need auto-fixing (missing OAuth routes, login buttons, dark theme), apply fixes manually:
 
-- **manifest.displayName:** Ask the user for the display name, update `site-manifest.json`
-- **oauth routes (404):** Add missing import and route to `backend/src/app.ts`, rebuild, redeploy backend
-- **oauth login buttons:** Add OAuth buttons to login pages per conditional wiring instructions, rebuild, redeploy sites
-- **dark theme missing:** Re-copy templates from plugin, rebuild, redeploy sites
-- **DNS/SSL warnings:** Print suggestion to run `/webinitor connect <domain>`
+- **manifest.displayName:** Ask user, update `site-manifest.json`
+- **oauth routes (404):** Add missing import and route to `backend/src/app.ts`, rebuild, redeploy
+- **oauth login buttons:** Add buttons per conditional wiring instructions, rebuild, redeploy
+- **dark theme missing:** Re-copy templates, rebuild, redeploy
+- **DNS/SSL warnings:** Suggest `/webinitor connect <domain>`
 
-After fixing, re-run verify.py to confirm.
-
-### Step 5: Report
-
-Display verify.py output. If all blocking checks pass:
-> All verifications passed.
-
-If failures remain after auto-fix attempts, list them with manual fix instructions.
+After fixing, run `site-manager verify` again to confirm.
 
 ---
 
 ## Test Smoke
 
-**Run essential health and auth tests against a deployed project.**
-
-### Step 1: Resolve URLs
-
-Read `site-manifest.json` from the current directory. Extract:
-- `services.backend.url` → `--base-url`
-- `project.domain` → derive `--main-url` (`https://<domain>`), `--admin-url` (`https://admin.<domain>`), `--dashboard-url` (`https://dashboard.<domain>`)
-
-If no `site-manifest.json`, ask the user for `--base-url`.
-
-If `services.backend.url` is null or status is not `deployed`, print:
-> Backend is not deployed. Run `/site-manager deploy backend` first.
-
-Then stop.
-
-### Step 2: Run tests
+Delegate to the `site-manager` CLI:
 
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/references/smoke-test.py smoke \
-  --base-url <backend-url> \
-  --main-url <main-url> \
-  --admin-url <admin-url> \
-  --dashboard-url <dashboard-url>
+site-manager test smoke
 ```
 
-### Step 3: Report
-
-Display the test output directly — it is self-formatting.
+The CLI reads URLs from `site-manifest.json` automatically.
 
 ---
 
 ## Test Validate
 
-**Run comprehensive validation tests including admin CRUD.**
-
-### Step 1: Resolve URLs
-
-Same as Test Smoke Step 1.
-
-### Step 2: Get admin credentials
-
-Ask the user for:
-- Admin email
-- Admin password
-
-These are needed for admin endpoint tests (users, flags, messaging, feedback).
-
-### Step 3: Run tests
+Ask the user for admin email and password, then delegate:
 
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/references/smoke-test.py validate \
-  --base-url <backend-url> \
-  --main-url <main-url> \
-  --admin-url <admin-url> \
-  --dashboard-url <dashboard-url> \
-  --admin-email <email> \
-  --admin-password <password>
+site-manager test validate --admin-email <email> --admin-password <password>
 ```
-
-### Step 4: Report
-
-Display the test output directly — it is self-formatting.
 
 ---
 

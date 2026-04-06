@@ -3,7 +3,7 @@ name: webinitor
 description: "Website infrastructure management — setup, status, and configuration for Cloudflare (Wrangler), Railway, GoDaddy, and GitHub. /webinitor status, /webinitor setup, /webinitor configure, /webinitor --help"
 version: "2.3.0"
 argument-hint: "[status|setup|configure|domains|dns|connect|deploy|--help|--version]"
-allowed-tools: Read, Write, Edit, Bash(bash *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(gh *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), AskUserQuestion
+allowed-tools: Read, Write, Edit, Bash(bash *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(gh *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(webinator *), AskUserQuestion
 model: sonnet
 ---
 
@@ -64,52 +64,13 @@ Then stop.
 
 ## Status
 
-Show the unified status of all three services.
-
-### Step 1: Run status check
+Delegate to the `webinator` CLI:
 
 ```bash
-bash ${CLAUDE_SKILL_DIR}/references/status-all.sh
+webinator status
 ```
 
-### Step 2: Format and display
-
-Parse the JSON output and print a formatted status report:
-
-```
-=== WEBINITOR STATUS ===
-
-Cloudflare (Wrangler)
-  CLI:  <installed (vX.X.X)> or <not installed>
-  Auth: <authenticated (account-name)> or <not authenticated — reason>
-  API:  <configured (token: abcd...efgh)> or <not configured — reason>
-
-Railway
-  CLI:  <installed (vX.X.X)> or <not installed>
-  Auth: <authenticated (account-name)> or <not authenticated — reason>
-
-GoDaddy (API)
-  Env:  <production> or <ote>
-  Auth: <configured (key: abcd...efgh)> or <not configured — reason>
-
-GitHub (gh)
-  CLI:  <installed (vX.X.X)> or <not installed>
-  Auth: <authenticated (username)> or <not authenticated — reason>
-```
-
-If any service has issues, add an **Issues** section at the bottom:
-
-```
-Issues:
-  - Wrangler CLI not installed → /webinitor setup cloudflare
-  - Cloudflare API not configured → /webinitor setup cloudflare
-  - Railway not authenticated → /webinitor setup railway
-  - GoDaddy API not configured → /webinitor setup godaddy
-  - GitHub CLI not installed → /webinitor setup github
-  - GitHub not authenticated → /webinitor setup github
-```
-
-If everything is healthy, print: "All services ready."
+Print the output as-is. If any service has issues, suggest the relevant `/webinitor setup` command.
 
 ---
 
@@ -423,7 +384,8 @@ If "Skip for now", print: "GitHub auth skipped. Run `/webinitor setup github` la
 ### Step 1: Show current state
 
 ```bash
-bash ${CLAUDE_SKILL_DIR}/references/configure-godaddy.sh get
+webinator configure godaddy get
+webinator configure cloudflare get
 ```
 
 Print current configuration summary.
@@ -444,17 +406,15 @@ Use AskUserQuestion:
 ### Step 1: Show current config
 
 ```bash
-bash ${CLAUDE_SKILL_DIR}/references/configure-godaddy.sh get
+webinator configure godaddy get
 ```
-
-Print the current (masked) configuration.
 
 ### Step 2: Choose action
 
 Use AskUserQuestion:
 - Question: "What would you like to do?"
-- Option 1: "Update credentials" — Collect new key/secret (same as Setup GoDaddy Step 3-5)
-- Option 2: "Test connection" — Run `configure-godaddy.sh test` and report
+- Option 1: "Update credentials" — Collect new key/secret, then run `webinator configure godaddy set <KEY> <SECRET>`
+- Option 2: "Test connection" — Run `webinator configure godaddy test` and report
 - Option 3: "Change environment" — Go to Configure GoDaddy Environment
 - Option 4: "Done" — Stop
 
@@ -464,28 +424,9 @@ After each action, loop back to Step 1 to show updated config.
 
 ## Configure GoDaddy Environment
 
-### Step 1: Show current environment
-
 ```bash
-bash ${CLAUDE_SKILL_DIR}/references/configure-godaddy.sh get
+webinator configure godaddy set-env <production|ote>
 ```
-
-Print the current environment setting.
-
-### Step 2: Choose environment
-
-Use AskUserQuestion:
-- Question: "Which GoDaddy API environment?"
-- Option 1: "Production" — Uses api.godaddy.com
-- Option 2: "OTE (Test)" — Uses api.ote-godaddy.com
-
-### Step 3: Save
-
-```bash
-bash ${CLAUDE_SKILL_DIR}/references/configure-godaddy.sh set-env <production|ote>
-```
-
-Print: "Environment set to <environment>."
 
 ---
 
@@ -494,17 +435,15 @@ Print: "Environment set to <environment>."
 ### Step 1: Show current config
 
 ```bash
-bash ${CLAUDE_SKILL_DIR}/references/configure-cloudflare.sh get
+webinator configure cloudflare get
 ```
-
-Print the current (masked) configuration.
 
 ### Step 2: Choose action
 
 Use AskUserQuestion:
 - Question: "What would you like to do?"
-- Option 1: "Update API token" — Collect new token (same flow as Setup Cloudflare Step 6-7)
-- Option 2: "Test connection" — Run `configure-cloudflare.sh test` and report
+- Option 1: "Update API token" — Collect new token, then run `webinator configure cloudflare set <TOKEN>`
+- Option 2: "Test connection" — Run `webinator configure cloudflare test` and report
 - Option 3: "Done" — Stop
 
 After each action, loop back to Step 1 to show updated config.
@@ -513,133 +452,43 @@ After each action, loop back to Step 1 to show updated config.
 
 ## Domains List
 
-### Step 1: Fetch domains
+Delegate to the `webinator` CLI. Pass any flags from `$ARGUMENTS` directly:
 
 ```bash
-bash ${CLAUDE_SKILL_DIR}/references/godaddy-domains.sh list
+webinator domains list [--status <STATUS>] [--expiring] [--privacy-off] [--autorenew-off] [--name <pattern>]
 ```
 
-Pass any flags from `$ARGUMENTS` directly. Supported flags can be combined:
-- `--status <STATUS>` — filter by domain status (e.g., ACTIVE)
-- `--expiring` — domains expiring within 30 days
-- `--privacy-off` — domains with WHOIS privacy disabled
-- `--autorenew-off` — domains with auto-renew disabled
-- `--name <pattern>` — filter by domain name substring
-
-Example:
-```bash
-bash ${CLAUDE_SKILL_DIR}/references/godaddy-domains.sh list --privacy-off --name fullerton
-```
-
-### Step 2: Format and display
-
-Parse the JSON array and print a table:
-
-```
-Domain                    Status    Expires      Auto-Renew  Privacy  Nameservers
-example.com               ACTIVE    2027-03-15   on          on       Cloudflare
-mysite.org                ACTIVE    2026-12-01   on          off      GoDaddy
-oldsite.net               ACTIVE    2026-04-20   off         on       GoDaddy
-```
-
-Nameserver column logic:
-- If any nameserver contains "cloudflare" → "Cloudflare"
-- If nameservers contain "domaincontrol" → "GoDaddy"
-- Otherwise → "Other"
-
-Print total count at the bottom: "Showing N domain(s)."
+Print the output as-is.
 
 ---
 
 ## Domains Search
 
-### Step 1: Search domains
-
-Extract the query from `$ARGUMENTS` (the word after `domains search`).
-
 ```bash
-bash ${CLAUDE_SKILL_DIR}/references/godaddy-domains.sh search <query>
+webinator domains search <query>
 ```
 
-### Step 2: Format and display
-
-Same table format as Domains List. Print: "Found N domain(s) matching '<query>'."
+Print the output as-is.
 
 ---
 
 ## Domains Info
 
-### Step 1: Get domain info
-
-Extract the domain from `$ARGUMENTS` (the word after `domains info`).
-
 ```bash
-bash ${CLAUDE_SKILL_DIR}/references/godaddy-domains.sh info <domain>
+webinator domains info <domain>
 ```
 
-### Step 2: Format and display
-
-Print detailed info:
-
-```
-=== <domain> ===
-
-Status:       ACTIVE
-Created:      2020-01-15
-Expires:      2027-03-15
-Auto-Renew:   on
-Privacy:      on
-Locked:       true
-
-Nameservers:
-  - ada.ns.cloudflare.com
-  - bob.ns.cloudflare.com
-
-DNS Provider: Cloudflare
-```
+Print the output as-is.
 
 ---
 
 ## Domains Privacy Check
 
-Audit all active domains for security and privacy settings.
-
-### Step 1: Run privacy check
-
 ```bash
-bash ${CLAUDE_SKILL_DIR}/references/godaddy-domains.sh privacy-check
+webinator domains privacy-check
 ```
 
-### Step 2: Format and display
-
-Parse the JSON output and print a report:
-
-```
-=== DOMAIN PRIVACY & SECURITY AUDIT ===
-
-Total active domains: N
-
-Privacy OFF (N):
-  - domain1.us
-  - domain2.us
-
-Auto-Renew OFF (N):
-  - domain3.com
-  - domain4.org
-
-Unlocked (N):
-  - domain5.com
-
-Expiration Protection OFF (N):
-  - (lists domains or "None — all protected")
-
-Transfer Protection OFF (N):
-  - (lists domains or "None — all protected")
-```
-
-For each category, if the list is empty, print "None — all good."
-
-At the end, print a summary: "N issue(s) found across N domains." or "All domains look good."
+Print the output as-is.
 
 ---
 
@@ -650,7 +499,7 @@ Freeform discussion mode about the user's domain portfolio. Fetch the full domai
 ### Step 1: Fetch all domains
 
 ```bash
-bash ${CLAUDE_SKILL_DIR}/references/godaddy-domains.sh list
+webinator domains list --json
 ```
 
 ### Step 2: Interactive discussion
@@ -679,56 +528,13 @@ The key advantage of this mode: you have the full domain list in context and can
 
 ## DNS List
 
-### Step 1: Detect provider
-
-Extract the domain from `$ARGUMENTS` (the word after `dns list`).
+Delegate to the `webinator` CLI:
 
 ```bash
-bash ${CLAUDE_SKILL_DIR}/references/dns-detect.sh <domain>
+webinator dns list <domain>
 ```
 
-Parse the JSON. Print: "DNS provider: <Provider> (nameservers: <ns1>, <ns2>)"
-
-### Step 2: Fetch records
-
-If provider is `cloudflare`:
-```bash
-bash ${CLAUDE_SKILL_DIR}/references/dns-cloudflare.sh list <domain>
-```
-
-If provider is `godaddy`:
-```bash
-bash ${CLAUDE_SKILL_DIR}/references/dns-godaddy.sh list <domain>
-```
-
-If provider is `unknown`, use AskUserQuestion:
-- "Nameservers don't match GoDaddy or Cloudflare. Which provider manages DNS for this domain?"
-- Option 1: "Cloudflare"
-- Option 2: "GoDaddy"
-- Option 3: "Cancel"
-
-### Step 3: Format and display
-
-For Cloudflare records, print:
-
-```
-#   Type    Name              Value                    TTL     Proxied
-1   A       example.com       192.168.1.1              auto    yes
-2   CNAME   www               example.com              auto    yes
-3   MX      example.com       mail.example.com         3600    -
-4   TXT     example.com       v=spf1 include:...       auto    -
-```
-
-For GoDaddy records, print (no Proxied column, no # id):
-
-```
-#   Type    Name    Value                    TTL
-1   A       @       192.168.1.1              3600
-2   CNAME   www     example.com              3600
-3   MX      @       mail.example.com         3600
-```
-
-Print total: "N record(s) for <domain>."
+Print the output as-is.
 
 ---
 
@@ -883,7 +689,7 @@ Extract the domain from `$ARGUMENTS` (the word after `connect`).
 ### Step 1: Verify domain ownership
 
 ```bash
-bash ${CLAUDE_SKILL_DIR}/references/godaddy-domains.sh info <domain>
+webinator domains info <domain>
 ```
 
 If the request fails, print the error and stop.
@@ -1106,170 +912,25 @@ If yes, go to the **Connect** section with the domain.
 
 ## Deploy Push
 
-Deploy the current project to Railway (server) and Cloudflare (client).
-
-### Step 1: Detect project structure
+Delegate to the `webinator` CLI:
 
 ```bash
-ls client/wrangler.jsonc railway.toml Dockerfile 2>/dev/null
+webinator deploy push
 ```
 
-If `railway.toml` not found: print "No railway.toml found. Run `/webinitor deploy init` first." and stop.
-
-### Step 2: Pre-flight checks
-
-```bash
-bash ${CLAUDE_SKILL_DIR}/references/status-all.sh
-```
-
-Verify Wrangler and Railway CLIs are installed and authenticated. If any check fails, print the issue and suggest `/webinitor setup`.
-
-Check Railway project link:
-```bash
-railway status 2>&1
-```
-
-If not linked:
-Print: "No Railway project linked. Type `! railway link` to link, or `! railway init` to create one."
-
-Use AskUserQuestion:
-- "Have you linked a Railway project?"
-- Option 1: "Yes, check again"
-- Option 2: "Cancel deploy"
-
-If cancel, stop.
-
-### Step 3: Check for placeholder URL
-
-```bash
-grep -r "REPLACE_AFTER_FIRST_DEPLOY" client/src/worker.ts 2>/dev/null
-```
-
-If found and this is the first deploy, note that the Railway URL will need to be updated after deploy. Proceed anyway — server deploys first.
-
-### Step 4: Deploy server to Railway
-
-Print: "Deploying server to Railway..."
-
-```bash
-railway up --detach 2>&1
-```
-
-Report the output. After deploy, get the Railway URL:
-```bash
-railway status 2>&1
-```
-
-If the worker.ts still has the placeholder URL, tell the user:
-> Update `client/src/worker.ts` — replace `REPLACE_AFTER_FIRST_DEPLOY` with your Railway URL (shown above).
-
-### Step 5: Deploy client to Cloudflare
-
-If `client/wrangler.jsonc` exists:
-Print: "Deploying client to Cloudflare..."
-
-```bash
-cd client && npm install && npm run build && npx wrangler deploy 2>&1
-```
-
-Report the result.
-
-If no client config, skip this step.
-
-### Step 6: Health check
-
-If a custom domain is configured (check `client/wrangler.jsonc` for routes):
-```bash
-curl -sf https://<domain>/health 2>/dev/null
-```
-
-Report health status.
-
-### Step 7: Summary
-
-Print:
-```
-=== DEPLOY COMPLETE ===
-
-Server (Railway):    deployed
-Client (Cloudflare): deployed
-
-Endpoints:
-  Frontend: https://<domain>
-  Health:   https://<domain>/health
-```
+Print the output as-is.
 
 ---
 
 ## Deploy Status
 
-Check deployment status of the current project.
-
-### Step 1: Detect project
+Delegate to the `webinator` CLI:
 
 ```bash
-ls client/wrangler.jsonc railway.toml 2>/dev/null
+webinator deploy status
 ```
 
-If neither found, print: "No deploy configuration found. Run `/webinitor deploy init` first." and stop.
-
-### Step 2: Railway status
-
-```bash
-railway status 2>&1
-```
-
-Parse and report project name, service, environment.
-
-### Step 3: Cloudflare Worker status
-
-If `client/wrangler.jsonc` exists, extract worker name:
-```bash
-cat client/wrangler.jsonc | grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1
-```
-
-```bash
-cd client && npx wrangler deployments list --limit 1 2>&1
-```
-
-Report latest deployment.
-
-### Step 4: Domain & DNS check
-
-Extract custom domain from `client/wrangler.jsonc` (look for domain in routes/custom_domains).
-
-If found:
-```bash
-bash ${CLAUDE_SKILL_DIR}/references/dns-detect.sh <domain>
-```
-
-Report DNS provider status.
-
-### Step 5: Health check
-
-```bash
-curl -sf https://<domain>/health 2>/dev/null | jq . 2>/dev/null
-```
-
-Report health status or error.
-
-### Step 6: Summary
-
-Print:
-```
-=== DEPLOY STATUS ===
-
-Railway:
-  Project: <name>
-  Status:  <status>
-
-Cloudflare Worker:
-  Name:    <worker-name>
-  Domains: <domain1>, <domain2>
-
-DNS:     <provider> (<ns1>, <ns2>)
-Health:  <status>
-```
+Print the output as-is.
 
 ---
 
