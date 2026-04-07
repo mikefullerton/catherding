@@ -197,8 +197,7 @@ def step_worktrees(repo, dflt, dry_run):
         if not os.path.isdir(path):
             continue
 
-        _, rc = git(repo, "merge-base", "--is-ancestor", branch, dflt)
-        is_merged = rc == 0
+        is_merged = is_merged_or_squashed(repo, dflt, branch)
         status = git_ok(path, "status", "--porcelain")
 
         if status:
@@ -231,6 +230,31 @@ SPECIAL_BRANCHES = {"gh-pages", "github-pages"}
 def is_special_branch(name):
     """Branches that should never be flagged for deletion."""
     return name in SPECIAL_BRANCHES
+
+
+def is_merged_or_squashed(repo, dflt, branch_ref):
+    """Check if branch is merged into dflt, including squash merges.
+
+    For squash detection: creates a temporary dangling commit with the
+    branch's tree on top of the merge-base, then uses git cherry to check
+    if that change is already in dflt.
+    """
+    # fast path: regular merge
+    _, rc = git(repo, "merge-base", "--is-ancestor", branch_ref, dflt)
+    if rc == 0:
+        return True
+    # squash-merge detection
+    merge_base = git_ok(repo, "merge-base", dflt, branch_ref)
+    if not merge_base:
+        return False
+    tree = git_ok(repo, "rev-parse", f"{branch_ref}^{{tree}}")
+    if not tree:
+        return False
+    dangling = git_ok(repo, "commit-tree", tree, "-p", merge_base, "-m", "_")
+    if not dangling:
+        return False
+    cherry = git_ok(repo, "cherry", dflt, dangling)
+    return cherry.startswith("-")
 
 
 def step_branches(repo, dflt, cur, dry_run):
@@ -334,9 +358,8 @@ def step_branches(repo, dflt, cur, dry_run):
         if is_special_branch(name):
             log(f"  Remote branch {name}: special — keeping")
             continue
-        # check if merged into default
-        _, rc = git(repo, "merge-base", "--is-ancestor", rref, dflt)
-        if rc == 0:
+        # check if merged (regular or squash) into default
+        if is_merged_or_squashed(repo, dflt, rref):
             log(f"  Remote branch {name}: merged into {dflt}")
             if dry_run:
                 log(f"    [dry-run] Would delete remote branch")
