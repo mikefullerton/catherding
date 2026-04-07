@@ -177,13 +177,11 @@ def quick_check(repo):
 # ── process a single repo ───────────────────────────────────────────────
 
 def process_repo(repo, dry_run):
-    """Process one repo. Returns (lines, result) where lines is the log transcript."""
-    lines = []
+    """Process one repo. Returns result dict. Streams progress to stderr in real-time."""
+    name = os.path.basename(repo)
 
     def out(msg):
-        lines.append(msg)
-
-    name = os.path.basename(repo)
+        log(f"  [{name}] {msg}")
     dflt = default_branch(repo)
     cur = current_branch(repo)
 
@@ -455,7 +453,7 @@ def process_repo(repo, dry_run):
         "items": items,
     }
 
-    return lines, result
+    return result
 
 
 # ── main ────────────────────────────────────────────────────────────────
@@ -509,6 +507,12 @@ def main():
     def run_one(repo):
         return process_repo(repo, args.dry_run)
 
+    # print start lines so user sees work beginning
+    for i, repo in enumerate(to_process, 1):
+        log(f"  Queued: {os.path.basename(repo)} ({i}/{total})")
+
+    log("")
+
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         futures = {pool.submit(run_one, repo): repo for repo in to_process}
         for future in as_completed(futures):
@@ -516,12 +520,8 @@ def main():
             name = os.path.basename(repo)
             completed += 1
             try:
-                transcript, result = future.result()
+                result = future.result()
                 results.append(result)
-                # print transcript as a block
-                log(f"Processing {name} ({completed}/{total})")
-                for line in transcript:
-                    log(line)
                 fixed = sum(result["auto_fixed"].values())
                 remaining = len(result["items"])
                 summary_parts = []
@@ -530,10 +530,10 @@ def main():
                 if remaining:
                     summary_parts.append(f"{remaining} need attention")
                 if not summary_parts:
-                    summary_parts.append("clean after processing")
-                log(f"Finished {name} ({completed}/{total}) — {', '.join(summary_parts)}\n")
+                    summary_parts.append("clean")
+                log(f"  Done: {name} ({completed}/{total}) — {', '.join(summary_parts)}")
             except Exception as e:
-                log(f"ERROR processing {name}: {e}\n")
+                log(f"  ERROR: {name} — {e}")
 
     # summary
     needs_input = [r for r in results if r["items"]]
