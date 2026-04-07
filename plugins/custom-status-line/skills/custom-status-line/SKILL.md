@@ -167,13 +167,25 @@ Then stop.
 
 ## Show Progress Example
 
-Run:
+Print: "Running progress demo — watch the status line..."
 
-```bash
-PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example
-```
+Run each of these Bash commands **one at a time, sequentially**. Each completed Bash call triggers a status line refresh so the user sees the progress bar advance:
 
-The command forks a background process that steps through 10 increments over 5 seconds, then clears itself. The status line picks up changes on its own refresh cycle. Print the output, then stop.
+Step 1: `sleep 1 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 1" 1 10`
+Step 2: `sleep 1 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 2" 2 10`
+Step 3: `sleep 1 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 3" 3 10`
+Step 4: `sleep 1 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 4" 4 10`
+Step 5: `sleep 1 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 5" 5 10`
+Step 6: `sleep 1 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 6" 6 10`
+Step 7: `sleep 1 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 7" 7 10`
+Step 8: `sleep 1 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 8" 8 10`
+Step 9: `sleep 1 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 9" 9 10`
+Step 10: `sleep 1 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 10" 10 10`
+Clear: `sleep 1 && ~/.claude-status-line/progress/update-progress.py --clear`
+
+**IMPORTANT**: Do NOT run these in parallel. Run each step, wait for it to complete, then run the next one.
+
+Print: "Demo complete." Then stop.
 
 ---
 
