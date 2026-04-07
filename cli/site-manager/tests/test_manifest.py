@@ -21,7 +21,9 @@ VALID_MANIFEST = {
 
 
 def _write_manifest(tmp_path, data):
-    p = tmp_path / "site-manifest.json"
+    site_dir = tmp_path / ".site"
+    site_dir.mkdir(exist_ok=True)
+    p = site_dir / "manifest.json"
     p.write_text(json.dumps(data))
     return p
 

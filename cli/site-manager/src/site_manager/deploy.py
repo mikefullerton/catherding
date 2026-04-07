@@ -6,22 +6,27 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from site_manager import MANIFEST_PATH, LEGACY_MANIFEST_PATH
+
 
 def _run(cmd: list[str], cwd: str | None = None, timeout: int = 300) -> subprocess.CompletedProcess:
     return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=cwd)
 
 
 def _read_manifest() -> dict:
-    p = Path("site-manifest.json")
-    if not p.exists():
-        print("error: no site-manifest.json found", file=sys.stderr)
-        print("Run: site-manager init", file=sys.stderr)
-        sys.exit(1)
-    return json.loads(p.read_text())
+    for path in (MANIFEST_PATH, LEGACY_MANIFEST_PATH):
+        p = Path(path)
+        if p.exists():
+            return json.loads(p.read_text())
+    print("error: no .site/manifest.json found", file=sys.stderr)
+    print("Run: site-manager init", file=sys.stderr)
+    sys.exit(1)
 
 
 def _save_manifest(data: dict) -> None:
-    Path("site-manifest.json").write_text(json.dumps(data, indent=2))
+    p = Path(MANIFEST_PATH)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps(data, indent=2) + "\n")
 
 
 def _now_iso() -> str:

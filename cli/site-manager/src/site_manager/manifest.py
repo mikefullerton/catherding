@@ -1,20 +1,21 @@
-"""Read, display, and validate site-manifest.json."""
+"""Read, display, and validate .site/manifest.json."""
 
 import json
 import re
 import sys
 from pathlib import Path
 
-MANIFEST_FILE = "site-manifest.json"
+from site_manager import MANIFEST_PATH, LEGACY_MANIFEST_PATH
 
 
 def _find_manifest() -> dict:
-    p = Path(MANIFEST_FILE)
-    if not p.exists():
-        print("error: no site-manifest.json found in current directory", file=sys.stderr)
-        print("Run: site-manager init", file=sys.stderr)
-        sys.exit(1)
-    return json.loads(p.read_text())
+    for path in (MANIFEST_PATH, LEGACY_MANIFEST_PATH):
+        p = Path(path)
+        if p.exists():
+            return json.loads(p.read_text())
+    print("error: no .site/manifest.json found in current directory", file=sys.stderr)
+    print("Run: site-manager init", file=sys.stderr)
+    sys.exit(1)
 
 
 def show_manifest(output_json: bool = False) -> None:
