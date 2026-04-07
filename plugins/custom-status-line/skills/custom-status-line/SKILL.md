@@ -167,13 +167,45 @@ Then stop.
 
 ## Show Progress Example
 
-Run:
+Print: "Running progress demo — watch the status line..."
+
+Then run **each** of these commands as a **separate** Bash tool call with a 0.5 second sleep before each step. This ensures the status line refreshes between steps:
 
 ```bash
-PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example
+PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 1 10
+```
+```bash
+sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 2 10
+```
+```bash
+sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 3 10
+```
+```bash
+sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 4 10
+```
+```bash
+sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 5 10
+```
+```bash
+sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 6 10
+```
+```bash
+sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 7 10
+```
+```bash
+sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 8 10
+```
+```bash
+sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 9 10
+```
+```bash
+sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 10 10
+```
+```bash
+sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example --clear
 ```
 
-Print the output to the user. Then stop.
+Print: "Demo complete." Then stop.
 
 ---
 

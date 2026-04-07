@@ -99,7 +99,7 @@ def _render_compact(progress: dict, lines: list) -> list:
     # Line 1: progress bar of | chars
     filled = count * inner_w // max_val
     bar_line = (
-        f"{GREEN}{'|' * (filled + 1)}{RST}"
+        f"{ORANGE}{'|' * (filled + 1)}{RST}"
         f"{' ' * (inner_w - filled)}"
         f"{ORANGE}|{RST}"
     )
