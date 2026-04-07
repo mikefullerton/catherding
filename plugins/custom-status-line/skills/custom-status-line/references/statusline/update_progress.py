@@ -66,7 +66,43 @@ def clear_progress(session_id: str) -> None:
         pass
 
 
+def show_progress_example() -> None:
+    """Render example progress in both styles against mock status lines."""
+    from statusline.formatting import BLUE, ORANGE, DIM, RST, visible_len
+    from statusline.progress_display import _render_standard, _render_compact
+
+    mock_progress = {
+        "title": "Building features",
+        "subtitle": "Step",
+        "count": 6,
+        "max": 10,
+        "cols": 80,
+    }
+
+    sep = f" {ORANGE}|{RST} "
+    lbor = f"{ORANGE}|{RST} "
+    mock_lines = [
+        f"{lbor}{BLUE}~/projects/active/my-project{RST}    {sep}git:(main) {sep}[up to date]",
+        f"{lbor}Opus 4.6                         {sep}0h:15m     {sep}42 lines changed {sep}8% context used",
+        f"{lbor}         {DIM}all sessions{RST}              {sep}2 active   {sep}1 thinking       {sep}1 waiting",
+        f"{lbor}              Weekly usage 12.3%  {sep}day: 1.50  {sep}daily ave: 8.2%  {sep}14.5% projected",
+    ]
+
+    print(f"\n{ORANGE}── compact ──{RST}\n")
+    for line in _render_compact(mock_progress, mock_lines):
+        print(line)
+
+    print(f"\n{ORANGE}── standard ──{RST}\n")
+    for line in _render_standard(mock_progress, mock_lines):
+        print(line)
+    print()
+
+
 def main():
+    if len(sys.argv) >= 2 and sys.argv[1] == "--show-progress-example":
+        show_progress_example()
+        return
+
     if len(sys.argv) >= 2 and sys.argv[1] == "--clear":
         session_id = find_session_id()
         if not session_id:
