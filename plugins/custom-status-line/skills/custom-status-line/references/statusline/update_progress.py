@@ -67,27 +67,30 @@ def clear_progress(session_id: str) -> None:
 
 
 def show_progress_example() -> None:
-    """Write one step of the demo, or clear it. Called repeatedly by the skill."""
-    # Usage: --show-progress-example <step> <total>
-    #        --show-progress-example --clear
-    if len(sys.argv) >= 3 and sys.argv[2] == "--clear":
-        session_id = find_session_id()
-        if session_id:
-            clear_progress(session_id)
-        print("Demo complete.")
-        return
-
-    step = int(sys.argv[2]) if len(sys.argv) >= 3 else 1
-    total = int(sys.argv[3]) if len(sys.argv) >= 4 else 10
+    """Run a live 5-second demo progress bar. Forks to background so the
+    status line picks up changes on its own refresh cycle."""
+    import time
 
     session_id = find_session_id()
     if not session_id:
         print("Error: could not determine session ID.")
         sys.exit(1)
 
+    # Fork so the caller returns immediately
+    pid = os.fork()
+    if pid > 0:
+        print("Running progress demo in background — watch the status line.")
+        return
+
+    # Child process: run the demo
     cols = shutil.get_terminal_size((80, 24)).columns
-    write_progress(session_id, "Demo progress", f"Step {step}", step, total, cols)
-    print(f"Demo: step {step}/{total}")
+    total = 10
+    for i in range(1, total + 1):
+        write_progress(session_id, "Demo progress", f"Step {i}", i, total, cols)
+        time.sleep(0.5)
+
+    clear_progress(session_id)
+    os._exit(0)
 
 
 def main():

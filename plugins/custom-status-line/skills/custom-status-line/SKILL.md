@@ -167,45 +167,13 @@ Then stop.
 
 ## Show Progress Example
 
-Print: "Running progress demo — watch the status line..."
-
-Then run **each** of these commands as a **separate** Bash tool call with a 0.5 second sleep before each step. This ensures the status line refreshes between steps:
+Run:
 
 ```bash
-PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 1 10
-```
-```bash
-sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 2 10
-```
-```bash
-sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 3 10
-```
-```bash
-sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 4 10
-```
-```bash
-sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 5 10
-```
-```bash
-sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 6 10
-```
-```bash
-sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 7 10
-```
-```bash
-sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 8 10
-```
-```bash
-sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 9 10
-```
-```bash
-sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example 10 10
-```
-```bash
-sleep 0.5 && PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example --clear
+PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example
 ```
 
-Print: "Demo complete." Then stop.
+The command forks a background process that steps through 10 increments over 5 seconds, then clears itself. The status line picks up changes on its own refresh cycle. Print the output, then stop.
 
 ---
 
