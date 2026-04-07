@@ -24,6 +24,7 @@ rules/                 # 6 distributable rules + 1 script
 | `/lint-agent` | Lint an agent against best practices |
 | `/show-project-setup` | Show project setup dashboard |
 | `/install-recommended-tools` | Install recommended developer tools |
+| `/site-manager add [description]` | Add services, auth, features, storage to existing project |
 | `/port-swiftui-to-appkit` | Plan conversion of a SwiftUI app to AppKit |
 
 ## Distributable Rules
