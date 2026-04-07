@@ -179,25 +179,29 @@ LAST_WED_10AM=$(( NOW_EPOCH - (DAYS_SINCE_WED * 86400) ))
 LAST_WED_10AM=$(date -j -f "%s" "$LAST_WED_10AM" "+%Y%m%d" 2>/dev/null)
 LAST_WED_10AM=$(date -j -f "%Y%m%d%H%M%S" "${LAST_WED_10AM}100000" "+%s" 2>/dev/null)
 ELAPSED_S=$(( NOW_EPOCH - LAST_WED_10AM ))
-ELAPSED_DAYS=$(( (ELAPSED_S + 86399) / 86400 ))
+ELAPSED_HOURS=$(( ELAPSED_S / 3600 ))
+[ "$ELAPSED_HOURS" -lt 1 ] && ELAPSED_HOURS=1
+TOTAL_HOURS=168  # 7 days * 24 hours
+ELAPSED_DAYS=$(( (ELAPSED_HOURS + 23) / 24 ))
 [ "$ELAPSED_DAYS" -lt 1 ] && ELAPSED_DAYS=1
 [ "$ELAPSED_DAYS" -gt 7 ] && ELAPSED_DAYS=7
-DAILY_AVG=$(( RATE_7D / ELAPSED_DAYS ))
-PREDICTED_7D=$(( DAILY_AVG * 7 ))
+DAILY_AVG=$(( (RATE_7D * 24 + ELAPSED_HOURS / 2) / ELAPSED_HOURS ))
+PREDICTED_7D=$(( (RATE_7D * TOTAL_HOURS + ELAPSED_HOURS / 2) / ELAPSED_HOURS ))
 
 RED=$'\033[38;5;210m'
-L3C5=""
+L3C6=""
 PREDICTED_DISPLAY="${PREDICTED_7D}% projected"
 if [ "$PREDICTED_7D" -gt 100 ] 2>/dev/null; then
   OVERAGE_DOLLARS=$(( (PREDICTED_7D - 100) * 2 ))
-  L3C5="~\$${OVERAGE_DOLLARS} overage"
+  L3C6="~\$${OVERAGE_DOLLARS} overage"
   PREDICTED_DISPLAY="${RED}${PREDICTED_7D}%${RST} projected"
 fi
 
 L3C1="Weekly usage ${RATE_7D}%"
 L3C2="day: ${ELAPSED_DAYS}"
 L3C3="daily ave usage: ${DAILY_AVG}%"
-L3C4="${PREDICTED_DISPLAY}"
+L3C4="5h: ${RATE_5H}%"
+L3C5="${PREDICTED_DISPLAY}"
 
 # Line 2 col4+ (context is the last col on line 2)
 L2C4="${CONTEXT_COL}"
@@ -207,6 +211,7 @@ COL1_W=$(max $(max $(visible_len "$L1C1") $(visible_len "$L2C1")) $(visible_len 
 COL2_W=$(max $(max $(visible_len "$L1C2") $(visible_len "$L2C2")) $(visible_len "$L3C2"))
 COL3_W=$(max $(max $(visible_len "$L1C3") $(visible_len "$L2C3")) $(visible_len "$L3C3"))
 COL4_W=$(max $(visible_len "$L2C4") $(visible_len "$L3C4"))
+COL5_W=$(visible_len "$L3C5")
 
 # === Assemble lines with | border ===
 LBOR="${ORANGE}|${RST} "
@@ -218,8 +223,16 @@ fi
 
 LINE2="${LBOR}$(pad_right "$L2C1" $COL1_W)${SEP}$(pad_right "$L2C2" $COL2_W)${SEP}$(pad_right "$L2C3" $COL3_W)${SEP}$(pad_right "$L2C4" $COL4_W)"
 
-LINE3="${LBOR}$(pad_left "$L3C1" $COL1_W)${SEP}$(pad_right "$L3C2" $COL2_W)${SEP}$(pad_right "$L3C3" $COL3_W)${SEP}$(pad_right "$L3C4" $COL4_W)"
-[ -n "$L3C5" ] && LINE3="${LINE3}${SEP}${L3C5}"
+LINE3="${LBOR}$(pad_left "$L3C1" $COL1_W)${SEP}$(pad_right "$L3C2" $COL2_W)${SEP}$(pad_right "$L3C3" $COL3_W)${SEP}$(pad_right "$L3C4" $COL4_W)${SEP}$(pad_right "$L3C5" $COL5_W)"
+[ -n "$L3C6" ] && LINE3="${LINE3}${SEP}${L3C6}"
+
+# Log usage stats (only if changed)
+USAGE_LOG="$HOME/claude-usage.log"
+LOG_ENTRY="weekly: ${RATE_7D}% | day: ${ELAPSED_DAYS} | daily ave: ${DAILY_AVG}% | 5h: ${RATE_5H}% | projected: ${PREDICTED_7D}%"
+LAST_LINE=$(tail -1 "$USAGE_LOG" 2>/dev/null | sed 's/^[^ ]* [^ ]* //')
+if [ "$LOG_ENTRY" != "$LAST_LINE" ]; then
+  echo "$(date '+%Y-%m-%d %H:%M') ${LOG_ENTRY}" >> "$USAGE_LOG"
+fi
 
 # Output pipeline JSON
 jq -n --arg l1 "$LINE1" --arg l2 "$LINE2" --arg l3 "$LINE3" '{"lines": [$l1, $l2, $l3]}'
