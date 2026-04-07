@@ -208,21 +208,18 @@ COL2_W=$(max $(max $(visible_len "$L1C2") $(visible_len "$L2C2")) $(visible_len 
 COL3_W=$(max $(max $(visible_len "$L1C3") $(visible_len "$L2C3")) $(visible_len "$L3C3"))
 COL4_W=$(max $(visible_len "$L2C4") $(visible_len "$L3C4"))
 
-# === Assemble lines with | borders ===
+# === Assemble lines with | border ===
 LBOR="${ORANGE}|${RST} "
-RBOR=" ${ORANGE}|${RST}"
 
 LINE1="${LBOR}$(pad_right "$L1C1" $COL1_W)"
 if [ -n "$BRANCH" ]; then
   LINE1="${LINE1}${SEP}$(pad_right "$L1C2" $COL2_W)${SEP}$(pad_right "$L1C3" $COL3_W)"
 fi
-LINE1="${LINE1}${RBOR}"
 
-LINE2="${LBOR}$(pad_right "$L2C1" $COL1_W)${SEP}$(pad_right "$L2C2" $COL2_W)${SEP}$(pad_right "$L2C3" $COL3_W)${SEP}$(pad_right "$L2C4" $COL4_W)${RBOR}"
+LINE2="${LBOR}$(pad_right "$L2C1" $COL1_W)${SEP}$(pad_right "$L2C2" $COL2_W)${SEP}$(pad_right "$L2C3" $COL3_W)${SEP}$(pad_right "$L2C4" $COL4_W)"
 
 LINE3="${LBOR}$(pad_left "$L3C1" $COL1_W)${SEP}$(pad_right "$L3C2" $COL2_W)${SEP}$(pad_right "$L3C3" $COL3_W)${SEP}$(pad_right "$L3C4" $COL4_W)"
 [ -n "$L3C5" ] && LINE3="${LINE3}${SEP}${L3C5}"
-LINE3="${LINE3}${RBOR}"
 
 # Output pipeline JSON
 jq -n --arg l1 "$LINE1" --arg l2 "$LINE2" --arg l3 "$LINE3" '{"lines": [$l1, $l2, $l3]}'
