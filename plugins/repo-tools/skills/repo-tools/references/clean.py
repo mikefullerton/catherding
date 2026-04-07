@@ -210,6 +210,20 @@ def process_repo(repo, dry_run):
         _, rc = git(repo, "fetch", "--prune")
         out("  Fetched" if rc == 0 else "  Fetch failed (no remote?)")
 
+    # ensure .DS_Store is gitignored
+    gitignore_path = os.path.join(repo, ".gitignore")
+    ds_ignored, _ = git(repo, "check-ignore", ".DS_Store")
+    if not ds_ignored:
+        if dry_run:
+            out("  [dry-run] Would add .DS_Store to .gitignore")
+        else:
+            with open(gitignore_path, "a") as f:
+                f.write("\n.DS_Store\n")
+            git(repo, "add", ".gitignore")
+            git(repo, "commit", "-m", "chore: add .DS_Store to .gitignore")
+            git(repo, "push")
+            out("  Added .DS_Store to .gitignore, committed and pushed")
+
     # uncommitted
     status_out = git_ok(repo, "status", "--porcelain")
     uncommitted = []
