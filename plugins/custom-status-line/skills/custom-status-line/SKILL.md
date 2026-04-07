@@ -3,9 +3,8 @@ name: custom-status-line
 description: "Install or remove the composable status line pipeline with project info, git stats, worktree detection, and repo cleanup status"
 version: "4.1.0"
 argument-hint: "<install|uninstall|--help> [--version] [--progress-style <compact|standard>] [--show-progress-example]"
-allowed-tools: Read, Write, Edit, Bash(chmod *), Bash(chmod +x *), Bash(mkdir *), Bash(mkdir -p *), Bash(test *), Bash(jq *), Bash(rm *), Bash(rm -f *), Bash(rm -rf *), AskUserQuestion
+allowed-tools: Read, Write, Edit, Bash(chmod *), Bash(chmod +x *), Bash(mkdir *), Bash(mkdir -p *), Bash(test *), Bash(jq *), Bash(rm *), Bash(rm -f *), Bash(rm -rf *), Bash(sleep *), Bash(~/.claude-status-line/progress/update-progress.py *), Bash($HOME/.claude-status-line/progress/update-progress.py *), Bash(PYTHONPATH=* python3 *), AskUserQuestion
 model: haiku
-disable-model-invocation: true
 ---
 
 # Custom Status Line v4.1.0
