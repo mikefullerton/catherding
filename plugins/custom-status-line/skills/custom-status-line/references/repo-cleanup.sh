@@ -36,6 +36,13 @@ MERGED=$(git branch --merged "$DEFAULT_BRANCH" 2>/dev/null | grep -v "^\*\|^  ${
 PRUNABLE=$(git worktree prune --dry-run 2>/dev/null | wc -l | tr -d ' ')
 [ "$PRUNABLE" -gt 0 ] && ITEMS+=("${PRUNABLE} prunable wt")
 
+# Remote-only branches — exist on origin but not locally
+REMOTE_ONLY=$(comm -23 \
+  <(git branch -r 2>/dev/null | grep -v '/HEAD\b' | sed 's|^[[:space:]]*origin/||' | sort) \
+  <(git branch 2>/dev/null | sed 's/^[* ]*//' | sort) \
+  | wc -l | tr -d ' ')
+[ "$REMOTE_ONLY" -gt 0 ] && ITEMS+=("${REMOTE_ONLY} remote-only")
+
 # Finished worktrees — branch merged but worktree still exists
 FINISHED=0
 MAIN_PATH=$(git rev-parse --show-toplevel 2>/dev/null)
