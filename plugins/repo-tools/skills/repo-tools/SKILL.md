@@ -95,18 +95,24 @@ python3 $SKILL_DIR/references/discover.py <ROOT> [--depth N]
 
 Where `<ROOT>` is the current working directory (`.`), and `--depth` is forwarded from the user's arguments.
 
-Parse the JSON output — an array of `{repo, path}` objects. Print:
+Parse the JSON output — an object with `all` (every repo) and `process` (repos needing work, each with `reasons`). Print:
 
 ```
-Found <total> repos to process:
-  active/cat-herding
-  active/my-app
-  archive/old-thing
+Found <total-all> repos, <total-process> need processing:
+  active/cat-herding        3 uncommitted, 2 branch(es)
+  active/my-app             1 ahead
+  archive/old-thing         1 branch(es), 1 worktree(s)
+
+<clean-count> repos clean — skipping
 ```
 
-Use paths relative to `~/projects` (strip the `~/projects/` prefix from the absolute path).
+Use paths relative to `~/projects` (strip the `~/projects/` prefix from the absolute path). The `reasons` array from each entry provides the status descriptions.
 
 If no repos found, print "No git repositories found." and stop.
+
+If `process` is empty (all clean), print "All <N> repos clean — nothing to do." and stop.
+
+**Only process repos in the `process` array** — skip clean repos entirely. However, include all repos (clean and not) in the Phase 3 status chart.
 
 ### Phase 2: Deterministic pass
 
