@@ -1,36 +1,36 @@
 ---
 name: repo-tools
-description: "Repository status overview and interactive cleanup for git repos"
-version: "1.0.0"
-argument-hint: "<status|clean|--help> [--dry-run] [--version]"
-allowed-tools: Read, Glob, Grep, Bash(git *, gh *, ls *, rm *, test *), AskUserQuestion
+description: "Recursive repository cleanup — auto-fixes obvious issues, interactively resolves the rest"
+version: "2.0.0"
+argument-hint: "<clean|--help> [--depth N] [--dry-run] [--version]"
+allowed-tools: Read, Glob, Grep, Bash(git *, gh *, ls *, rm *, test *, find *), AskUserQuestion
 model: sonnet
 ---
 
-# Repo Tools v1.0.0
+# Repo Tools v2.0.0
 
-Repository status overview and interactive cleanup for git repos.
+Recursive repository cleanup — auto-fixes obvious issues, interactively resolves the rest.
 
 ## Startup
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> repo-tools v1.0.0
+> repo-tools v2.0.0
 
 Then stop.
 
 **CRITICAL**: Print the version line first:
 
-repo-tools v1.0.0
+repo-tools v2.0.0
 
 ## Route by argument
 
 | Argument | Action |
 |----------|--------|
-| `status` | Go to **Status** section |
 | `clean` | Go to **Clean** section (pass remaining args) |
 | `clean --dry-run` | Go to **Clean** section in dry-run mode |
+| `clean --depth N` | Go to **Clean** section with custom depth |
 | `--help` | Go to **Help** section |
-| *(empty or anything else)* | Print usage and stop: `Usage: /repo-tools <status\|clean\|--help> [--dry-run] [--version]` |
+| *(empty or anything else)* | Print usage and stop: `Usage: /repo-tools <clean\|--help> [--depth N] [--dry-run] [--version]` |
 
 ---
 
@@ -40,331 +40,376 @@ Print the following exactly, then stop:
 
 > ## Repo Tools
 >
-> Repository status overview and interactive cleanup for git repos.
+> Recursive repository cleanup — auto-fixes obvious issues, interactively resolves the rest.
 >
-> **Usage:** `/repo-tools <status|clean|--help> [--dry-run] [--version]`
+> **Usage:** `/repo-tools <clean|--help> [--depth N] [--dry-run] [--version]`
 >
 > ### Commands
 >
-> **`/repo-tools status`** — Quick overview of repository state
+> **`/repo-tools clean`** — Discover and clean git repos
 >
-> Shows a snapshot of the current repo including:
-> - Project path and current branch
-> - Worktree detection (main repo vs git worktree)
-> - Dirty files count and uncommitted changes
-> - Commits ahead/behind default branch or remote
-> - Stale branches (remote tracking branch deleted)
-> - Merged branches (safe to delete)
-> - Prunable worktrees (directory missing)
-> - Finished worktrees (branch merged but worktree still exists)
-> - Inactive branches (no commits in 30+ days)
+> Recursively discovers git repositories from the current directory (default depth 3), then walks each one:
 >
-> This is read-only — it never modifies anything.
+> **Auto-fixed (no confirmation needed):**
+> - Prunes dangling worktree references
+> - Deletes branches whose remote tracking branch is gone
+> - Deletes branches fully merged into the default branch
+> - Removes finished worktrees (branch merged, no uncommitted changes)
 >
-> **`/repo-tools clean`** — Interactive repo cleanup
+> **Interactive (stops for input):**
+> - Uncommitted changes — grouped into smart batches with descriptions, offers: commit or chat
+> - Inactive unmerged branches — shows change summary and last commit, offers: delete, skip, or chat
+> - Dirty worktrees — summarizes contents, offers: stash, skip, or chat
 >
-> Scans for hygiene issues and offers to fix each one interactively:
-> - Prunes dangling worktree refs
-> - Removes orphaned and finished worktrees
-> - Deletes stale and merged branches
-> - Reviews inactive branches
-> - Addresses uncommitted changes (show, stash, or skip)
+> After processing all repos, prints a final dashboard summarizing everything done.
 >
-> Every destructive action requires confirmation. Uses safe deletes (`git branch -d`, never `-D` unless you approve). Never discards uncommitted work.
+> **`/repo-tools clean --dry-run`** — Preview without changing anything
 >
-> **`/repo-tools clean --dry-run`** — Preview issues without fixing
+> Walks the full tree and reports what would be auto-fixed and what would need input, but makes no changes.
 >
-> Runs the full scan and reports all issues found, but makes no changes.
-
----
-
-## Status
-
-### Step 1: Verify Context
-
-Confirm the current directory is a git repository (`git rev-parse --git-dir`). If not, print:
-> Not a git repository.
-
-And stop.
-
-### Step 2: Gather Info
-
-Collect all of the following:
-
-**Project info:**
-- Repository root path (`git rev-parse --show-toplevel`)
-- Current branch (`git rev-parse --abbrev-ref HEAD`)
-- Whether this is a git worktree (check if `git rev-parse --git-dir` contains `/worktrees/`)
-
-**Default branch:**
-- Detect via `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null`, fall back to `main` or `master`
-
-**Working tree state:**
-- Staged files count (`git diff --cached --numstat | wc -l`)
-- Unstaged modified files count (`git diff --numstat | wc -l`)
-- Untracked files count (`git ls-files --others --exclude-standard | wc -l`)
-
-**Branch position:**
-- If on a feature branch: commits ahead of default (`git rev-list --count <default>..HEAD`), commits behind default (`git rev-list --count HEAD..<default>`)
-- If on default branch: commits ahead of remote (`git rev-list --count origin/<default>..HEAD`), commits behind remote (`git rev-list --count HEAD..origin/<default>`)
-
-**Repo hygiene:**
-- Stale branches: local branches whose upstream is `[gone]` (`git branch -vv | grep ': gone]'`)
-- Merged branches: branches fully merged into default, excluding default itself and current branch (`git branch --merged <default>`)
-- Prunable worktrees: `git worktree prune --dry-run | wc -l`
-- Finished worktrees: worktrees whose branch is merged into default (iterate `git worktree list`, check each with `git merge-base --is-ancestor`)
-- Inactive branches: branches not merged into default with last commit older than 30 days (`git for-each-ref --sort=-committerdate --format='%(refname:short) %(committerdate:unix)' refs/heads/`)
-
-### Step 3: Print Report
-
-Print a formatted report. Use this structure:
-
-```
-=== REPO STATUS ===
-
-Project:  <path>
-Branch:   <branch> [worktree] (if applicable)
-Default:  <default branch>
-
-Working Tree:
-  Staged:    <n> files
-  Unstaged:  <n> files
-  Untracked: <n> files
-
-Branch Position:
-  <n> commits ahead of <default|origin>
-  <n> commits behind <default|origin>
-  (or: up to date)
-
-Repo Hygiene:
-  Stale branches:      <n>
-  Merged branches:     <n>
-  Prunable worktrees:  <n>
-  Finished worktrees:  <n>
-  Inactive branches:   <n>
-```
-
-If all hygiene counts are zero, print:
-```
-Repo Hygiene:
-  Clean — no issues found
-```
-
-If any hygiene issues exist, print at the bottom:
-```
-Run `/repo-tools clean` to fix interactively.
-```
-
-Omit sections with no data (e.g., if staged/unstaged/untracked are all 0, print `Working Tree: clean`).
+> **`/repo-tools clean --depth N`** — Set discovery depth (default: 3)
+>
+> Controls how many directory levels deep to search for git repositories.
 
 ---
 
 ## Clean
 
-Interactive repo cleanup. Scans for hygiene issues and offers to fix each one.
-
 ### Guards
 
 - **Never force-deletes** — uses `git branch -d` (safe delete), never `-D`, unless the user explicitly approves
-- **Never discards uncommitted work** — only offers to stash, commit, or show what's dirty
+- **Never discards uncommitted work** — only offers to commit, stash, or discuss
 - **Never removes worktrees with uncommitted changes** — flags them but does not touch them
-- **Always confirms before destructive actions** — each fix is offered individually
-- **`--dry-run` mode is read-only** — reports issues but modifies nothing
+- **Always confirms before ambiguous actions** — deterministic fixes are silent, judgment calls stop for input
+- **`--dry-run` mode is read-only** — reports everything but modifies nothing
 
 ### Step 1: Parse Arguments
 
-Parse remaining `$ARGUMENTS` after `clean`:
+Parse `$ARGUMENTS` after `clean`:
 
-1. **`--dry-run`** → set dry-run mode (scan and report only, no modifications)
+- **`--dry-run`** → set dry-run mode (scan and report only, no modifications)
+- **`--depth N`** → set discovery depth (default: 3)
 
-### Step 2: Verify Context
+### Step 2: Discover Repositories
 
-1. Confirm the current directory is a git repository (`git rev-parse --git-dir`). If not, print:
-   > ERROR: Not a git repository.
+Find all git repositories starting from the current working directory.
 
-   And stop.
+```bash
+find . -maxdepth <depth> -name .git -type d 2>/dev/null
+```
 
-2. Identify the default branch (`git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null` or fall back to `main`/`master`).
+For each `.git` found:
+1. Resolve the parent directory as the repo root
+2. Skip if the `.git` path contains `/worktrees/` (these are worktree checkouts, not standalone repos)
+3. Skip if the repo root is inside another already-discovered repo's `.git` directory (submodules handled by parent)
 
-3. Run `git fetch --prune` to sync remote tracking state.
+Sort results by path for predictable ordering.
 
-4. Print:
+If no repositories are found, print:
+> No git repositories found within depth <N> of `<cwd>`.
+
+And stop.
+
+If exactly one repo is found (e.g., cwd is inside a repo), proceed directly — no "discovered N repos" header needed.
+
+If multiple repos are found, print:
+```
+Found <N> repositories:
+  <path1>
+  <path2>
+  ...
+```
+
+### Step 3: Walk Each Repository
+
+Process repositories one at a time. For each repo:
+
+1. Print a header:
    ```
-   === REPO CLEANUP ===
-   Repository: <repo name>
-   Default branch: <branch>
-   Current branch: <branch>
+   --- <repo-path> (<branch>) ---
    ```
 
-### Step 3: Scan
+2. Determine the default branch (`git -C <path> symbolic-ref refs/remotes/origin/HEAD 2>/dev/null`, fall back to `main` or `master`).
 
-Run all scans and collect findings into categories. For each category, record the items found.
+3. Run `git -C <path> fetch --prune 2>/dev/null` to sync remote tracking state (skip silently if no remote).
 
-#### 3a: Uncommitted Changes
+4. Run all scans (Steps 3a-3f below).
 
-Run `git status --porcelain`. Categorize:
-- **Staged but uncommitted** — files in the index not yet committed
-- **Unstaged modifications** — tracked files with local changes
-- **Untracked files** — files not in the index (exclude common generated dirs: `node_modules/`, `.build/`, `dist/`, `__pycache__/`, `.venv/`)
+5. Auto-fix deterministic items (Step 4).
 
-#### 3b: Stale Branches (gone remotes)
+6. Stop on each ambiguous item for input (Step 5).
 
-Run `git branch -vv`. Find local branches whose upstream is marked `[gone]` — the remote branch was deleted but the local tracking branch remains.
+7. Move to the next repo.
+
+#### 3a: Dangling Worktree References
+
+Run `git -C <path> worktree prune --dry-run 2>&1`. Count lines of output.
+
+Category: **auto-fix**
+
+#### 3b: Stale Branches (remote gone)
+
+Run `git -C <path> branch -vv`. Find branches whose upstream is marked `[gone]`.
+
+Category: **auto-fix**
 
 #### 3c: Merged Branches
 
-Find local branches fully merged into the default branch:
-```
-git branch --merged <default-branch>
-```
-Exclude the default branch itself and the current branch from the list.
-
-#### 3d: Unmerged Branches with No Recent Activity
-
-Find local branches NOT merged into the default branch where the last commit is older than 30 days:
-```
-git for-each-ref --sort=-committerdate --format='%(refname:short) %(committerdate:iso)' refs/heads/
-```
-Flag branches with no commits in the last 30 days that are not merged. These are informational only — do not offer to delete without explicit user approval.
-
-#### 3e: Worktrees
-
-Run `git worktree list`. For each worktree (excluding the main working tree):
-1. Check if the worktree directory still exists on disk
-2. Check if the worktree's branch has been merged into the default branch
-3. Check if the worktree has uncommitted changes (`git -C <path> status --porcelain`)
-
-Categorize:
-- **Orphaned** — worktree directory no longer exists (prunable)
-- **Finished** — worktree branch is merged into default, no uncommitted changes (removable)
-- **Dirty** — worktree has uncommitted changes (flag only, do not offer removal)
-- **Active** — worktree branch is not merged, has no issues (skip)
-
-#### 3f: Dangling Worktree References
-
-Run `git worktree list --porcelain` and check for worktrees pointing to paths that no longer exist. These can be cleaned with `git worktree prune`.
-
-### Step 4: Report
-
-Print the full scan results:
-
-```
-=== SCAN RESULTS ===
-
-Uncommitted Changes:
-  Staged: <n> files
-  Unstaged: <n> files
-  Untracked: <n> files
-  <list each file with its status>
-
-Stale Branches (remote gone): <n>
-  <branch-name> (tracking: origin/<name>, gone)
-  ...
-
-Merged Branches (safe to delete): <n>
-  <branch-name> (merged into <default>)
-  ...
-
-Inactive Branches (>30 days, not merged): <n>
-  <branch-name> (last commit: <date>, <n> days ago)
-  ...
-
-Worktrees: <n> total, <n> issues
-  <path> [orphaned] — directory missing
-  <path> [finished] — branch merged, clean
-  <path> [dirty] — has uncommitted changes (will not touch)
-  <path> [active] — ok
-  ...
-
-Dangling worktree refs: <n>
+```bash
+git -C <path> branch --merged <default>
 ```
 
-Then print the summary:
+Exclude the default branch and the current branch.
+
+Category: **auto-fix**
+
+#### 3d: Finished Worktrees
+
+Run `git -C <path> worktree list`. For each worktree (excluding main):
+- Check if the directory exists
+- Check if the branch is merged into default (`git merge-base --is-ancestor`)
+- Check for uncommitted changes (`git -C <worktree-path> status --porcelain`)
+
+A worktree is "finished" if the branch is merged and there are no uncommitted changes.
+
+**Orphaned worktrees** (directory missing) are also auto-fixable via `git worktree prune`.
+
+Category: **auto-fix** (orphaned and finished with clean state)
+
+#### 3e: Uncommitted Changes
+
+Run `git -C <path> status --porcelain`. Categorize:
+- **Staged** — files in the index not yet committed (prefix `A`, `M`, `R`, `D` in first column)
+- **Unstaged** — tracked files with local changes (prefix `M`, `D` in second column)
+- **Untracked** — new files not in the index (prefix `??`)
+
+Exclude common generated dirs: `node_modules/`, `.build/`, `dist/`, `__pycache__/`, `.venv/`, `.egg-info/`
+
+If any exist, group them into **smart batches** (see Step 5a).
+
+Category: **interactive**
+
+#### 3f: Inactive Unmerged Branches
+
+Find branches NOT merged into default with last commit older than 30 days:
+
+```bash
+git -C <path> for-each-ref --sort=-committerdate \
+  --format='%(refname:short) %(committerdate:unix) %(committerdate:relative) %(subject)' refs/heads/
+```
+
+Cross-reference with `git branch --merged <default>` to exclude merged branches. Exclude the default branch and current branch.
+
+For each inactive branch, also gather:
+- Last commit message (from the `%(subject)` above)
+- Number of commits ahead of default (`git rev-list --count <default>..<branch>`)
+- Diff stat summary (`git diff --stat <default>...<branch> | tail -1`)
+
+Category: **interactive**
+
+#### 3g: Dirty Worktrees
+
+From the worktree scan in 3d, any worktree with uncommitted changes.
+
+For each, gather:
+- `git -C <worktree-path> status --porcelain` output
+- Branch name and whether it's merged
+
+Category: **interactive**
+
+### Step 4: Auto-Fix (Deterministic)
+
+Process in this order. In `--dry-run` mode, report what *would* be done but change nothing.
+
+#### 4a: Prune dangling worktree refs
+
+```bash
+git -C <path> worktree prune
+```
+
+Print: `  Pruned <N> dangling worktree ref(s)`
+
+#### 4b: Remove finished worktrees
+
+For each finished worktree (merged branch, no changes):
+
+```bash
+git -C <path> worktree remove <worktree-path>
+git -C <path> branch -d <branch>
+```
+
+Print: `  Removed worktree <path> (branch <name>, merged)`
+
+#### 4c: Delete stale branches
+
+For each branch whose remote is gone:
+
+```bash
+git -C <path> branch -d <branch>
+```
+
+Print: `  Deleted stale branch <name> (remote gone)`
+
+#### 4d: Delete merged branches
+
+For each branch fully merged into default:
+
+```bash
+git -C <path> branch -d <branch>
+```
+
+Print: `  Deleted merged branch <name>`
+
+If nothing was auto-fixed, print: `  No auto-fixable issues`
+
+#### Dry-run output
+
+In `--dry-run` mode, prefix each line with `[dry-run]` and do not execute commands:
+```
+  [dry-run] Would prune 2 dangling worktree ref(s)
+  [dry-run] Would delete stale branch feature/old (remote gone)
+  [dry-run] Would delete merged branch fix/typo
+```
+
+### Step 5: Interactive (Judgment Calls)
+
+Stop on each ambiguous item, present a summary, and ask the user. In `--dry-run` mode, print the summary but skip asking — just report what would need input.
+
+#### 5a: Uncommitted Changes — Smart Batching
+
+Group uncommitted files into logical batches using these heuristics:
+
+1. **Directory affinity** — files in the same directory or subtree
+2. **Change type** — new files together, modifications together
+3. **Naming patterns** — test files batch together, config files batch together, source files in the same module batch together
+
+For each batch:
+1. Generate a short description of what the batch represents (e.g., "New test files for auth module", "Modified API handler and schema in src/api/")
+2. List the files in the batch with their status (new/modified/deleted)
+3. For modified files, include a one-line summary of what changed (`git diff --stat` for each file)
+
+Present each batch to the user:
 
 ```
-=== SUMMARY ===
-Issues found: <total count>
-  <n> stale branches to delete
-  <n> merged branches to delete
-  <n> inactive branches to review
-  <n> worktrees to clean up
-  <n> dangling worktree refs to prune
-  <n> uncommitted file groups to address
+Batch 1: <description>
+  M  src/api/handler.py   (+12 -3)
+  M  src/api/schema.py    (+5 -1)
+  A  src/api/validator.py  (new, 45 lines)
 ```
 
-If no issues found, print:
+Use AskUserQuestion for each batch:
+> **<description>** — <N> file(s). Commit or chat?
+>
+> - **Commit** — commit with a suggested message (editable)
+> - **Chat** — tell me more about these changes so I can help
+> - **Skip** — leave as-is
+> - **Stop** — stop cleaning this repo
 
-```
-=== CLEAN ===
-No issues found. Repository is clean.
-```
-
-And stop.
-
-**If `--dry-run` is set**, print:
-
-```
-=== DRY RUN COMPLETE ===
-No changes were made. Run `/repo-tools clean` (without --dry-run) to fix issues.
+If **Commit**: suggest a commit message based on the file changes, ask if the user wants to adjust it, then:
+```bash
+git -C <path> add <files...>
+git -C <path> commit -m "<message>"
 ```
 
-And stop.
+If **Chat**: show `git diff` for the batch files and discuss. After discussion, re-offer the commit/skip/stop options.
 
-### Step 5: Fix Loop
+#### 5b: Inactive Unmerged Branches
 
-Process issues in this order, one category at a time. After each fix, re-scan that category to confirm the fix worked before moving on.
-
-#### Priority order:
-
-1. **Dangling worktree refs** — `git worktree prune` (safe, no data loss)
-2. **Orphaned worktrees** — `git worktree prune` (same command covers these)
-3. **Finished worktrees** — for each, use AskUserQuestion:
-   > Worktree at `<path>` — branch `<name>` is merged into `<default>`. Remove it?
-   - **Yes** → `git worktree remove <path>`, then `git branch -d <branch>` if local
-   - **No** → skip
-   - **Stop** → exit the fix loop entirely
-
-4. **Stale branches** — for each, use AskUserQuestion:
-   > Branch `<name>` — remote is gone. Delete local branch?
-   - **Yes** → `git branch -d <name>`
-   - **No** → skip
-   - **Stop** → exit the fix loop
-
-5. **Merged branches** — for each, use AskUserQuestion:
-   > Branch `<name>` — fully merged into `<default>`. Delete it?
-   - **Yes** → `git branch -d <name>`
-   - **No** → skip
-   - **Stop** → exit the fix loop
-
-6. **Inactive branches** — for each, use AskUserQuestion:
-   > Branch `<name>` — last commit <n> days ago, not merged. What to do?
-   - **Skip** → leave it
-   - **Delete** → `git branch -d <name>` (will fail if not merged; if it fails, report and ask if they want to force-delete with `-D`)
-   - **Stop** → exit the fix loop
-
-7. **Uncommitted changes** — use AskUserQuestion:
-   > There are uncommitted changes. What would you like to do?
-   - **Show details** → print `git status` and `git diff --stat`
-   - **Stash all** → `git stash push -m "repo-tools stash <date>"`
-   - **Skip** → leave them
-   - **Stop** → exit the fix loop
-
-#### After each category, re-verify
-
-After processing all items in a category, re-run that specific scan. If new issues appeared (e.g., removing a worktree revealed a branch to delete), process them before moving to the next category.
-
-### Step 6: Final Report
-
-After the fix loop completes (all categories processed or user stopped), run the full scan one more time and print:
+For each inactive branch, present:
 
 ```
-=== CLEANUP COMPLETE ===
-Fixed: <n> issues
-  <n> branches deleted
-  <n> worktrees removed
-  <n> dangling refs pruned
-  <n> stashes created
-Remaining: <n> issues (skipped or stopped)
+Branch: <name>
+  Last commit: <date> (<N> days ago)
+  Message: "<last commit subject>"
+  Changes: <N> commits ahead of <default> — <diff-stat summary>
+```
 
-Repository status: <CLEAN | <n> remaining issues>
+Use AskUserQuestion:
+> Branch `<name>` — <N> days inactive, <N> commits not merged. "<last commit subject>". Delete, skip, or chat?
+>
+> - **Delete** — `git branch -d` (safe delete; will warn if not fully merged)
+> - **Skip** — leave it
+> - **Chat** — show me more detail about this branch
+> - **Stop** — stop cleaning this repo
+
+If **Delete** and `-d` fails (not merged), report the error and ask:
+> Safe delete failed — branch is not fully merged. Force-delete with `git branch -D`?
+
+If **Chat**: show `git log --oneline <default>..<branch>` and `git diff --stat <default>...<branch>`, then re-offer options.
+
+#### 5c: Dirty Worktrees
+
+For each dirty worktree:
+
+```
+Worktree: <path>
+  Branch: <name> (<merged|not merged> into <default>)
+  Uncommitted: <N> file(s)
+    <status summary>
+```
+
+Use AskUserQuestion:
+> Worktree at `<path>` has uncommitted changes. Stash, skip, or chat?
+>
+> - **Stash** — `git -C <path> stash push -m "repo-tools stash <date>"`
+> - **Skip** — leave it
+> - **Chat** — show me the changes
+> - **Stop** — stop cleaning this repo
+
+#### Dry-run output for interactive items
+
+In `--dry-run` mode, print the summaries but instead of asking, print:
+```
+  [needs input] <description of what would be asked>
+```
+
+### Step 6: Final Dashboard
+
+After all repos have been processed, print a summary:
+
+```
+=== REPO TOOLS COMPLETE ===
+
+Repos scanned: <N>
+
+Auto-fixed:
+  <N> dangling worktree ref(s) pruned
+  <N> finished worktree(s) removed
+  <N> stale branch(es) deleted
+  <N> merged branch(es) deleted
+
+Resolved interactively:
+  <N> batch(es) committed
+  <N> branch(es) deleted
+  <N> worktree(s) stashed
+
+Skipped:
+  <N> batch(es) of uncommitted changes
+  <N> inactive branch(es)
+  <N> dirty worktree(s)
+
+Status: <ALL CLEAN | <N> items skipped>
+```
+
+Omit sections where all counts are zero. If everything is clean across all repos:
+
+```
+=== REPO TOOLS COMPLETE ===
+
+Repos scanned: <N>
+Status: ALL CLEAN
+```
+
+For `--dry-run`, replace the header:
+
+```
+=== REPO TOOLS DRY RUN ===
+
+Repos scanned: <N>
+
+Would auto-fix:
+  <counts...>
+
+Needs input:
+  <counts...>
 ```

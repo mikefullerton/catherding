@@ -16,8 +16,7 @@ rules/                 # 6 distributable rules + 1 script
 |-------|---------|
 | `/custom-status-line install` | Install composable status line pipeline |
 | `/custom-status-line uninstall` | Remove status line pipeline |
-| `/repo-tools status` | Quick repo status overview (branch, dirty files, hygiene) |
-| `/repo-tools clean` | Interactive repo cleanup (stale branches, worktrees, etc.) |
+| `/repo-tools clean` | Recursive repo cleanup — auto-fixes obvious issues, interactively resolves the rest |
 | `/install-worktree-rule` | Install the worktree/PR git workflow rule |
 | `/optimize-rules` | Consolidate multiple rule files into a single optimized file |
 | `/lint-rule` | Lint a rule file against best practices |
