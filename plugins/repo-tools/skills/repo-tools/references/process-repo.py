@@ -317,7 +317,7 @@ def step_branches(repo, dflt, cur, dry_run):
                 log(f"    Safe delete failed for {branch} — keeping")
         counts["merged_branches_deleted"] += 1
 
-    # flag all remaining non-default, non-special branches for interactive decision
+    # evaluate all remaining non-default, non-special local branches
     ref_out = git_ok(
         repo, "for-each-ref", "--sort=-committerdate",
         "--format=%(refname:short)\t%(committerdate:unix)\t%(committerdate:relative)\t%(subject)",
@@ -332,6 +332,19 @@ def step_branches(repo, dflt, cur, dry_run):
             continue
         if is_special_branch(name):
             log(f"  Evaluating branch {name}: special — keeping")
+            continue
+        # check for squash merge
+        if is_merged_or_squashed(repo, dflt, name):
+            log(f"  Evaluating branch {name}: squash-merged into {dflt}")
+            if dry_run:
+                log(f"    [dry-run] Would delete")
+            else:
+                _, rc = git(repo, "branch", "-D", name)
+                if rc == 0:
+                    log(f"    Deleted squash-merged branch {name}")
+                else:
+                    log(f"    Delete failed for {name} — keeping")
+            counts["merged_branches_deleted"] += 1
             continue
         ahead = git_ok(repo, "rev-list", "--count", f"{dflt}..{name}")
         stat = git_ok(repo, "diff", "--stat", f"{dflt}...{name}")
