@@ -212,7 +212,8 @@ def run(claude_data: dict, lines: list) -> list:
     if effort:
         l2c1 += f", {effort}"
 
-    # YOLO indicator
+    # YOLO indicator (right-justified in col1)
+    yolo_label = ""
     if session_id:
         yolo_path = os.path.expanduser(f"~/.claude-yolo-sessions/{session_id}.json")
         if os.path.isfile(yolo_path):
@@ -221,11 +222,11 @@ def run(claude_data: dict, lines: list) -> list:
                     yolo_data = json.load(f)
                 needs_restart = yolo_data.get("needs_restart", False)
                 if needs_restart:
-                    l2c1 += f" {RED}YOLO{RST} {DIM}(needs restart){RST}"
+                    yolo_label = f"{RED}YOLO{RST} {DIM}(needs restart){RST}"
                 else:
-                    l2c1 += f" {RED}YOLO{RST}"
+                    yolo_label = f"{RED}YOLO{RST}"
             except (OSError, json.JSONDecodeError):
-                l2c1 += f" {RED}YOLO{RST}"
+                yolo_label = f"{RED}YOLO{RST}"
 
     l2c2 = duration
     l2c3 = f"{total_changes} lines changed"
@@ -282,8 +283,12 @@ def run(claude_data: dict, lines: list) -> list:
     sc3 = f"{s_thinking} thinking"
     sc4 = f"{s_waiting} waiting"
 
-    # Column alignment
-    col1_w = max(visible_len(l1c1), visible_len(l2c1), visible_len(sc1), visible_len(l3c1))
+    # Column alignment — col1 must fit model + YOLO with a gap between them
+    col1_min = max(visible_len(l1c1), visible_len(sc1), visible_len(l3c1))
+    if yolo_label:
+        col1_w = max(col1_min, visible_len(l2c1) + 1 + visible_len(yolo_label))
+    else:
+        col1_w = max(col1_min, visible_len(l2c1))
     col2_w = max(visible_len(l1c2), visible_len(l2c2), visible_len(sc2), visible_len(l3c2))
     col3_w = max(visible_len(l1c3), visible_len(l2c3), visible_len(sc3), visible_len(l3c3))
     col4_w = max(visible_len(l2c4), visible_len(sc4), visible_len(l3c4))
@@ -294,7 +299,12 @@ def run(claude_data: dict, lines: list) -> list:
     if branch:
         line1 += f"{sep}{pad_right(l1c2, col2_w)}{sep}{pad_right(l1c3, col3_w)}"
 
-    line2 = f"{lbor}{pad_right(l2c1, col1_w)}{sep}{pad_right(l2c2, col2_w)}{sep}{pad_right(l2c3, col3_w)}{sep}{pad_right(l2c4, col4_w)}"
+    if yolo_label:
+        gap = col1_w - visible_len(l2c1) - visible_len(yolo_label)
+        l2c1_display = f"{l2c1}{' ' * gap}{yolo_label}"
+    else:
+        l2c1_display = pad_right(l2c1, col1_w)
+    line2 = f"{lbor}{l2c1_display}{sep}{pad_right(l2c2, col2_w)}{sep}{pad_right(l2c3, col3_w)}{sep}{pad_right(l2c4, col4_w)}"
 
     session_line = f"{lbor}{pad_left(sc1, col1_w)}{sep}{pad_right(sc2, col2_w)}{sep}{pad_right(sc3, col3_w)}{sep}{pad_right(sc4, col4_w)}"
 
