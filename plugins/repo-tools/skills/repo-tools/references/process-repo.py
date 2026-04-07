@@ -355,6 +355,10 @@ def main():
     items = []
     if uncommitted:
         items.append({"type": "uncommitted", "files": uncommitted})
+    if needs_pull:
+        items.append({"type": "needs_pull"})
+    if needs_push:
+        items.append({"type": "needs_push"})
     for b in inactive:
         items.append({"type": "inactive_branch", **b})
     for wt in dirty_wt:

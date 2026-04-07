@@ -277,6 +277,30 @@ git -C <path> push -u origin <current-branch>
 
 If **Chat**: show `git diff` for the batch files and discuss. After discussion, re-offer the commit/skip/stop options.
 
+#### Needs pull (`type: "needs_pull"`)
+
+The current branch is behind its remote upstream. This was skipped during the deterministic pass (likely because of uncommitted changes or a non-fast-forward situation).
+
+Use AskUserQuestion:
+> Current branch is behind remote. Pull, skip, or chat?
+>
+> - **Pull** — `git -C <path> pull --ff-only`
+> - **Skip** — leave it
+> - **Stop** — stop cleaning this repo
+
+If pull fails (not fast-forward), report the error and suggest `git pull --rebase` or manual resolution.
+
+#### Needs push (`type: "needs_push"`)
+
+The current branch has unpushed commits.
+
+Use AskUserQuestion:
+> Current branch has unpushed commits. Push, skip, or chat?
+>
+> - **Push** — `git -C <path> push` (set upstream with `-u origin <branch>` if needed)
+> - **Skip** — leave it
+> - **Stop** — stop cleaning this repo
+
 #### Inactive branches (`type: "inactive_branch"`)
 
 Present using the item's fields:
