@@ -115,21 +115,48 @@ Print:
 Starting deterministic pass:
 ```
 
-For each repo (index `i`, starting at 1), run:
+For each repo (index `i`, starting at 1):
 
+1. Update the status line progress:
+```bash
+~/.claude-status-line/progress/update-progress.sh "repo-tools clean" "<relative-path>" <i> <total>
+```
+
+2. Print a header:
+```
+Processing <relative-path> (<i> of <total>)
+```
+
+3. Run the script:
 ```bash
 python3 $SKILL_DIR/references/process-repo.py <repo-path> [--dry-run]
 ```
 
 Forward `--dry-run` from the user's arguments.
 
-Before each run, print:
+4. The script prints step-by-step progress to stderr. **You must read this output and print it verbatim** so the user sees exactly what happened. The output looks like:
 
 ```
-Processing <relative-path> (<i> of <total>)
+  Fetching remote...
+  Fetched
+  Checking for uncommitted changes: 3 found
+  Pull: up to date
+  Push: up to date
+  Branches: 2 non-default (feature/old, hotfix/done)
+  Evaluating branch feature/old: stale (remote gone)
+    Deleted stale branch feature/old
+  Evaluating branch hotfix/done: merged into main
+    Deleted merged branch hotfix/done
 ```
 
-The script prints step-by-step progress to stderr (you will see it — do not repeat it). It outputs JSON to stdout with this structure:
+5. Parse the JSON from stdout. Collect all results into an array.
+
+6. Print a footer:
+```
+Finished processing <relative-path> (<i> of <total>)
+```
+
+The JSON output has this structure:
 
 ```json
 {
@@ -154,10 +181,9 @@ The script prints step-by-step progress to stderr (you will see it — do not re
 }
 ```
 
-**Parse the JSON.** Collect all results into an array. After each repo, print:
-
-```
-Finished processing <relative-path> (<i> of <total>)
+After all repos are processed, clear the progress:
+```bash
+~/.claude-status-line/progress/update-progress.sh --clear
 ```
 
 ### Phase 3: Status chart
