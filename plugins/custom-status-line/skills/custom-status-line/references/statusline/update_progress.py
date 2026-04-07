@@ -67,37 +67,45 @@ def clear_progress(session_id: str) -> None:
 
 
 def show_progress_example() -> None:
-    """Run a live 5-second demo progress bar. Forks to background so the
-    status line picks up changes on its own refresh cycle."""
-    import time
+    """Launch a detached subprocess that runs a 5-second progress demo."""
+    import subprocess as sp
 
     session_id = find_session_id()
     if not session_id:
         print("Error: could not determine session ID.")
         sys.exit(1)
 
-    # Fork so the caller returns immediately
-    pid = os.fork()
-    if pid > 0:
-        print("Running progress demo in background — watch the status line.")
-        return
+    env = {**os.environ, "PYTHONPATH": os.path.expanduser("~/.claude-status-line")}
+    sp.Popen(
+        [sys.executable, "-m", "statusline.update_progress", "--demo-bg", session_id],
+        start_new_session=True,
+        stdout=sp.DEVNULL,
+        stderr=sp.DEVNULL,
+        env=env,
+    )
+    print("Running progress demo in background — watch the status line.")
 
-    # Child process: detach from parent's process group so shell exit
-    # doesn't kill us, then run the demo
-    os.setsid()
-    cols = shutil.get_terminal_size((80, 24)).columns
+
+def run_demo_bg(session_id: str) -> None:
+    """Background entry point: step through progress over 5 seconds, then clear."""
+    import time
+
+    cols = 80
     total = 10
     for i in range(1, total + 1):
         write_progress(session_id, "Demo progress", f"Step {i}", i, total, cols)
         time.sleep(0.5)
 
     clear_progress(session_id)
-    os._exit(0)
 
 
 def main():
     if len(sys.argv) >= 2 and sys.argv[1] == "--show-progress-example":
         show_progress_example()
+        return
+
+    if len(sys.argv) >= 3 and sys.argv[1] == "--demo-bg":
+        run_demo_bg(sys.argv[2])
         return
 
     if len(sys.argv) >= 2 and sys.argv[1] == "--clear":
