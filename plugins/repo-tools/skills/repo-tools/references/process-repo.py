@@ -225,10 +225,18 @@ def step_worktrees(repo, dflt, dry_run):
 
 # ── step: branches ──────────────────────────────────────────────────────
 
+SPECIAL_BRANCHES = {"gh-pages", "github-pages"}
+
+
+def is_special_branch(name):
+    """Branches that should never be flagged for deletion."""
+    return name in SPECIAL_BRANCHES
+
+
 def step_branches(repo, dflt, cur, dry_run):
-    """Delete gone/merged branches, flag inactive ones, list all."""
+    """Delete gone/merged branches, flag all remaining for decision."""
     counts = {"stale_branches_deleted": 0, "merged_branches_deleted": 0}
-    inactive = []
+    flagged = []
 
     # all local branches
     all_out = git_ok(repo, "branch", "--format=%(refname:short)")
@@ -236,7 +244,7 @@ def step_branches(repo, dflt, cur, dry_run):
 
     if not all_branches:
         log("  Branches: only default branch")
-        return counts, inactive, []
+        return counts, flagged, []
 
     log(f"  Branches: {len(all_branches)} non-default ({', '.join(all_branches)})")
 
@@ -250,6 +258,9 @@ def step_branches(repo, dflt, cur, dry_run):
             gone.add(branch)
 
     for branch in sorted(gone):
+        if is_special_branch(branch):
+            log(f"  Evaluating branch {branch}: stale (remote gone) — special, keeping")
+            continue
         log(f"  Evaluating branch {branch}: stale (remote gone)")
         if dry_run:
             log(f"    [dry-run] Would delete")
@@ -268,6 +279,9 @@ def step_branches(repo, dflt, cur, dry_run):
     for branch in sorted(merged_set):
         if not branch or branch == dflt or branch == cur or branch in gone:
             continue
+        if is_special_branch(branch):
+            log(f"  Evaluating branch {branch}: merged into {dflt} — special, keeping")
+            continue
         log(f"  Evaluating branch {branch}: merged into {dflt}")
         if dry_run:
             log(f"    [dry-run] Would delete")
@@ -279,44 +293,39 @@ def step_branches(repo, dflt, cur, dry_run):
                 log(f"    Safe delete failed for {branch} — keeping")
         counts["merged_branches_deleted"] += 1
 
-    # inactive unmerged branches (>30 days)
+    # flag all remaining non-default, non-special branches for interactive decision
     ref_out = git_ok(
         repo, "for-each-ref", "--sort=-committerdate",
         "--format=%(refname:short)\t%(committerdate:unix)\t%(committerdate:relative)\t%(subject)",
         "refs/heads/",
     )
-    cutoff = time.time() - 30 * 86400
     for line in ref_out.splitlines():
         parts = line.split("\t", 3)
         if len(parts) < 4:
             continue
         name, ts_str, relative, subject = parts
-        if name == dflt or name == cur or name in merged_set or name in gone:
+        if name == dflt or name in merged_set or name in gone:
             continue
-        try:
-            ts = int(ts_str)
-        except ValueError:
+        if is_special_branch(name):
+            log(f"  Evaluating branch {name}: special — keeping")
             continue
-        if ts < cutoff:
-            ahead = git_ok(repo, "rev-list", "--count", f"{dflt}..{name}")
-            stat = git_ok(repo, "diff", "--stat", f"{dflt}...{name}")
-            stat_summary = stat.splitlines()[-1].strip() if stat else ""
-            log(f"  Evaluating branch {name}: inactive ({relative}), {ahead} commits ahead — needs attention")
-            inactive.append({
-                "branch": name,
-                "last_commit_age": relative,
-                "last_commit_subject": subject,
-                "commits_ahead": int(ahead) if ahead else 0,
-                "diff_stat": stat_summary,
-            })
-        else:
-            log(f"  Evaluating branch {name}: active ({relative})")
+        ahead = git_ok(repo, "rev-list", "--count", f"{dflt}..{name}")
+        stat = git_ok(repo, "diff", "--stat", f"{dflt}...{name}")
+        stat_summary = stat.splitlines()[-1].strip() if stat else ""
+        log(f"  Evaluating branch {name}: unmerged ({relative}), {ahead} commits ahead — needs attention")
+        flagged.append({
+            "branch": name,
+            "last_commit_age": relative,
+            "last_commit_subject": subject,
+            "commits_ahead": int(ahead) if ahead else 0,
+            "diff_stat": stat_summary,
+        })
 
     # remaining branches after cleanup
     remaining_out = git_ok(repo, "branch", "--format=%(refname:short)")
     remaining = [b for b in remaining_out.splitlines() if b and b != dflt]
 
-    return counts, inactive, remaining
+    return counts, flagged, remaining
 
 
 # ── main ─────────────────────────────────────────────────────────────────
@@ -346,7 +355,7 @@ def main():
     wt_counts, dirty_wt = step_worktrees(repo, dflt, dry_run)
 
     # branches
-    br_counts, inactive, remaining_branches = step_branches(repo, dflt, cur, dry_run)
+    br_counts, flagged_branches, remaining_branches = step_branches(repo, dflt, cur, dry_run)
 
     # combine counts
     counts = {**wt_counts, **br_counts}
@@ -359,8 +368,8 @@ def main():
         items.append({"type": "needs_pull"})
     if needs_push:
         items.append({"type": "needs_push"})
-    for b in inactive:
-        items.append({"type": "inactive_branch", **b})
+    for b in flagged_branches:
+        items.append({"type": "branch", **b})
     for wt in dirty_wt:
         items.append({"type": "dirty_worktree", **wt})
 

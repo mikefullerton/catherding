@@ -61,7 +61,8 @@ Print the following exactly, then stop:
 >
 > **Interactive (stops for input):**
 > - Uncommitted changes — grouped into smart batches with descriptions, offers: commit or chat
-> - Inactive unmerged branches — shows change summary and last commit, offers: delete, skip, or chat
+> - Unresolved pull/push — offers to pull or push when deterministic pass couldn't
+> - Non-default branches — shows change summary and last commit, offers: delete, skip, or chat
 > - Dirty worktrees — summarizes contents, offers: stash, skip, or chat
 >
 > After processing all repos, prints a final dashboard summarizing everything done.
@@ -175,7 +176,7 @@ The JSON output has this structure:
   },
   "items": [
     {"type": "uncommitted", "files": [...]},
-    {"type": "inactive_branch", "branch": "old-feature", ...},
+    {"type": "branch", "branch": "old-feature", ...},
     {"type": "dirty_worktree", "path": "/path/to/wt", ...}
   ]
 }
@@ -203,12 +204,11 @@ Format rules:
 - Path column: left-aligned, relative to `~/projects`
 - Status column: left-aligned, comma-separated list of issues
 - For uncommitted: `<N> uncommitted file(s)`
-- For inactive branches: `<N> inactive branch(es)`
+- For branches needing decision: `<N> branch(es) to review`
 - For dirty worktrees: `<N> dirty worktree(s) (<branch names>)`
 - For needs_push: `needs push`
 - For needs_pull: `needs pull`
-- For branches (non-default): `<N> branch(es) (<names>)`
-- For clean repos (no issues, no branches, no push/pull needed): `clean`
+- For clean repos (no issues at all): `clean`
 - Sort: repos with issues first, then clean repos
 
 If `--dry-run`, print the chart and stop — do not enter Phase 4.
@@ -301,7 +301,9 @@ Use AskUserQuestion:
 > - **Skip** — leave it
 > - **Stop** — stop cleaning this repo
 
-#### Inactive branches (`type: "inactive_branch"`)
+#### Branches (`type: "branch"`)
+
+Every non-default, non-special branch is flagged. Special branches (`gh-pages`, `github-pages`) are always kept.
 
 Present using the item's fields:
 
@@ -316,7 +318,7 @@ Use AskUserQuestion:
 > Branch `<branch>` — <last_commit_age>, <commits_ahead> commits not merged. "<last_commit_subject>". Delete, skip, or chat?
 >
 > - **Delete** — `git branch -d` (safe delete; will warn if not fully merged)
-> - **Skip** — leave it
+> - **Skip** — leave it (e.g., WIP branch you're still using)
 > - **Chat** — show me more detail about this branch
 > - **Stop** — stop cleaning this repo
 
@@ -371,7 +373,7 @@ Resolved interactively:
 
 Skipped:
   <N> batch(es) of uncommitted changes
-  <N> inactive branch(es)
+  <N> branch(es)
   <N> dirty worktree(s)
 
 Status: <ALL CLEAN | <N> items skipped>
