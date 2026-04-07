@@ -71,6 +71,9 @@ def discover_repos(root, depth):
     for dot_git in raw:
         if "/worktrees/" in dot_git:
             continue
+        repo_dir = os.path.dirname(os.path.abspath(dot_git))
+        if os.path.basename(repo_dir).endswith("-tests"):
+            continue
         repo = os.path.dirname(os.path.abspath(dot_git))
         # skip if nested inside another repo's .git
         if any(repo.startswith(os.path.join(existing, ".git")) for existing in repos):
@@ -338,17 +341,13 @@ def process_repo(repo, dry_run):
     for wt in dirty_wt:
         items.append({"type": "dirty_worktree", **wt})
 
-    interactive = None
-    if items:
-        interactive = {
-            "repo": name,
-            "path": repo,
-            "default_branch": dflt,
-            "branch": cur,
-            "items": items,
-        }
-
-    return counts, interactive
+    return counts, {
+        "repo": name,
+        "path": repo,
+        "default_branch": dflt,
+        "branch": cur,
+        "items": items,
+    }
 
 
 def main():
@@ -380,12 +379,13 @@ def main():
     }
     interactive_list = []
 
+    all_repos = []
+
     for repo in repos:
-        counts, interactive = process_repo(repo, args.dry_run)
+        counts, repo_info = process_repo(repo, args.dry_run)
         for k, v in counts.items():
             totals[k] += v
-        if interactive:
-            interactive_list.append(interactive)
+        all_repos.append(repo_info)
 
     # summary to stderr
     prefix = "[dry-run] " if args.dry_run else ""
@@ -395,9 +395,10 @@ def main():
     for k, v in totals.items():
         if v:
             log(f"  {k}: {v}")
-    if interactive_list:
-        n = sum(len(r["items"]) for r in interactive_list)
-        log(f"{prefix}{n} item(s) across {len(interactive_list)} repo(s) need interactive decisions")
+    needs_input = [r for r in all_repos if r["items"]]
+    if needs_input:
+        n = sum(len(r["items"]) for r in needs_input)
+        log(f"{prefix}{n} item(s) across {len(needs_input)} repo(s) need interactive decisions")
     else:
         log("All clean — nothing needs interactive input")
 
@@ -405,7 +406,7 @@ def main():
     json.dump({
         "repos_scanned": len(repos),
         "auto_fixed": totals,
-        "interactive": interactive_list,
+        "repos": all_repos,
     }, sys.stdout, indent=2)
 
 

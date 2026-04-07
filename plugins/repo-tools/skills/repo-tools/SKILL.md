@@ -110,7 +110,7 @@ The script:
     "merged_branches_deleted": 1,
     "pushes": 2
   },
-  "interactive": [
+  "repos": [
     {
       "repo": "my-project",
       "path": "/Users/me/projects/my-project",
@@ -121,18 +121,59 @@ The script:
         {"type": "inactive_branch", "branch": "old-feature", "last_commit_age": "45 days ago", ...},
         {"type": "dirty_worktree", "path": "/path/to/wt", "branch": "wip", "merged": false, "status": "..."}
       ]
+    },
+    {
+      "repo": "other-project",
+      "path": "/Users/me/projects/other-project",
+      "default_branch": "main",
+      "branch": "main",
+      "items": []
     }
   ]
 }
 ```
 
-**Parse the JSON output.** If `interactive` is empty, skip to **Phase 3** (dashboard). Otherwise proceed to **Phase 2**.
+Every scanned repo appears in `repos` — clean repos have an empty `items` array.
 
-If `--dry-run` was set, the script already reported everything as `[dry-run]`. Print the dashboard from the JSON counts (using the dry-run format) and stop — do not enter Phase 2.
+**Parse the JSON output.** Always proceed to **Phase 1b** (even if no repos have items — all repos still appear as "clean").
+
+If `--dry-run` was set, the script already reported everything as `[dry-run]`. Print the Phase 1b chart (using dry-run format) and stop — do not enter Phase 2.
+
+### Phase 1b: Interactive overview
+
+Print a chart showing **every scanned repo** with paths relative to `~/projects` (e.g., `active/cat-herding`). Repos with no issues show "clean". Repos with issues show a short description of each problem.
+
+```
+=== REPO STATUS ===
+
+active/cat-herding            5 uncommitted files, 2 inactive branches
+active/my-app                 1 dirty worktree (wip-branch)
+active/other-project          clean
+archive/old-thing             3 inactive branches
+```
+
+Format rules:
+- Path column: left-aligned, relative to `~/projects` (strip the `~/projects/` prefix from the absolute path)
+- Status column: left-aligned, comma-separated list of issues
+- For uncommitted: `<N> uncommitted file(s)`
+- For inactive branches: `<N> inactive branch(es)`
+- For dirty worktrees: `<N> dirty worktree(s) (<branch names>)`
+- For clean repos: `clean`
+- Sort: repos with issues first, then clean repos
+
+If all repos are clean, print the chart (all showing "clean") and skip to **Phase 3** (dashboard).
+
+Otherwise, use AskUserQuestion:
+> **<N> item(s) across <M> repo(s) need decisions.** Continue?
+>
+> - **Continue** — walk through each repo interactively
+> - **Stop** — skip interactive fixes and go to the dashboard
+
+If **Stop**, skip to **Phase 3** (dashboard).
 
 ### Phase 2: Interactive decisions
 
-Walk the `interactive` array repo by repo. For each repo, print:
+Walk the `repos` array, skipping repos with empty `items`. For each repo with items, print:
 
 ```
 --- <path> (<branch>) ---
