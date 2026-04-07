@@ -1,27 +1,27 @@
 ---
 name: custom-status-line
 description: "Install or remove the composable status line pipeline with project info, git stats, worktree detection, and repo cleanup status"
-version: "3.0.0"
+version: "4.0.0"
 argument-hint: "<install|uninstall|--help> [--version]"
 allowed-tools: Read, Write, Edit, Bash(chmod *), Bash(chmod +x *), Bash(mkdir *), Bash(mkdir -p *), Bash(test *), Bash(jq *), Bash(rm *), Bash(rm -f *), Bash(rm -rf *), AskUserQuestion
 model: haiku
 disable-model-invocation: true
 ---
 
-# Custom Status Line v3.0.0
+# Custom Status Line v4.0.0
 
 Install or remove a composable status line pipeline for Claude Code. Multiple plugins can contribute to the status line without knowing about each other.
 
 ## Startup
 
-**Step 0 — Ensure permissions**: Run `bash ${CLAUDE_SKILL_DIR}/references/ensure-permissions.sh ${CLAUDE_SKILL_DIR}/SKILL.md` to whitelist this skill's tools in `~/.claude/settings.json`. This is silent and idempotent. If you are prompted for permission for any Bash command during execution, immediately add that pattern to `~/.claude/settings.json` `permissions.allow` using the Edit tool, then continue.
+**Step 0 — Ensure permissions**: Run `python3 ${CLAUDE_SKILL_DIR}/references/statusline/ensure_permissions.py ${CLAUDE_SKILL_DIR}/SKILL.md` to whitelist this skill's tools in `~/.claude/settings.json`. This is silent and idempotent. If you are prompted for permission for any Bash command during execution, immediately add that pattern to `~/.claude/settings.json` `permissions.allow` using the Edit tool, then continue.
 
 **CRITICAL**: Print the version line first:
 
-custom-status-line v3.0.0
+custom-status-line v4.0.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> custom-status-line v3.0.0
+> custom-status-line v4.0.0
 
 Then stop.
 
@@ -50,13 +50,17 @@ Print the following exactly, then stop:
 >
 > ```
 > ~/.claude-status-line/
->   dispatcher.sh          # Entry point (configured as statusLine command)
->   pipeline.json          # Ordered list of scripts to run
->   scripts/               # Script directory
->     base-info.sh         # Built-in: project path, git branch/stats, model
->     repo-cleanup.sh      # Built-in: stale branches, worktree warnings
+>   statusline/            # Python package (entry point + built-in modules)
+>     dispatcher.py        # Entry point (configured as statusLine command)
+>     base_info.py         # Built-in: project path, git branch/stats, model
+>     repo_cleanup.py      # Built-in: stale branches, worktree warnings
+>     progress_display.py  # Built-in: per-session progress bar box
+>     formatting.py        # Shared: ANSI colors, column alignment
+>     db.py                # Shared: SQLite usage tracking
+>   pipeline.json          # Ordered list of pipeline stages
+>   scripts/               # Directory for external drop-in scripts
 >   progress/
->     update-progress.sh   # Helper: per-session progress bar
+>     update-progress.sh   # Helper: per-session progress bar (shell wrapper)
 > ```
 >
 > ### How to hook in
@@ -83,6 +87,9 @@ Print the following exactly, then stop:
 > ```json
 > {"name": "my-indicator", "script": "~/.claude-status-line/scripts/my-indicator.sh"}
 > ```
+>
+> Note: Built-in modules use `"module"` keys (e.g., `{"name": "base-info", "module": "base_info"}`).
+> External drop-in scripts use `"script"` keys as shown above.
 >
 > ### Script protocol
 >
@@ -140,12 +147,9 @@ Print the following exactly, then stop:
 
 ### Constants
 
-- **Dispatcher source**: `${CLAUDE_SKILL_DIR}/references/dispatcher.sh`
-- **Base info source**: `${CLAUDE_SKILL_DIR}/references/base-info.sh`
-- **Repo cleanup source**: `${CLAUDE_SKILL_DIR}/references/repo-cleanup.sh`
-- **Progress display source**: `${CLAUDE_SKILL_DIR}/references/progress-display.sh`
-- **Update progress source**: `${CLAUDE_SKILL_DIR}/references/update-progress.sh`
+- **Package source**: `${CLAUDE_SKILL_DIR}/references/statusline/`
 - **Install directory**: `~/.claude-status-line/`
+- **Package install**: `~/.claude-status-line/statusline/`
 - **Scripts directory**: `~/.claude-status-line/scripts/`
 - **Progress directory**: `~/.claude-status-line/progress/`
 - **Pipeline config**: `~/.claude-status-line/pipeline.json`
@@ -155,11 +159,11 @@ Print the following exactly, then stop:
 
 Read `~/.claude/settings.json`. Check if `statusLine` is already configured.
 
-If it exists and references `dispatcher.sh`, print:
+If it exists and references `statusline.dispatcher` or `dispatcher.sh`, print:
 
-> Status line pipeline is already installed. Updating scripts to latest version.
+> Status line pipeline is already installed. Updating to latest version.
 
-If it exists and references a different script (not `dispatcher.sh`), ask the user:
+If it exists and references a different script, ask the user:
 
 Use AskUserQuestion:
 - "A status line is already configured pointing to a different script. Replace it with the composable pipeline?"
@@ -174,23 +178,24 @@ If the user says no, print "Keeping existing status line." and stop.
 mkdir -p ~/.claude-status-line/scripts ~/.claude-status-line/progress
 ```
 
-### Step 3: Install scripts
+### Step 3: Install Python package
 
-Read the dispatcher script from `${CLAUDE_SKILL_DIR}/references/dispatcher.sh`. Write it to `~/.claude-status-line/dispatcher.sh`.
+Copy the entire `statusline` package from `${CLAUDE_SKILL_DIR}/references/statusline/` to `~/.claude-status-line/statusline/`. Read each `.py` file from the source and write it to the destination.
 
-Read the base info script from `${CLAUDE_SKILL_DIR}/references/base-info.sh`. Write it to `~/.claude-status-line/scripts/base-info.sh`.
-
-Read the repo cleanup script from `${CLAUDE_SKILL_DIR}/references/repo-cleanup.sh`. Write it to `~/.claude-status-line/scripts/repo-cleanup.sh`.
-
-Read the progress display script from `${CLAUDE_SKILL_DIR}/references/progress-display.sh`. Write it to `~/.claude-status-line/scripts/progress-display.sh`.
-
-Read the update progress helper from `${CLAUDE_SKILL_DIR}/references/update-progress.sh`. Write it to `~/.claude-status-line/progress/update-progress.sh`.
-
-Make all executable:
+Write a shell wrapper at `~/.claude-status-line/progress/update-progress.sh`:
 
 ```bash
-chmod +x ~/.claude-status-line/dispatcher.sh ~/.claude-status-line/scripts/base-info.sh ~/.claude-status-line/scripts/repo-cleanup.sh ~/.claude-status-line/scripts/progress-display.sh ~/.claude-status-line/progress/update-progress.sh
+#!/bin/bash
+exec python3 -c "import sys; sys.path.insert(0, '$HOME/.claude-status-line'); from statusline.update_progress import main; main()" "$@"
 ```
+
+Make it executable:
+
+```bash
+chmod +x ~/.claude-status-line/progress/update-progress.sh
+```
+
+Remove any old `.sh` scripts from `~/.claude-status-line/scripts/` that match built-in names (base-info.sh, repo-cleanup.sh, progress-display.sh). Also remove `~/.claude-status-line/dispatcher.sh` if it exists.
 
 ### Step 4: Create pipeline config
 
@@ -199,14 +204,17 @@ If `~/.claude-status-line/pipeline.json` does not exist, write it:
 ```json
 {
   "pipeline": [
-    {"name": "base-info", "script": "~/.claude-status-line/scripts/base-info.sh"},
-    {"name": "repo-cleanup", "script": "~/.claude-status-line/scripts/repo-cleanup.sh"},
-    {"name": "progress-display", "script": "~/.claude-status-line/scripts/progress-display.sh"}
+    {"name": "base-info", "module": "base_info"},
+    {"name": "repo-cleanup", "module": "repo_cleanup"},
+    {"name": "progress-display", "module": "progress_display"}
   ]
 }
 ```
 
-If it already exists, ensure `base-info`, `repo-cleanup`, and `progress-display` entries are present. Add any that are missing. Do not remove existing entries from other plugins.
+If it already exists:
+- Replace any built-in `"script"` entries (referencing `base-info.sh`, `repo-cleanup.sh`, `progress-display.sh`) with `"module"` entries as shown above.
+- Ensure `base-info`, `repo-cleanup`, and `progress-display` entries are present. Add any that are missing.
+- Preserve any user-added external script entries unchanged.
 
 ### Step 5: Configure settings.json
 
@@ -215,7 +223,7 @@ Read `~/.claude/settings.json`. Set the `statusLine` key to:
 ```json
 "statusLine": {
   "type": "command",
-  "command": "$HOME/.claude-status-line/dispatcher.sh"
+  "command": "PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.dispatcher"
 }
 ```
 
@@ -259,9 +267,9 @@ Print:
 
 ### Step 1: Check current state
 
-Read `~/.claude/settings.json`. Check if `statusLine` exists and references `dispatcher.sh`.
+Read `~/.claude/settings.json`. Check if `statusLine` exists and references `statusline.dispatcher` or `dispatcher.sh`.
 
-If `statusLine` does not exist or references a different script, print:
+If `statusLine` does not exist or references something else, print:
 
 > Status line pipeline is not installed. Nothing to remove.
 
