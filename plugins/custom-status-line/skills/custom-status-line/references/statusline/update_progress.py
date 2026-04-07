@@ -67,35 +67,28 @@ def clear_progress(session_id: str) -> None:
 
 
 def show_progress_example() -> None:
-    """Render example progress in both styles against mock status lines."""
-    from statusline.formatting import BLUE, ORANGE, DIM, RST, visible_len
-    from statusline.progress_display import _render_standard, _render_compact
+    """Run a live 5-second demo progress bar in the status line."""
+    import time
 
-    mock_progress = {
-        "title": "Building features",
-        "subtitle": "Step",
-        "count": 6,
-        "max": 10,
-        "cols": 80,
-    }
+    session_id = find_session_id()
+    if not session_id:
+        print("Error: could not determine session ID. "
+              "Run this from within a Claude Code session.")
+        sys.exit(1)
 
-    sep = f" {ORANGE}|{RST} "
-    lbor = f"{ORANGE}|{RST} "
-    mock_lines = [
-        f"{lbor}{BLUE}~/projects/active/my-project{RST}    {sep}git:(main) {sep}[up to date]",
-        f"{lbor}Opus 4.6                         {sep}0h:15m     {sep}42 lines changed {sep}8% context used",
-        f"{lbor}         {DIM}all sessions{RST}              {sep}2 active   {sep}1 thinking       {sep}1 waiting",
-        f"{lbor}              Weekly usage 12.3%  {sep}day: 1.50  {sep}daily ave: 8.2%  {sep}14.5% projected",
-    ]
+    cols = shutil.get_terminal_size((80, 24)).columns
+    total = 10
+    duration = 5.0
+    step_delay = duration / total
 
-    print(f"\n{ORANGE}── compact ──{RST}\n")
-    for line in _render_compact(mock_progress, mock_lines):
-        print(line)
+    print("Running progress demo...")
+    for i in range(1, total + 1):
+        write_progress(session_id, "Demo progress", f"Step {i}", i, total, cols)
+        print(f"  Step {i}/{total}")
+        time.sleep(step_delay)
 
-    print(f"\n{ORANGE}── standard ──{RST}\n")
-    for line in _render_standard(mock_progress, mock_lines):
-        print(line)
-    print()
+    clear_progress(session_id)
+    print("Demo complete — progress cleared.")
 
 
 def main():
