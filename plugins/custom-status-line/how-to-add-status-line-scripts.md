@@ -6,29 +6,34 @@ The status line pipeline at `~/.claude-status-line/` is composable. Any project 
 
 ```
 ~/.claude-status-line/
-  dispatcher.sh          # Entry point — chains scripts from pipeline.json
-  pipeline.json          # Ordered list of scripts to run
-  scripts/               # Convention: scripts live here
-    base-info.sh         # Built-in: project path, git, model, costs
-    repo-cleanup.sh      # Built-in: stale branches, worktree warnings
+  statusline/            # Python package (dispatcher + built-in modules)
+    dispatcher.py        # Entry point — runs pipeline stages
+    base_info.py         # Built-in: project path, git, model, costs
+    repo_cleanup.py      # Built-in: stale branches, worktree warnings
+    progress_display.py  # Built-in: per-session progress bar
+    formatting.py        # Shared: ANSI colors, column alignment
+    db.py                # Shared: SQLite usage tracking
+  pipeline.json          # Ordered list of pipeline stages
+  scripts/               # Convention: external drop-in scripts live here
     yolo-indicator.sh    # Example: YOLO mode indicator (installed by /yolo on)
 ```
 
-The `dispatcher.sh` is configured as the Claude Code `statusLine` command. It reads `pipeline.json` and runs each script in order, threading a JSON object through the chain.
+The Python dispatcher is configured as the Claude Code `statusLine` command. It reads `pipeline.json` and runs each stage in order. Built-in modules are called as Python functions; external scripts are called via subprocess.
 
 ## Pipeline JSON
 
 ```json
 {
   "pipeline": [
-    {"name": "base-info", "script": "~/.claude-status-line/scripts/base-info.sh"},
-    {"name": "repo-cleanup", "script": "~/.claude-status-line/scripts/repo-cleanup.sh"},
+    {"name": "base-info", "module": "base_info"},
+    {"name": "repo-cleanup", "module": "repo_cleanup"},
+    {"name": "progress-display", "module": "progress_display"},
     {"name": "yolo-indicator", "script": "~/.claude-status-line/scripts/yolo-indicator.sh"}
   ]
 }
 ```
 
-Scripts run top-to-bottom. Each receives the output of the previous one.
+Stages run top-to-bottom. Built-in modules use `"module"` keys (Python functions). External drop-in scripts use `"script"` keys (any executable language).
 
 ## Script Protocol
 
