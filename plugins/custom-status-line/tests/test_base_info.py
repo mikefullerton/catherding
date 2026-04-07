@@ -89,11 +89,11 @@ class TestUsageProjection:
 class TestRunOutputStructure:
     @patch("statusline.base_info.git_cmd")
     @patch("statusline.base_info.log_to_db")
-    def test_returns_three_lines(self, mock_log, mock_git):
+    def test_returns_four_lines(self, mock_log, mock_git):
         mock_git.return_value = ""
         from statusline.base_info import run
         lines = run(make_claude_data(), [])
-        assert len(lines) == 3
+        assert len(lines) == 4
 
     @patch("statusline.base_info.git_cmd")
     @patch("statusline.base_info.log_to_db")
@@ -113,8 +113,16 @@ class TestRunOutputStructure:
 
     @patch("statusline.base_info.git_cmd")
     @patch("statusline.base_info.log_to_db")
-    def test_line3_contains_weekly_usage(self, mock_log, mock_git):
+    def test_line3_contains_session_info(self, mock_log, mock_git):
         mock_git.return_value = ""
         from statusline.base_info import run
         lines = run(make_claude_data(), [])
-        assert "Weekly usage" in lines[2] or "weekly" in lines[2].lower()
+        assert "all sessions" in lines[2]
+
+    @patch("statusline.base_info.git_cmd")
+    @patch("statusline.base_info.log_to_db")
+    def test_line4_contains_weekly_usage(self, mock_log, mock_git):
+        mock_git.return_value = ""
+        from statusline.base_info import run
+        lines = run(make_claude_data(), [])
+        assert "Weekly usage" in lines[3] or "weekly" in lines[3].lower()

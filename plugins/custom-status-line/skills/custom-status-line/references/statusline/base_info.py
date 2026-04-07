@@ -3,6 +3,7 @@
 import json
 import os
 import subprocess
+import time
 from datetime import datetime, timedelta
 
 from statusline.formatting import (
@@ -256,11 +257,39 @@ def run(claude_data: dict, lines: list) -> list:
 
     l2c4 = context_col
 
+    # SESSION LINE
+    sessions_dir = os.path.expanduser("~/.claude-status-line/sessions")
+    s_thinking = 0
+    s_waiting = 0
+    if os.path.isdir(sessions_dir):
+        now = time.time()
+        for fname in os.listdir(sessions_dir):
+            if not fname.endswith(".json"):
+                continue
+            spath = os.path.join(sessions_dir, fname)
+            try:
+                if now - os.path.getmtime(spath) > 3600:
+                    os.remove(spath)
+                    continue
+                with open(spath) as f:
+                    sdata = json.load(f)
+                if sdata.get("state") == "thinking":
+                    s_thinking += 1
+                else:
+                    s_waiting += 1
+            except (OSError, json.JSONDecodeError):
+                continue
+    s_active = s_thinking + s_waiting
+    sc1 = f"{DIM}all sessions{RST}"
+    sc2 = f"{s_active} active"
+    sc3 = f"{s_thinking} thinking"
+    sc4 = f"{s_waiting} waiting"
+
     # Column alignment
-    col1_w = max(visible_len(l1c1), visible_len(l2c1), visible_len(l3c1))
-    col2_w = max(visible_len(l1c2), visible_len(l2c2), visible_len(l3c2))
-    col3_w = max(visible_len(l1c3), visible_len(l2c3), visible_len(l3c3))
-    col4_w = max(visible_len(l2c4), visible_len(l3c4))
+    col1_w = max(visible_len(l1c1), visible_len(l2c1), visible_len(sc1), visible_len(l3c1))
+    col2_w = max(visible_len(l1c2), visible_len(l2c2), visible_len(sc2), visible_len(l3c2))
+    col3_w = max(visible_len(l1c3), visible_len(l2c3), visible_len(sc3), visible_len(l3c3))
+    col4_w = max(visible_len(l2c4), visible_len(sc4), visible_len(l3c4))
     col5_w = visible_len(l3c5)
 
     lbor = f"{ORANGE}|{RST} "
@@ -271,6 +300,8 @@ def run(claude_data: dict, lines: list) -> list:
 
     line2 = f"{lbor}{pad_right(l2c1, col1_w)}{sep}{pad_right(l2c2, col2_w)}{sep}{pad_right(l2c3, col3_w)}{sep}{pad_right(l2c4, col4_w)}"
 
+    session_line = f"{lbor}{pad_left(sc1, col1_w)}{sep}{pad_right(sc2, col2_w)}{sep}{pad_right(sc3, col3_w)}{sep}{pad_right(sc4, col4_w)}"
+
     line3 = f"{lbor}{pad_left(l3c1, col1_w)}{sep}{pad_right(l3c2, col2_w)}{sep}{pad_right(l3c3, col3_w)}{sep}{pad_right(l3c4, col4_w)}{sep}{pad_right(l3c5, col5_w)}"
     if l3c6:
         line3 += f"{sep}{l3c6}"
@@ -278,4 +309,4 @@ def run(claude_data: dict, lines: list) -> list:
     # Log to SQLite (non-blocking)
     log_to_db(claude, session_id, used_pct, proj, rate_5h, rate_7d, wed_10am, elapsed_hours)
 
-    return [line1, line2, line3]
+    return [line1, line2, session_line, line3]

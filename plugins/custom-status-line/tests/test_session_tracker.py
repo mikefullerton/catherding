@@ -1,21 +1,60 @@
+"""Tests for session tracking integrated into base_info module."""
 import json
 import os
 import time
 import pytest
-import sys
+from unittest.mock import patch
 
+import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "skills", "custom-status-line", "references"))
 
-from statusline.session_tracker import run, STALE_THRESHOLD
-from statusline.formatting import visible_len
+from statusline.base_info import run
+
+
+STALE_THRESHOLD = 3600
+
+
+def make_claude_data():
+    return {
+        "model": {"display_name": "Test", "id": "test"},
+        "context_window": {
+            "remaining_percentage": 96,
+            "context_window_size": 200000,
+            "total_input_tokens": 0,
+            "total_output_tokens": 0,
+            "current_usage": {},
+        },
+        "cost": {
+            "total_duration_ms": 0,
+            "total_api_duration_ms": 0,
+            "total_lines_added": 0,
+            "total_lines_removed": 0,
+            "total_cost_usd": 0,
+        },
+        "cwd": "/tmp/test",
+        "session_id": "test-session",
+        "session_name": "",
+        "rate_limits": {
+            "five_hour": {"used_percentage": 0, "resets_at": 0},
+            "seven_day": {"used_percentage": 0, "resets_at": 0},
+        },
+        "version": "1.0.0",
+        "workspace": {"project_dir": "/tmp/test"},
+        "transcript_path": "",
+    }
 
 
 @pytest.fixture
 def sessions_dir(tmp_path, monkeypatch):
-    """Create a temp sessions directory and patch the module to use it."""
     d = tmp_path / "sessions"
     d.mkdir()
-    monkeypatch.setattr("statusline.session_tracker.SESSIONS_DIR", str(d))
+    # Patch the sessions dir path constructed inside base_info.run
+    original_expanduser = os.path.expanduser
+    def patched_expanduser(path):
+        if path == "~/.claude-status-line/sessions":
+            return str(d)
+        return original_expanduser(path)
+    monkeypatch.setattr("os.path.expanduser", patched_expanduser)
     return d
 
 
@@ -27,92 +66,84 @@ def write_session(sessions_dir, name, state="waiting", age_s=0):
         os.utime(path, (mtime, mtime))
 
 
-def test_no_sessions_dir(monkeypatch):
-    """Returns lines unchanged when sessions dir doesn't exist."""
-    monkeypatch.setattr("statusline.session_tracker.SESSIONS_DIR", "/nonexistent")
-    lines = ["line1", "line2", "line3"]
-    result = run({}, lines.copy())
-    assert result == lines
-
-
-def test_empty_sessions_dir(sessions_dir):
-    """Returns lines unchanged when no session files exist."""
-    lines = ["line1", "line2", "line3"]
-    result = run({}, lines.copy())
-    # Still adds line showing 0 active
-    assert len(result) == 4
-    assert "0 active" in result[2]
-
-
-def test_counts_thinking_and_waiting(sessions_dir):
-    """Correctly counts thinking and waiting sessions."""
+@patch("statusline.base_info.git_cmd", return_value="")
+@patch("statusline.base_info.log_to_db")
+def test_counts_thinking_and_waiting(mock_log, mock_git, sessions_dir):
     write_session(sessions_dir, "s1", "thinking")
     write_session(sessions_dir, "s2", "waiting")
     write_session(sessions_dir, "s3", "thinking")
 
-    lines = ["line1", "line2", "line3"]
-    result = run({}, lines)
-
-    session_line = result[2]
+    lines = run(make_claude_data(), [])
+    session_line = lines[2]
     assert "3 active" in session_line
     assert "2 thinking" in session_line
     assert "1 waiting" in session_line
 
 
-def test_inserts_at_position_2(sessions_dir):
-    """Line is inserted between line 2 (model) and line 3 (usage)."""
+@patch("statusline.base_info.git_cmd", return_value="")
+@patch("statusline.base_info.log_to_db")
+def test_session_line_at_position_2(mock_log, mock_git, sessions_dir):
     write_session(sessions_dir, "s1", "thinking")
 
-    lines = ["project", "model", "usage"]
-    result = run({}, lines)
-
-    assert result[0] == "project"
-    assert result[1] == "model"
-    assert "all sessions" in result[2]
-    assert result[3] == "usage"
+    lines = run(make_claude_data(), [])
+    assert len(lines) == 4
+    assert "all sessions" in lines[2]
+    assert "Weekly usage" in lines[3]
 
 
-def test_appends_when_fewer_than_3_lines(sessions_dir):
-    """Appends to end when lines list is short."""
-    write_session(sessions_dir, "s1", "waiting")
-
-    lines = ["only"]
-    result = run({}, lines)
-
-    assert result[0] == "only"
-    assert "all sessions" in result[1]
-
-
-def test_stale_sessions_removed(sessions_dir):
-    """Sessions older than threshold are removed and not counted."""
+@patch("statusline.base_info.git_cmd", return_value="")
+@patch("statusline.base_info.log_to_db")
+def test_stale_sessions_removed(mock_log, mock_git, sessions_dir):
     write_session(sessions_dir, "fresh", "thinking")
     write_session(sessions_dir, "stale", "thinking", age_s=STALE_THRESHOLD + 60)
 
-    lines = ["line1", "line2", "line3"]
-    result = run({}, lines)
-
-    assert "1 active" in result[2]
+    lines = run(make_claude_data(), [])
+    assert "1 active" in lines[2]
     assert not (sessions_dir / "stale.json").exists()
     assert (sessions_dir / "fresh.json").exists()
 
 
-def test_ignores_non_json_files(sessions_dir):
-    """Non-.json files are ignored."""
+@patch("statusline.base_info.git_cmd", return_value="")
+@patch("statusline.base_info.log_to_db")
+def test_ignores_non_json_files(mock_log, mock_git, sessions_dir):
     write_session(sessions_dir, "s1", "thinking")
     (sessions_dir / "readme.txt").write_text("ignore me")
 
-    lines = ["line1", "line2", "line3"]
-    result = run({}, lines)
-
-    assert "1 active" in result[2]
+    lines = run(make_claude_data(), [])
+    assert "1 active" in lines[2]
 
 
-def test_handles_corrupt_json(sessions_dir):
-    """Corrupt JSON files are silently skipped."""
+@patch("statusline.base_info.git_cmd", return_value="")
+@patch("statusline.base_info.log_to_db")
+def test_handles_corrupt_json(mock_log, mock_git, sessions_dir):
     write_session(sessions_dir, "s1", "thinking")
     (sessions_dir / "bad.json").write_text("not json{{{")
 
-    lines = ["line1", "line2", "line3"]
-    result = run({}, lines)
+    lines = run(make_claude_data(), [])
+    assert "1 active" in lines[2]
 
-    assert "1 active" in result[2]
+
+@patch("statusline.base_info.git_cmd", return_value="")
+@patch("statusline.base_info.log_to_db")
+def test_columns_aligned(mock_log, mock_git, sessions_dir):
+    """Session line columns align with model and usage lines."""
+    from statusline.formatting import visible_len
+    write_session(sessions_dir, "s1", "thinking")
+
+    lines = run(make_claude_data(), [])
+    # Find pipe positions in each line (skip the leading border pipe)
+    def pipe_positions(line):
+        # Strip ANSI, find | positions after the first one
+        import re
+        plain = re.sub(r"\033\[[0-9;]*m", "", line)
+        positions = [i for i, c in enumerate(plain) if c == "|"]
+        return positions[1:]  # skip leading border
+
+    model_pipes = pipe_positions(lines[1])
+    session_pipes = pipe_positions(lines[2])
+
+    # First few pipe positions should match
+    for i in range(min(len(model_pipes), len(session_pipes))):
+        assert model_pipes[i] == session_pipes[i], (
+            f"Pipe {i} misaligned: model={model_pipes[i]}, session={session_pipes[i]}"
+        )

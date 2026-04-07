@@ -85,11 +85,10 @@ def main():
     config = load_pipeline_config(config_path)
 
     # Import built-in modules
-    from statusline import base_info, repo_cleanup, session_tracker, progress_display
+    from statusline import base_info, repo_cleanup, progress_display
     modules = {
         "base_info": base_info.run,
         "repo_cleanup": repo_cleanup.run,
-        "session_tracker": session_tracker.run,
         "progress_display": progress_display.run,
     }
 
