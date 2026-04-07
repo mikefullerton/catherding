@@ -1,26 +1,26 @@
 ---
 name: repo-tools
 description: "Recursive repository cleanup — auto-fixes obvious issues, interactively resolves the rest"
-version: "3.0.0"
+version: "4.0.0"
 argument-hint: "<clean|--help> [--depth N] [--dry-run] [--version]"
 allowed-tools: Read, Glob, Grep, Bash(python3 *, git *, gh *, ls *, rm *, test *, find *), AskUserQuestion
 model: sonnet
 ---
 
-# Repo Tools v3.0.0
+# Repo Tools v4.0.0
 
 Recursive repository cleanup — auto-fixes obvious issues, interactively resolves the rest.
 
 ## Startup
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> repo-tools v3.0.0
+> repo-tools v4.0.0
 
 Then stop.
 
 **CRITICAL**: Print the version line first:
 
-repo-tools v3.0.0
+repo-tools v4.0.0
 
 ## Route by argument
 
@@ -51,11 +51,13 @@ Print the following exactly, then stop:
 > Recursively discovers git repositories from the current directory (default depth 3), then walks each one:
 >
 > **Auto-fixed (no confirmation needed):**
+> - Fetches remote and prunes stale tracking refs
+> - Pulls if behind remote (fast-forward only, skipped if uncommitted changes)
+> - Pushes if ahead of remote
 > - Prunes dangling worktree references
 > - Deletes branches whose remote tracking branch is gone
 > - Deletes branches fully merged into the default branch
 > - Removes finished worktrees (branch merged, no uncommitted changes)
-> - Pushes unpushed commits on the current branch
 >
 > **Interactive (stops for input):**
 > - Uncommitted changes — grouped into smart batches with descriptions, offers: commit or chat
@@ -84,70 +86,83 @@ Print the following exactly, then stop:
 - **Always confirms before ambiguous actions** — deterministic fixes are silent, judgment calls stop for input
 - **`--dry-run` mode is read-only** — reports everything but modifies nothing
 
-### Phase 1: Run the deterministic cleanup script
-
-Build the command from `$ARGUMENTS`:
+### Phase 1: Discover repos
 
 ```bash
-python3 $SKILL_DIR/references/clean.py <ROOT> [--depth N] [--dry-run]
+python3 $SKILL_DIR/references/discover.py <ROOT> [--depth N]
 ```
 
-Where `<ROOT>` is the current working directory (`.`), and `--depth` / `--dry-run` are forwarded from the user's arguments.
+Where `<ROOT>` is the current working directory (`.`), and `--depth` is forwarded from the user's arguments.
 
-The script:
-1. Discovers all git repos (respecting `--depth`)
-2. For each repo: fetches, prunes worktree refs, deletes gone and merged branches, removes finished worktrees, pushes unpushed commits
-3. Prints human-readable progress to stderr (you will see it)
-4. Prints a JSON manifest to stdout with the structure:
+Parse the JSON output — an array of `{repo, path}` objects. Print:
+
+```
+Found <total> repos to process:
+  active/cat-herding
+  active/my-app
+  archive/old-thing
+```
+
+Use paths relative to `~/projects` (strip the `~/projects/` prefix from the absolute path).
+
+If no repos found, print "No git repositories found." and stop.
+
+### Phase 2: Deterministic pass
+
+Print:
+
+```
+Starting deterministic pass:
+```
+
+For each repo (index `i`, starting at 1), run:
+
+```bash
+python3 $SKILL_DIR/references/process-repo.py <repo-path> [--dry-run]
+```
+
+Forward `--dry-run` from the user's arguments.
+
+Before each run, print:
+
+```
+Processing <relative-path> (<i> of <total>)
+```
+
+The script prints step-by-step progress to stderr (you will see it — do not repeat it). It outputs JSON to stdout with this structure:
 
 ```json
 {
-  "repos_scanned": 5,
+  "repo": "my-project",
+  "path": "/Users/me/projects/my-project",
+  "default_branch": "main",
+  "branch": "feature/foo",
+  "needs_push": false,
+  "needs_pull": false,
+  "branches": ["feature/foo"],
   "auto_fixed": {
-    "worktree_refs_pruned": 2,
+    "worktree_refs_pruned": 0,
     "worktrees_removed": 1,
-    "stale_branches_deleted": 3,
-    "merged_branches_deleted": 1,
-    "pushes": 2
+    "stale_branches_deleted": 2,
+    "merged_branches_deleted": 1
   },
-  "repos": [
-    {
-      "repo": "my-project",
-      "path": "/Users/me/projects/my-project",
-      "default_branch": "main",
-      "branch": "feature/foo",
-      "needs_push": true,
-      "needs_pull": false,
-      "branches": ["feature/foo", "old-experiment"],
-      "items": [
-        {"type": "uncommitted", "files": [{"status": " M", "path": "src/app.py"}, ...]},
-        {"type": "inactive_branch", "branch": "old-feature", "last_commit_age": "45 days ago", ...},
-        {"type": "dirty_worktree", "path": "/path/to/wt", "branch": "wip", "merged": false, "status": "..."}
-      ]
-    },
-    {
-      "repo": "other-project",
-      "path": "/Users/me/projects/other-project",
-      "default_branch": "main",
-      "branch": "main",
-      "needs_push": false,
-      "needs_pull": false,
-      "branches": [],
-      "items": []
-    }
+  "items": [
+    {"type": "uncommitted", "files": [...]},
+    {"type": "inactive_branch", "branch": "old-feature", ...},
+    {"type": "dirty_worktree", "path": "/path/to/wt", ...}
   ]
 }
 ```
 
-Every scanned repo appears in `repos` — clean repos have an empty `items` array.
+**Parse the JSON.** Collect all results into an array. After each repo, print:
 
-**Parse the JSON output.** Always proceed to **Phase 1b** (even if no repos have items — all repos still appear as "clean").
+```
+Finished processing <relative-path> (<i> of <total>)
+```
 
-If `--dry-run` was set, the script already reported everything as `[dry-run]`. Print the Phase 1b chart (using dry-run format) and stop — do not enter Phase 2.
+### Phase 3: Status chart
 
-### Phase 1b: Interactive overview
-
-Print a chart showing **every scanned repo** with paths relative to `~/projects` (e.g., `active/cat-herding`). Repos with no issues show "clean". Repos with issues show a short description of each problem.
+After all repos are processed, print a chart showing every repo's status:
 
 ```
 === REPO STATUS ===
@@ -159,7 +174,7 @@ archive/old-thing             3 inactive branches, 2 branches (feature/x, hotfix
 ```
 
 Format rules:
-- Path column: left-aligned, relative to `~/projects` (strip the `~/projects/` prefix from the absolute path)
+- Path column: left-aligned, relative to `~/projects`
 - Status column: left-aligned, comma-separated list of issues
 - For uncommitted: `<N> uncommitted file(s)`
 - For inactive branches: `<N> inactive branch(es)`
@@ -170,19 +185,21 @@ Format rules:
 - For clean repos (no issues, no branches, no push/pull needed): `clean`
 - Sort: repos with issues first, then clean repos
 
-If all repos are clean, print the chart (all showing "clean") and skip to **Phase 3** (dashboard).
+If `--dry-run`, print the chart and stop — do not enter Phase 4.
 
-Otherwise, use AskUserQuestion:
+If all repos are clean, print the chart (all showing "clean") and skip to **Phase 5** (dashboard).
+
+Otherwise, count repos with non-empty `items` and use AskUserQuestion:
 > **<N> item(s) across <M> repo(s) need decisions.** Continue?
 >
 > - **Continue** — walk through each repo interactively
 > - **Stop** — skip interactive fixes and go to the dashboard
 
-If **Stop**, skip to **Phase 3** (dashboard).
+If **Stop**, skip to **Phase 5** (dashboard).
 
-### Phase 2: Interactive decisions
+### Phase 4: Interactive decisions
 
-Walk the `repos` array, skipping repos with empty `items`. For each repo with items, print:
+Walk the collected results array, skipping repos with empty `items`. For each repo with items, print:
 
 ```
 --- <path> (<branch>) ---
@@ -281,9 +298,9 @@ Use AskUserQuestion:
 
 If the user says **Stop** on any item, skip all remaining items for that repo and move to the next repo.
 
-### Phase 3: Final Dashboard
+### Phase 5: Final Dashboard
 
-After all repos have been processed, print a summary. Use the counts from the script's JSON `auto_fixed` plus your own tracking of interactive resolutions:
+After all repos have been processed, print a summary. Aggregate `auto_fixed` counts across all repo results, plus your own tracking of interactive resolutions:
 
 ```
 === REPO TOOLS COMPLETE ===
