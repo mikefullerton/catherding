@@ -30,7 +30,8 @@ def discover_repos(root, depth):
         if "/worktrees/" in dot_git:
             continue
         repo = os.path.dirname(os.path.abspath(dot_git))
-        if os.path.basename(repo).endswith("-tests"):
+        name = os.path.basename(repo)
+        if name.endswith("-test") or name.endswith("-tests"):
             continue
         if any(repo.startswith(os.path.join(existing, ".git")) for existing in repos):
             continue
