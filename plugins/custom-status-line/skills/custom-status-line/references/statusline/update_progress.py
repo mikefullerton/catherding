@@ -67,45 +67,46 @@ def clear_progress(session_id: str) -> None:
 
 
 def show_progress_example() -> None:
-    """Launch a detached subprocess that runs a 5-second progress demo."""
+    """Launch a detached background process that runs a progress demo."""
     import subprocess as sp
+    import tempfile
 
     session_id = find_session_id()
     if not session_id:
         print("Error: could not determine session ID.")
         sys.exit(1)
 
-    env = {**os.environ, "PYTHONPATH": os.path.expanduser("~/.claude-status-line")}
+    # Write a temp script — nohup + shell bg is the only reliable way
+    # to fully detach from the parent process group.
+    script = tempfile.NamedTemporaryFile(
+        mode="w", suffix=".py", delete=False, prefix="demo_progress_",
+    )
+    script.write(f"""\
+import sys, os, time, json
+sys.path.insert(0, os.path.expanduser("~/.claude-status-line"))
+from statusline.update_progress import write_progress, clear_progress
+
+session_id = {session_id!r}
+total = 10
+for i in range(1, total + 1):
+    write_progress(session_id, "Demo progress", f"Step {{i}}", i, total, 80)
+    time.sleep(2)
+
+clear_progress(session_id)
+os.unlink({script.name!r})
+""")
+    script.close()
+
     sp.Popen(
-        [sys.executable, "-m", "statusline.update_progress", "--demo-bg", session_id],
-        start_new_session=True,
-        stdout=sp.DEVNULL,
-        stderr=sp.DEVNULL,
-        env=env,
+        f"nohup {sys.executable} {script.name} > /dev/null 2>&1 &",
+        shell=True,
     )
     print("Running progress demo in background — watch the status line.")
-
-
-def run_demo_bg(session_id: str) -> None:
-    """Background entry point: step through progress over 5 seconds, then clear."""
-    import time
-
-    cols = 80
-    total = 10
-    for i in range(1, total + 1):
-        write_progress(session_id, "Demo progress", f"Step {i}", i, total, cols)
-        time.sleep(2)
-
-    clear_progress(session_id)
 
 
 def main():
     if len(sys.argv) >= 2 and sys.argv[1] == "--show-progress-example":
         show_progress_example()
-        return
-
-    if len(sys.argv) >= 3 and sys.argv[1] == "--demo-bg":
-        run_demo_bg(sys.argv[2])
         return
 
     if len(sys.argv) >= 2 and sys.argv[1] == "--clear":
