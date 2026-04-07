@@ -769,25 +769,50 @@ open <workers-dev-url>
 
 ## Deploy All
 
-Delegate to the `site-manager` CLI:
+Deploy all services, then verify and repair until clean.
+
+### Step 1: Deploy
 
 ```bash
 site-manager deploy all
 ```
 
-Print the output as-is.
+If deploy fails for any service, report the error but continue with remaining services.
+
+### Step 2: Verify→repair loop
+
+After deploy completes:
+
+1. Run `site-manager verify`
+2. If all checks pass → report success, stop
+3. If issues found:
+   a. Read `.site/issues.json`
+   b. For each issue: diagnose root cause and fix (code, config, env vars, wrangler bindings, etc.)
+   c. Re-deploy only the affected services: `site-manager deploy <service>`
+   d. Re-run `site-manager verify`
+4. Repeat up to 3 iterations
+5. If still failing after 3 iterations: report remaining issues to the user and stop
+
+**Important:** Each iteration should fix different issues. If the same issue persists after a fix attempt, investigate deeper rather than retrying the same fix.
 
 ---
 
 ## Deploy Single
 
-Delegate to the `site-manager` CLI:
+Deploy a single service, then verify and repair until clean.
+
+### Step 1: Deploy
 
 ```bash
 site-manager deploy <service>
 ```
 
-Print the output as-is.
+### Step 2: Verify→repair loop
+
+After deploy completes, run the same verify→repair loop as Deploy All (up to 3 iterations). Only verify and repair the deployed service's checks — use the relevant verify flags:
+
+- `backend` → `site-manager verify --manifest`
+- `main` / `admin` / `dashboard` → `site-manager verify --manifest --dns`
 
 ---
 
