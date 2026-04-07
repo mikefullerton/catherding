@@ -74,10 +74,27 @@ def is_special_branch(name):
 
 
 def is_merged_or_squashed(repo, dflt, branch_ref):
-    """Check if branch is merged into dflt, including squash merges."""
+    """Check if branch is merged into dflt via any merge strategy.
+
+    Checks in order:
+    1. Regular merge (is-ancestor)
+    2. Zero commits ahead (branch is at or behind dflt)
+    3. Empty diff (all changes already in dflt, e.g., rebase merge)
+    4. Squash merge (commit-tree + cherry detection)
+    """
+    # regular merge
     _, rc = git(repo, "merge-base", "--is-ancestor", branch_ref, dflt)
     if rc == 0:
         return True
+    # zero commits ahead — nothing unique on the branch
+    ahead = git_ok(repo, "rev-list", "--count", f"{dflt}..{branch_ref}")
+    if ahead.isdigit() and int(ahead) == 0:
+        return True
+    # empty diff — all changes are already in dflt
+    diff = git_ok(repo, "diff", f"{dflt}...{branch_ref}")
+    if not diff:
+        return True
+    # squash merge detection
     merge_base = git_ok(repo, "merge-base", dflt, branch_ref)
     if not merge_base:
         return False
