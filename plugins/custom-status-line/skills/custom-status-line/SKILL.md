@@ -1,14 +1,14 @@
 ---
 name: custom-status-line
 description: "Install or remove the composable status line pipeline with project info, git stats, worktree detection, and repo cleanup status"
-version: "4.0.0"
-argument-hint: "<install|uninstall|--help> [--version]"
+version: "4.1.0"
+argument-hint: "<install|uninstall|--help> [--version] [--progress-style <compact|standard>] [--show-progress-example]"
 allowed-tools: Read, Write, Edit, Bash(chmod *), Bash(chmod +x *), Bash(mkdir *), Bash(mkdir -p *), Bash(test *), Bash(jq *), Bash(rm *), Bash(rm -f *), Bash(rm -rf *), AskUserQuestion
 model: haiku
 disable-model-invocation: true
 ---
 
-# Custom Status Line v4.0.0
+# Custom Status Line v4.1.0
 
 Install or remove a composable status line pipeline for Claude Code. Multiple plugins can contribute to the status line without knowing about each other.
 
@@ -18,10 +18,10 @@ Install or remove a composable status line pipeline for Claude Code. Multiple pl
 
 **CRITICAL**: Print the version line first:
 
-custom-status-line v4.0.0
+custom-status-line v4.1.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> custom-status-line v4.0.0
+> custom-status-line v4.1.0
 
 Then stop.
 
@@ -32,7 +32,9 @@ Then stop.
 | `install` | Go to **Install** section |
 | `uninstall` | Go to **Uninstall** section |
 | `--help` | Go to **Help** section |
-| *(empty or anything else)* | Print usage and stop: `Usage: /custom-status-line <install\|uninstall\|--help> [--version]` |
+| `--progress-style compact` or `--progress-style standard` | Go to **Progress Style** section |
+| `--show-progress-example` | Go to **Show Progress Example** section |
+| *(empty or anything else)* | Print usage and stop: `Usage: /custom-status-line <install\|uninstall\|--help> [--version] [--progress-style <compact\|standard>] [--show-progress-example]` |
 
 ---
 
@@ -44,7 +46,7 @@ Print the following exactly, then stop:
 >
 > A composable status line pipeline for Claude Code. The dispatcher runs a chain of scripts, each contributing to the status display. Any plugin or project can hook into the pipeline.
 >
-> **Usage:** `/custom-status-line <install|uninstall|--help>`
+> **Usage:** `/custom-status-line <install|uninstall|--help> [--version] [--progress-style <compact|standard>] [--show-progress-example]`
 >
 > ### Architecture
 >
@@ -140,6 +142,38 @@ Print the following exactly, then stop:
 > - Exit 0 on success — non-zero or invalid JSON is silently skipped
 > - Keep execution under 200ms — the status line refreshes frequently
 > - To uninstall cleanly: remove your entry from `pipeline.json` and delete your script
+
+---
+
+## Progress Style
+
+Read `~/.claude-status-line/pipeline.json`. Parse the argument to get the style value (the word after `--progress-style`).
+
+If the style is not `compact` or `standard`, print:
+
+> Invalid style. Use `compact` or `standard`.
+
+Then stop.
+
+Update (or add) the `progress_style` key in the JSON to the given value. Preserve all other keys.
+
+Print:
+
+> Progress style set to **{style}**. Change takes effect on next status line refresh.
+
+Then stop.
+
+---
+
+## Show Progress Example
+
+Run:
+
+```bash
+PYTHONPATH=$HOME/.claude-status-line python3 -m statusline.update_progress --show-progress-example
+```
+
+Print the output to the user. Then stop.
 
 ---
 
