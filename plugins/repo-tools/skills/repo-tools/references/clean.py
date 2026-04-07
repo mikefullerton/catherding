@@ -221,6 +221,26 @@ def scan_unpushed(repo, cur):
         return False
 
 
+def scan_needs_pull(repo, cur):
+    """Check if current branch is behind its upstream."""
+    if not cur:
+        return False
+    upstream = git(repo, "rev-parse", "--abbrev-ref", f"{cur}@{{upstream}}")
+    if not upstream:
+        return False
+    count = git(repo, "rev-list", "--count", f"{cur}..{upstream}")
+    try:
+        return int(count) > 0
+    except ValueError:
+        return False
+
+
+def scan_branches(repo, dflt):
+    """Return list of all local branch names except the default."""
+    out = git(repo, "branch", "--format=%(refname:short)")
+    return [b for b in out.splitlines() if b and b != dflt]
+
+
 # ── fixers ───────────────────────────────────────────────────────────────
 
 def fix_prune_worktrees(repo, dry_run):
@@ -332,6 +352,11 @@ def process_repo(repo, dry_run):
     if total_fixed == 0:
         log("  No auto-fixable issues")
 
+    # post-fix status
+    needs_push = scan_unpushed(repo, cur)
+    needs_pull = scan_needs_pull(repo, cur)
+    branches = scan_branches(repo, dflt)
+
     # collect interactive items
     items = []
     if uncommitted:
@@ -346,6 +371,9 @@ def process_repo(repo, dry_run):
         "path": repo,
         "default_branch": dflt,
         "branch": cur,
+        "needs_push": needs_push,
+        "needs_pull": needs_pull,
+        "branches": branches,
         "items": items,
     }
 

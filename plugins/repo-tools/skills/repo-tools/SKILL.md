@@ -116,6 +116,9 @@ The script:
       "path": "/Users/me/projects/my-project",
       "default_branch": "main",
       "branch": "feature/foo",
+      "needs_push": true,
+      "needs_pull": false,
+      "branches": ["feature/foo", "old-experiment"],
       "items": [
         {"type": "uncommitted", "files": [{"status": " M", "path": "src/app.py"}, ...]},
         {"type": "inactive_branch", "branch": "old-feature", "last_commit_age": "45 days ago", ...},
@@ -127,6 +130,9 @@ The script:
       "path": "/Users/me/projects/other-project",
       "default_branch": "main",
       "branch": "main",
+      "needs_push": false,
+      "needs_pull": false,
+      "branches": [],
       "items": []
     }
   ]
@@ -146,10 +152,10 @@ Print a chart showing **every scanned repo** with paths relative to `~/projects`
 ```
 === REPO STATUS ===
 
-active/cat-herding            5 uncommitted files, 2 inactive branches
-active/my-app                 1 dirty worktree (wip-branch)
+active/cat-herding            5 uncommitted files, 2 inactive branches, needs pull
+active/my-app                 1 dirty worktree (wip-branch), needs push
 active/other-project          clean
-archive/old-thing             3 inactive branches
+archive/old-thing             3 inactive branches, 2 branches (feature/x, hotfix/y)
 ```
 
 Format rules:
@@ -158,7 +164,10 @@ Format rules:
 - For uncommitted: `<N> uncommitted file(s)`
 - For inactive branches: `<N> inactive branch(es)`
 - For dirty worktrees: `<N> dirty worktree(s) (<branch names>)`
-- For clean repos: `clean`
+- For needs_push: `needs push`
+- For needs_pull: `needs pull`
+- For branches (non-default): `<N> branch(es) (<names>)`
+- For clean repos (no issues, no branches, no push/pull needed): `clean`
 - Sort: repos with issues first, then clean repos
 
 If all repos are clean, print the chart (all showing "clean") and skip to **Phase 3** (dashboard).
