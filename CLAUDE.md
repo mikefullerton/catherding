@@ -40,4 +40,4 @@ rules/                 # 6 distributable rules + 1 script
 
 ## Git Workflow
 
-**Owner edits** go direct to main. **Claude Code sessions** go through a branch + PR via worktree. Worktree directory: `.claude/worktrees/`.
+Commit changes in sensible batches after each change and push.
