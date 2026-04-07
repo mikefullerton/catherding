@@ -82,7 +82,9 @@ def show_progress_example() -> None:
         print("Running progress demo in background — watch the status line.")
         return
 
-    # Child process: run the demo
+    # Child process: detach from parent's process group so shell exit
+    # doesn't kill us, then run the demo
+    os.setsid()
     cols = shutil.get_terminal_size((80, 24)).columns
     total = 10
     for i in range(1, total + 1):
