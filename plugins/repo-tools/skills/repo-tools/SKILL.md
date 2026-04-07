@@ -119,7 +119,7 @@ For each repo (index `i`, starting at 1):
 
 1. Update the status line progress:
 ```bash
-~/.claude-status-line/progress/update-progress.sh "repo-tools clean" "<relative-path>" <i> <total>
+~/.claude-status-line/progress/update-progress.sh "processing <repo-name>" "<relative-path>" <i> <total>
 ```
 
 2. Print a header:
