@@ -1,6 +1,6 @@
 ---
 name: site-manager
-description: "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform. /site-manager init, /site-manager deploy, /site-manager status, /site-manager manifest, /site-manager seed-admin, /site-manager --help"
+description: "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform. /site-manager init, /site-manager add, /site-manager deploy, /site-manager status, /site-manager manifest, /site-manager seed-admin, /site-manager --help"
 version: "1.4.0"
 argument-hint: "[init|add|deploy|update|verify|repair|status|manifest|seed-admin|--help|--version]"
 allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), AskUserQuestion
@@ -37,6 +37,7 @@ Then stop.
 | `init` or `init <domain>` | Go to **Init** |
 | `migrate` or `migrate <domain>` | Go to **Migrate** |
 | `go-live` | Go to **Go Live** |
+| `add` or `add <description>` | Go to **Add** |
 | `deploy` or `deploy all` | Go to **Deploy All** |
 | `deploy backend` | Go to **Deploy Single** (service=backend) |
 | `deploy main` | Go to **Deploy Single** (service=main) |
@@ -767,6 +768,190 @@ open <workers-dev-url>
 
 ---
 
+## Add
+
+Add capabilities to an existing project. Reads `.site/manifest.json` to determine what's already present, offers what's missing.
+
+### Step 1: Read manifest
+
+```bash
+cat .site/manifest.json
+```
+
+If `.site/manifest.json` does not exist, print:
+> This is not a site-manager project. Run `/site-manager init` first.
+
+Then stop.
+
+Parse the manifest to determine:
+- `project.type` — the project type (auth-service, full, api, worker)
+- `services` — which services exist and their status
+- `features` — which features are enabled
+- `dns` — whether DNS/go-live is configured
+
+### Step 2: Determine what's addable
+
+Compare the manifest against the addable catalog. An item is **addable** if it's not already present/enabled and is compatible with the project.
+
+**Addable catalog:**
+
+| Item | Manifest check | Compatible types |
+|------|---------------|-----------------|
+| Backend API | `services.backend` absent or not deployed | worker |
+| Main site | `services.main` absent or not deployed | auth-service |
+| Admin site | `services.admin` absent or not deployed | api, worker, auth-service |
+| Dashboard | `services.dashboard` absent or not deployed | api, worker, auth-service |
+| Built-in auth | `features.auth.enabled` is false/absent | any with backend |
+| GitHub OAuth | `"github"` not in `features.auth.providers` | any with auth enabled |
+| Google OAuth | `"google"` not in `features.auth.providers` | any with auth enabled |
+| External auth service | `features.auth.mode` is not `"external"` | any with backend |
+| Feature flags | `features.featureFlags.enabled` is false/absent | any with backend |
+| Email service | `features.email.enabled` is false/absent | any with backend |
+| SMS service | `features.sms.enabled` is false/absent | any with backend |
+| A/B testing | `features.abTesting.enabled` is false/absent | any with backend |
+| Observability | `features.observability.enabled` is false/absent | any |
+| Structured logging | `features.logging.enabled` is false/absent | any |
+| D1 SQLite | no D1 binding in wrangler config | worker |
+| KV store | no KV binding in wrangler config | worker |
+| R2 bucket | no R2 binding in wrangler config | worker |
+| GitHub repo | no `.git` remote | any |
+| GitHub Actions | no `.github/workflows/` | any with GitHub repo |
+| DNS / go-live | `dns.zoneId` is null/absent | any deployed |
+
+### Step 3: Match or present menu
+
+**If `$ARGUMENTS` contains a description** (e.g., `add github auth`):
+- Match the description against addable items using natural language understanding
+- If a clear match: proceed to Step 4 with that item
+- If ambiguous: show the top 2-3 matches and ask the user to pick
+- If no match: "I don't know how to add that. Here's what I can add:" → show full menu
+
+**If no description** (just `add`):
+- Build a numbered menu of all addable items (exclude items already present)
+- Group by category (Services, Auth, Features, Storage, Infrastructure)
+- Present the menu and ask the user to pick one or more (comma-separated numbers)
+
+Menu format:
+```
+Your project (<type>) can add:
+
+  Services
+    1. Admin site (admin.<domain>)
+    2. Dashboard (dashboard.<domain>)
+
+  Auth
+    3. GitHub OAuth
+    4. Google OAuth
+
+  Features
+    5. Email service
+    6. SMS service
+
+  Infrastructure
+    7. GitHub Actions workflows
+    8. DNS / go-live
+
+What would you like to add? (enter number, or describe what you want)
+```
+
+### Step 4: Confirm
+
+Confirm in plain language what you're about to do:
+
+> Do you want to add GitHub authentication?
+
+Wait for the user to confirm.
+
+### Step 5: Choose execution mode
+
+Ask:
+
+> How would you like to proceed?
+>   1. Scaffold, deploy, and verify (default)
+>   2. Scaffold only
+>   3. Let's chat about it first
+>
+> (Enter for default)
+
+### Step 6: Execute
+
+**Mode 1 — Scaffold, deploy, and verify:**
+1. Scaffold the code (see Scaffold Instructions below)
+2. Update `.site/manifest.json` with the new state
+3. Commit changes
+4. Deploy the affected service(s): `site-manager deploy <service>`
+5. The deploy command runs the verify→repair loop automatically
+
+**Mode 2 — Scaffold only:**
+1. Scaffold the code (see Scaffold Instructions below)
+2. Update `.site/manifest.json` with the new state
+3. Commit changes
+4. Print: "Code scaffolded and committed. Run `/site-manager deploy <service>` when ready."
+
+**Mode 3 — Chat:**
+1. Discuss the addition with the user — answer questions, explain trade-offs
+2. When the user is ready, re-enter at Step 5
+
+### Scaffold Instructions
+
+Each addable item has specific scaffold steps. Reference existing scaffold logic from **Init** where applicable.
+
+**Adding a service (admin, dashboard, main, backend):**
+- Copy the relevant templates from `${CLAUDE_SKILL_DIR}/references/templates/` (same as Init Step 3)
+- Wire the new service into the root `package.json` workspaces array
+- Add the service entry to `.site/manifest.json` with `"status": "scaffolded"`
+- If adding admin or dashboard: also add the GitHub Actions deploy workflow from `templates/github/`
+- Run `npm install` to install dependencies
+
+**Adding GitHub OAuth:**
+- Copy `templates/backend/src/auth/github.ts.tmpl` → `backend/src/auth/github.ts`
+- Wire into `backend/src/app.ts` (add import and route — see Init Step 3 conditional wiring)
+- Add "Sign in with GitHub" button to login pages (main and admin if they exist)
+- Add `"github"` to `features.auth.providers` in manifest
+- Set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` env vars on Railway
+
+**Adding Google OAuth:**
+- Same pattern as GitHub OAuth but with `google.ts.tmpl` and Google-specific env vars
+
+**Adding built-in auth:**
+- Copy auth templates: `password.ts`, `session.ts`, `routes/auth.ts`
+- Wire auth routes into `backend/src/app.ts`
+- Add auth middleware to protected routes
+- Set `features.auth.enabled: true` and `features.auth.providers: ["email"]` in manifest
+- Generate JWT secret: `railway variables set JWT_SECRET="$(openssl rand -hex 32)"`
+
+**Adding external auth service:**
+- Ask for the auth service URL
+- Fetch the public key from `<auth-service-url>/.well-known/jwks.json`
+- Set `AUTH_SERVICE_URL` and `AUTH_PUBLIC_KEY` env vars on Railway
+- Add JWT verification middleware using the public key
+- Set `features.auth.mode: "external"` in manifest
+
+**Adding feature flags:**
+- Copy `templates/backend/src/services/feature-flags.ts.tmpl` and `templates/backend/src/routes/admin/flags.ts.tmpl`
+- Wire routes into `backend/src/app.ts`
+- If admin site exists, copy `templates/sites/admin/src/routes/flags.tsx.tmpl`
+- Set `features.featureFlags.enabled: true` in manifest
+
+**Adding storage (D1, KV, R2):**
+- Add the binding to `wrangler.jsonc`
+- For D1: also create the database with `wrangler d1 create <name>` and add a `migrations/` directory
+- Update manifest accordingly
+
+**Adding GitHub repo:**
+- `gh repo create <name> --private`
+- `git remote add origin <url>`
+- `git push -u origin main`
+
+**Adding GitHub Actions:**
+- Copy relevant workflow templates from `templates/github/`
+- Only add workflows for services that exist in the project
+
+**Adding DNS / go-live:**
+- Delegate to the existing **Go Live** section of this skill
+
+---
+
 ## Deploy All
 
 Deploy all services, then verify and repair until clean.
@@ -1242,12 +1427,13 @@ If the issues file doesn't exist or has no issues, print:
 Print:
 
 ```
-Site Manager v1.3.0 — Scaffold, deploy, and manage website suites
+Site Manager v1.4.0 — Scaffold, deploy, and manage website suites
 
 Commands (Claude session):
   /site-manager init [domain]       Scaffold a new project
   /site-manager migrate [domain]    Set up in an existing repo
   /site-manager go-live             Connect custom domain to deployed project
+  /site-manager add [description]   Add services, auth, features to existing project
   /site-manager deploy [service]    Deploy all services (or: backend, main, admin, dashboard)
   /site-manager seed-admin          Create initial admin account
   /site-manager update              Re-scaffold with latest templates and redeploy
