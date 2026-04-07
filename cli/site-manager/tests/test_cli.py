@@ -107,10 +107,27 @@ class TestParser:
         args = self.parser.parse_args(["repair"])
         assert args.command in CLAUDE_COMMANDS
 
+    def test_add_requires_claude(self):
+        args = self.parser.parse_args(["add"])
+        assert args.command in CLAUDE_COMMANDS
+
+    def test_add_no_args(self):
+        args = self.parser.parse_args(["add"])
+        assert args.command == "add"
+        assert args.description == []
+
+    def test_add_with_description(self):
+        args = self.parser.parse_args(["add", "github", "auth"])
+        assert args.description == ["github", "auth"]
+
+    def test_add_single_word(self):
+        args = self.parser.parse_args(["add", "admin"])
+        assert args.description == ["admin"]
+
 
 class TestClaudeGating:
     def test_claude_commands_set(self):
-        assert CLAUDE_COMMANDS == {"init", "migrate", "go-live", "deploy", "seed-admin", "update", "verify", "repair"}
+        assert CLAUDE_COMMANDS == {"init", "migrate", "go-live", "deploy", "seed-admin", "update", "verify", "repair", "add"}
 
     def test_terminal_commands_not_gated(self):
         assert "status" not in CLAUDE_COMMANDS

@@ -9,7 +9,7 @@ from pathlib import Path
 from site_manager import __version__, DEVELOPER_FLAG
 
 # Commands that require a Claude Code session
-CLAUDE_COMMANDS = {"init", "migrate", "go-live", "deploy", "seed-admin", "update", "verify", "repair"}
+CLAUDE_COMMANDS = {"init", "migrate", "go-live", "deploy", "seed-admin", "update", "verify", "repair", "add"}
 
 
 def _is_inside_claude() -> bool:
@@ -75,6 +75,9 @@ def _build_parser() -> argparse.ArgumentParser:
     verify_p.add_argument("--smoke", action="store_true", help="Functional smoke tests only")
 
     sub.add_parser("repair", help="Fix issues found by verify (requires Claude)")
+
+    add_p = sub.add_parser("add", help="Add capabilities to an existing project (requires Claude)")
+    add_p.add_argument("description", nargs="*", default=[], help="What to add (e.g., 'github auth', 'admin site')")
 
     return parser
 
@@ -170,6 +173,11 @@ def main(argv: list[str] | None = None) -> None:
     elif args.command == "repair":
         from site_manager.repair import run_repair
         run_repair(output_json=json_out)
+
+    elif args.command == "add":
+        from site_manager.claude import invoke_claude
+        desc = " ".join(args.description) if args.description else ""
+        invoke_claude(f"add {desc}".strip())
 
     else:
         print(f"Unknown command: {args.command}", file=sys.stderr)
