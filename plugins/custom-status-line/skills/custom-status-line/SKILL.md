@@ -1,13 +1,13 @@
 ---
 name: custom-status-line
 description: "Install or remove the composable status line pipeline with project info, git stats, worktree detection, and repo cleanup status"
-version: "4.1.0"
+version: "4.2.0"
 argument-hint: "<install|uninstall|--help> [--version] [--progress-style <compact|standard>] [--show-progress-example]"
 allowed-tools: Read, Write, Edit, Bash(chmod *), Bash(chmod +x *), Bash(mkdir *), Bash(mkdir -p *), Bash(test *), Bash(jq *), Bash(rm *), Bash(rm -f *), Bash(rm -rf *), Bash(sleep *), Bash(~/.claude-status-line/progress/update-progress.py *), Bash($HOME/.claude-status-line/progress/update-progress.py *), Bash(PYTHONPATH=* python3 *), AskUserQuestion
 model: haiku
 ---
 
-# Custom Status Line v4.1.0
+# Custom Status Line v4.2.0
 
 Install or remove a composable status line pipeline for Claude Code. Multiple plugins can contribute to the status line without knowing about each other.
 
@@ -17,10 +17,10 @@ Install or remove a composable status line pipeline for Claude Code. Multiple pl
 
 **CRITICAL**: Print the version line first:
 
-custom-status-line v4.1.0
+custom-status-line v4.2.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> custom-status-line v4.1.0
+> custom-status-line v4.2.0
 
 Then stop.
 
@@ -170,17 +170,17 @@ Print: "Running progress demo — watch the status line..."
 
 Run each of these Bash commands **one at a time, sequentially**. Each completed Bash call triggers a status line refresh so the user sees the progress bar advance:
 
-Step 1: `sleep 0.3 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 1" 1 10`
-Step 2: `sleep 0.3 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 2" 2 10`
-Step 3: `sleep 0.3 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 3" 3 10`
-Step 4: `sleep 0.3 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 4" 4 10`
-Step 5: `sleep 0.3 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 5" 5 10`
-Step 6: `sleep 0.3 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 6" 6 10`
-Step 7: `sleep 0.3 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 7" 7 10`
-Step 8: `sleep 0.3 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 8" 8 10`
-Step 9: `sleep 0.3 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 9" 9 10`
-Step 10: `sleep 0.3 && ~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 10" 10 10`
-Clear: `sleep 0.3 && ~/.claude-status-line/progress/update-progress.py --clear`
+Step 1: `~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 1" 1 10`
+Step 2: `~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 2" 2 10`
+Step 3: `~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 3" 3 10`
+Step 4: `~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 4" 4 10`
+Step 5: `~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 5" 5 10`
+Step 6: `~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 6" 6 10`
+Step 7: `~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 7" 7 10`
+Step 8: `~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 8" 8 10`
+Step 9: `~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 9" 9 10`
+Step 10: `~/.claude-status-line/progress/update-progress.py "Demo progress" "Step 10" 10 10`
+Clear: `~/.claude-status-line/progress/update-progress.py --clear`
 
 **IMPORTANT**: Do NOT run these in parallel. Run each step, wait for it to complete, then run the next one.
 
