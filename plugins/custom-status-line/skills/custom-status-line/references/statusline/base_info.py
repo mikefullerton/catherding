@@ -297,7 +297,7 @@ def run(claude_data: dict, lines: list) -> list:
 
     line2 = f"{lbor}{pad_right(l2c1, col1_w)}{sep}{pad_right(l2c2, col2_w)}{sep}{pad_right(l2c3, col3_w)}{sep}{pad_right(l2c4, col4_w)}"
     if yolo_col:
-        line2 += f"{sep}{yolo_col}"
+        line2 += f"  {yolo_col}"
 
     session_line = f"{lbor}{pad_left(sc1, col1_w)}{sep}{pad_right(sc2, col2_w)}{sep}{pad_right(sc3, col3_w)}{sep}{pad_right(sc4, col4_w)}"
 
