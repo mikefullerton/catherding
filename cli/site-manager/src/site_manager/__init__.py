@@ -1,4 +1,4 @@
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 SITE_DIR = ".site"
 MANIFEST_PATH = f"{SITE_DIR}/manifest.json"

@@ -1,13 +1,13 @@
 ---
 name: site-manager
 description: "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform. /site-manager init, /site-manager deploy, /site-manager status, /site-manager manifest, /site-manager seed-admin, /site-manager --help"
-version: "1.3.0"
-argument-hint: "[init|deploy|update|verify|repair|status|manifest|seed-admin|--help|--version]"
+version: "1.4.0"
+argument-hint: "[init|add|deploy|update|verify|repair|status|manifest|seed-admin|--help|--version]"
 allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), AskUserQuestion
 model: sonnet
 ---
 
-# Site Manager v1.1.0
+# Site Manager v1.4.0
 
 Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
@@ -23,10 +23,10 @@ Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
 **CRITICAL**: The very first thing you output MUST be the version line:
 
-site-manager v1.3.0
+site-manager v1.4.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> site-manager v1.3.0
+> site-manager v1.4.0
 
 Then stop.
 
