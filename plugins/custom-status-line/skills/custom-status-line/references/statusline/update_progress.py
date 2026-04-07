@@ -94,7 +94,7 @@ def run_demo_bg(session_id: str) -> None:
     total = 10
     for i in range(1, total + 1):
         write_progress(session_id, "Demo progress", f"Step {i}", i, total, cols)
-        time.sleep(0.5)
+        time.sleep(2)
 
     clear_progress(session_id)
 
