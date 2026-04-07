@@ -138,11 +138,10 @@ def scan_worktrees(repo, dflt):
         if not os.path.isdir(path):
             # orphaned — will be handled by prune
             continue
-        is_merged = git(repo, "merge-base", "--is-ancestor", branch, dflt) == "" and \
-            subprocess.run(
-                ["git", "-C", repo, "merge-base", "--is-ancestor", branch, dflt],
-                capture_output=True
-            ).returncode == 0
+        is_merged = subprocess.run(
+            ["git", "-C", repo, "merge-base", "--is-ancestor", branch, dflt],
+            capture_output=True
+        ).returncode == 0
         status = git(path, "status", "--porcelain")
         if status:
             dirty.append({
@@ -328,9 +327,6 @@ def process_repo(repo, dry_run):
     name = os.path.basename(repo)
 
     log(f"\n--- {repo} ({cur or 'detached'}) ---")
-
-    # fetch
-    git(repo, "fetch", "--prune")
 
     # scans
     gone = scan_gone_branches(repo)
