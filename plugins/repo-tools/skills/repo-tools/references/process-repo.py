@@ -321,6 +321,48 @@ def step_branches(repo, dflt, cur, dry_run):
             "diff_stat": stat_summary,
         })
 
+    # remote-only branches (exist on origin but not locally)
+    local_out = git_ok(repo, "branch", "--format=%(refname:short)")
+    local_set = {b for b in local_out.splitlines() if b}
+    remote_out = git_ok(repo, "branch", "-r", "--format=%(refname:short)")
+    for rref in remote_out.splitlines():
+        if not rref or not rref.startswith("origin/"):
+            continue
+        name = rref[len("origin/"):]
+        if name == dflt or name == "HEAD" or name in local_set or name in gone:
+            continue
+        if is_special_branch(name):
+            log(f"  Remote branch {name}: special — keeping")
+            continue
+        # check if merged into default
+        _, rc = git(repo, "merge-base", "--is-ancestor", rref, dflt)
+        if rc == 0:
+            log(f"  Remote branch {name}: merged into {dflt}")
+            if dry_run:
+                log(f"    [dry-run] Would delete remote branch")
+            else:
+                _, drc = git(repo, "push", "origin", "--delete", name)
+                if drc == 0:
+                    log(f"    Deleted remote branch {name}")
+                else:
+                    log(f"    Failed to delete remote branch {name}")
+            counts["merged_branches_deleted"] += 1
+        else:
+            ahead = git_ok(repo, "rev-list", "--count", f"{dflt}..{rref}")
+            stat = git_ok(repo, "diff", "--stat", f"{dflt}...{rref}")
+            stat_summary = stat.splitlines()[-1].strip() if stat else ""
+            relative = git_ok(repo, "log", "-1", "--format=%cr", rref)
+            subject = git_ok(repo, "log", "-1", "--format=%s", rref)
+            log(f"  Remote branch {name}: unmerged ({relative}), {ahead} commits ahead — needs attention")
+            flagged.append({
+                "branch": name,
+                "remote_only": True,
+                "last_commit_age": relative,
+                "last_commit_subject": subject,
+                "commits_ahead": int(ahead) if ahead else 0,
+                "diff_stat": stat_summary,
+            })
+
     # remaining branches after cleanup
     remaining_out = git_ok(repo, "branch", "--format=%(refname:short)")
     remaining = [b for b in remaining_out.splitlines() if b and b != dflt]

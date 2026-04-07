@@ -303,12 +303,14 @@ Use AskUserQuestion:
 
 #### Branches (`type: "branch"`)
 
-Every non-default, non-special branch is flagged. Special branches (`gh-pages`, `github-pages`) are always kept.
+Every non-default, non-special branch is flagged — both local and remote-only. Special branches (`gh-pages`, `github-pages`) are always kept. Merged remote-only branches are auto-deleted during the deterministic pass.
 
-Present using the item's fields:
+Check the `remote_only` field to determine the branch location.
+
+**Local branches** (`remote_only` is absent or false):
 
 ```
-Branch: <branch>
+Branch: <branch> (local)
   Last commit: <last_commit_age>
   Message: "<last_commit_subject>"
   Changes: <commits_ahead> commits ahead of <default_branch> — <diff_stat>
@@ -326,6 +328,25 @@ If **Delete** and `-d` fails (not merged), report the error and ask:
 > Safe delete failed — branch is not fully merged. Force-delete with `git branch -D`?
 
 If **Chat**: show `git log --oneline <default>..<branch>` and `git diff --stat <default>...<branch>`, then re-offer options.
+
+**Remote-only branches** (`remote_only` is true):
+
+```
+Branch: <branch> (remote only)
+  Last commit: <last_commit_age>
+  Message: "<last_commit_subject>"
+  Changes: <commits_ahead> commits ahead of <default_branch> — <diff_stat>
+```
+
+Use AskUserQuestion:
+> Remote branch `<branch>` — <last_commit_age>, <commits_ahead> commits not merged. "<last_commit_subject>". Delete, skip, or chat?
+>
+> - **Delete** — `git push origin --delete <branch>`
+> - **Skip** — leave it
+> - **Chat** — show me more detail about this branch
+> - **Stop** — stop cleaning this repo
+
+If **Chat**: show `git log --oneline <default>..origin/<branch>` and `git diff --stat <default>...origin/<branch>`, then re-offer options.
 
 #### Dirty worktrees (`type: "dirty_worktree"`)
 
