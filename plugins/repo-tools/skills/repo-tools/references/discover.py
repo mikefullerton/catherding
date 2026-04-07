@@ -60,9 +60,23 @@ def quick_check(repo):
         default = "main"
 
     branches_out, _ = git(repo, "branch", "--format=%(refname:short)")
-    branches = [b for b in branches_out.splitlines() if b and b != default]
-    if branches:
-        reasons.append(f"{len(branches)} branch(es)")
+    local_branches = [b for b in branches_out.splitlines() if b and b != default]
+    if local_branches:
+        reasons.append(f"{len(local_branches)} local branch(es)")
+
+    # remote-only branches (using last-known refs, no fetch)
+    local_set = set(local_branches) | {default}
+    remote_out, _ = git(repo, "branch", "-r", "--format=%(refname:short)")
+    remote_only = []
+    for rref in remote_out.splitlines():
+        if not rref or not rref.startswith("origin/"):
+            continue
+        name = rref[len("origin/"):]
+        if name == "HEAD" or name in local_set:
+            continue
+        remote_only.append(name)
+    if remote_only:
+        reasons.append(f"{len(remote_only)} remote branch(es)")
 
     # local vs remote out of sync (no fetch — uses last known state)
     cur, _ = git(repo, "rev-parse", "--abbrev-ref", "HEAD")
