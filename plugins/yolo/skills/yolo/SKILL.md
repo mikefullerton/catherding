@@ -3,7 +3,7 @@ name: yolo
 description: "Toggle per-session YOLO mode (auto-approve permissions with configurable deny list). Use when --dangerously-skip-permissions is broken. /yolo on, /yolo off, /yolo install, /yolo uninstall, /yolo configure, /yolo status"
 version: "5.0.0"
 argument-hint: "[on|off|install|uninstall|configure|status|--version]"
-allowed-tools: Read, Edit, Write, Bash(bash *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(rm *), Bash(find *), Bash(ls *), Bash(date *), Bash(jq *), Bash(~/.claude-status-line/progress/update-progress.sh *), Bash($HOME/.claude-status-line/progress/update-progress.sh *), AskUserQuestion
+allowed-tools: Read, Edit, Write, Bash(bash *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(rm *), Bash(find *), Bash(ls *), Bash(date *), Bash(jq *), Bash(~/.claude-status-line/progress/update-progress.py *), Bash($HOME/.claude-status-line/progress/update-progress.py *), AskUserQuestion
 model: sonnet
 ---
 

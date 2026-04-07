@@ -26,7 +26,7 @@ class CheckResult:
     suite: str = ""
 
 
-PROGRESS_SCRIPT = Path.home() / ".claude-status-line" / "progress" / "update-progress.sh"
+PROGRESS_SCRIPT = Path.home() / ".claude-status-line" / "progress" / "update-progress.py"
 
 
 class CheckRecorder:

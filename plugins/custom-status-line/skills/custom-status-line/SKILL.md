@@ -62,7 +62,7 @@ Print the following exactly, then stop:
 >   pipeline.json          # Ordered list of pipeline stages
 >   scripts/               # Directory for external drop-in scripts
 >   progress/
->     update-progress.sh   # Helper: per-session progress bar (shell wrapper)
+>     update-progress.py   # Helper: per-session progress bar (shell wrapper)
 > ```
 >
 > ### How to hook in
@@ -216,20 +216,27 @@ mkdir -p ~/.claude-status-line/scripts ~/.claude-status-line/progress
 
 Copy the entire `statusline` package from `${CLAUDE_SKILL_DIR}/references/statusline/` to `~/.claude-status-line/statusline/`. Read each `.py` file from the source and write it to the destination.
 
-Write a shell wrapper at `~/.claude-status-line/progress/update-progress.sh`:
+Write a Python entry point at `~/.claude-status-line/progress/update-progress.py`:
 
-```bash
-#!/bin/bash
-exec python3 -c "import sys; sys.path.insert(0, '$HOME/.claude-status-line'); from statusline.update_progress import main; main()" "$@"
+```python
+#!/usr/bin/env python3
+"""CLI entry point for update-progress."""
+import os
+import sys
+
+sys.path.insert(0, os.path.expanduser("~/.claude-status-line"))
+from statusline.update_progress import main
+
+main()
 ```
 
 Make it executable:
 
 ```bash
-chmod +x ~/.claude-status-line/progress/update-progress.sh
+chmod +x ~/.claude-status-line/progress/update-progress.py
 ```
 
-Remove any old `.sh` scripts from `~/.claude-status-line/scripts/` that match built-in names (base-info.sh, repo-cleanup.sh, progress-display.sh). Also remove `~/.claude-status-line/dispatcher.sh` if it exists.
+Remove any old `.sh` scripts from `~/.claude-status-line/scripts/` that match built-in names (base-info.sh, repo-cleanup.sh, progress-display.sh). Also remove `~/.claude-status-line/dispatcher.sh` and `~/.claude-status-line/progress/update-progress.sh` if they exist.
 
 ### Step 4: Create pipeline config
 
@@ -274,18 +281,18 @@ Print:
 >
 > **Progress display** — show a progress bar from any skill or agent:
 > ```bash
-> ~/.claude-status-line/progress/update-progress.sh "Building App" "Step" 3 5
+> ~/.claude-status-line/progress/update-progress.py "Building App" "Step" 3 5
 > ```
 > Clear when done:
 > ```bash
-> ~/.claude-status-line/progress/update-progress.sh --clear
+> ~/.claude-status-line/progress/update-progress.py --clear
 > ```
 > Each call prints output to trigger a status line refresh. Progress is scoped per session.
 >
 > **Permissions** — add to `~/.claude/settings.json` `permissions.allow`:
 > ```json
-> "Bash($HOME/.claude-status-line/progress/update-progress.sh *)",
-> "Bash(~/.claude-status-line/progress/update-progress.sh *)"
+> "Bash($HOME/.claude-status-line/progress/update-progress.py *)",
+> "Bash(~/.claude-status-line/progress/update-progress.py *)"
 > ```
 >
 > Other plugins can register additional scripts in ~/.claude-status-line/pipeline.json

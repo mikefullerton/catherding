@@ -20,7 +20,7 @@ Enhanced Claude Code status line showing project info, git branch/stats, worktre
 Show a progress bar in the status line from any skill or agent using the helper script:
 
 ```bash
-~/.claude-status-line/progress/update-progress.sh "Building App" "Step" 3 5
+~/.claude-status-line/progress/update-progress.py "Building App" "Step" 3 5
 ```
 
 This renders a boxed progress display below the status lines:
@@ -37,16 +37,16 @@ This renders a boxed progress display below the status lines:
 Update progress as work advances — each call prints output that triggers a status line refresh:
 
 ```bash
-~/.claude-status-line/progress/update-progress.sh "Building App" "Step" 1 5
-~/.claude-status-line/progress/update-progress.sh "Building App" "Step" 2 5
+~/.claude-status-line/progress/update-progress.py "Building App" "Step" 1 5
+~/.claude-status-line/progress/update-progress.py "Building App" "Step" 2 5
 # ...
-~/.claude-status-line/progress/update-progress.sh "Building App" "Step" 5 5
+~/.claude-status-line/progress/update-progress.py "Building App" "Step" 5 5
 ```
 
 Clear when done:
 
 ```bash
-~/.claude-status-line/progress/update-progress.sh --clear
+~/.claude-status-line/progress/update-progress.py --clear
 ```
 
 Progress is scoped per session — other Claude sessions won't see it. The helper discovers the session ID automatically by walking the process tree to find the Claude parent process.
@@ -64,6 +64,6 @@ The helper writes `~/.claude-status-line/progress/<session_id>.json`:
 Add to `~/.claude/settings.json` `permissions.allow` to avoid prompts:
 
 ```json
-"Bash($HOME/.claude-status-line/progress/update-progress.sh *)",
-"Bash(~/.claude-status-line/progress/update-progress.sh *)"
+"Bash($HOME/.claude-status-line/progress/update-progress.py *)",
+"Bash(~/.claude-status-line/progress/update-progress.py *)"
 ```
