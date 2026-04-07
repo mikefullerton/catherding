@@ -256,7 +256,7 @@ Batch 1: <description>
 ```
 
 Use AskUserQuestion for each batch:
-> **<description>** — <N> file(s). Commit or chat?
+> **[<repo-name>]** <description> — <N> file(s). Commit or chat?
 >
 > - **Commit** — commit with a suggested message (editable)
 > - **Chat** — tell me more about these changes so I can help
@@ -282,7 +282,7 @@ If **Chat**: show `git diff` for the batch files and discuss. After discussion, 
 The current branch is behind its remote upstream. This was skipped during the deterministic pass (likely because of uncommitted changes or a non-fast-forward situation).
 
 Use AskUserQuestion:
-> Current branch is behind remote. Pull, skip, or chat?
+> **[<repo-name>]** Current branch is behind remote. Pull, skip, or chat?
 >
 > - **Pull** — `git -C <path> pull --ff-only`
 > - **Skip** — leave it
@@ -295,7 +295,7 @@ If pull fails (not fast-forward), report the error and suggest `git pull --rebas
 The current branch has unpushed commits.
 
 Use AskUserQuestion:
-> Current branch has unpushed commits. Push, skip, or chat?
+> **[<repo-name>]** Current branch has unpushed commits. Push, skip, or chat?
 >
 > - **Push** — `git -C <path> push` (set upstream with `-u origin <branch>` if needed)
 > - **Skip** — leave it
@@ -317,7 +317,7 @@ Branch: <branch> (local)
 ```
 
 Use AskUserQuestion:
-> Branch `<branch>` — <last_commit_age>, <commits_ahead> commits not merged. "<last_commit_subject>". Delete, skip, or chat?
+> **[<repo-name>]** Branch `<branch>` — <last_commit_age>, <commits_ahead> commits not merged. "<last_commit_subject>". Delete, skip, or chat?
 >
 > - **Delete** — `git branch -d` (safe delete; will warn if not fully merged)
 > - **Skip** — leave it (e.g., WIP branch you're still using)
@@ -339,7 +339,7 @@ Branch: <branch> (remote only)
 ```
 
 Use AskUserQuestion:
-> Remote branch `<branch>` — <last_commit_age>, <commits_ahead> commits not merged. "<last_commit_subject>". Delete, skip, or chat?
+> **[<repo-name>]** Remote branch `<branch>` — <last_commit_age>, <commits_ahead> commits not merged. "<last_commit_subject>". Delete, skip, or chat?
 >
 > - **Delete** — `git push origin --delete <branch>`
 > - **Skip** — leave it
@@ -360,7 +360,7 @@ Worktree: <path>
 ```
 
 Use AskUserQuestion:
-> Worktree at `<path>` has uncommitted changes. Stash, skip, or chat?
+> **[<repo-name>]** Worktree at `<path>` has uncommitted changes. Stash, skip, or chat?
 >
 > - **Stash** — `git -C <path> stash push -m "repo-tools stash <date>"`
 > - **Skip** — leave it
