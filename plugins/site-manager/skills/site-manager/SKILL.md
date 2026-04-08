@@ -72,15 +72,20 @@ All references to "manifest" in this skill mean `.site/manifest.json`.
 
 ### Step 1: Gather project info
 
-> **CRITICAL: One question at a time.**
+> **CRITICAL: One question at a time. In order. No exceptions.**
 >
 > You MUST ask exactly ONE question per turn. After asking, STOP and WAIT
 > for the user's answer. Do NOT continue to the next step until the user
 > responds. Do NOT combine multiple questions. Do NOT present a table of
 > fields. Each sub-step that says "Ask" means: ask that single question,
 > then STOP. Violating this rule ruins the user experience.
+>
+> **The order is: 1a → 1b → 1c → 1d → 1e → 1g → 1h → 1i → 1j → 1k → confirm.**
+> Do NOT reorder steps. Do NOT ask domain before services. Do NOT ask
+> project name before services. The order above is final. Skip steps
+> whose conditions are not met, but never change the sequence.
 
-Work through sub-steps 1a through 1k in order. Skip steps whose conditions are not met. Track two internal variables:
+Work through sub-steps 1a through 1k in the exact order listed above. Skip steps whose conditions are not met. Track two internal variables:
 - `FLOW` — `"existing"` or `"new"` (set in 1a/1b)
 - `SERVICES` — set of selected services (set in 1c)
 
@@ -151,26 +156,36 @@ Deploy this existing site to Cloudflare, or scaffold a brand new project?
 
 #### Step 1c — What do you want?
 
-Run `gum choose` to present interactive checkboxes the user can navigate with arrow keys and select with spacebar:
+Use AskUserQuestion to present interactive checkboxes. Group into up to 4 questions with `multiSelect: true`, max 4 options each:
 
-```bash
-gum choose --no-limit \
-  "Main site — your website deployed on Cloudflare Workers" \
-  "Admin site — administration panel at admin.<domain> on Cloudflare Workers" \
-  "Dashboard site — user dashboard at dashboard.<domain> on Cloudflare Workers" \
-  "Backend API — server-side API using Hono with PostgreSQL on Railway" \
-  "Auth service — shared JWT authentication service on Railway" \
-  "Staging environment — separate staging backend on Railway for pre-production testing" \
-  "Hello world starter — basic index page with styles to get you started" \
-  "GitHub repository — create a new private GitHub repository for this project" \
-  "SQL database — a database for structured data like users, posts, and settings" \
-  "Key-value storage — fast storage for simple data like config, cache, and session state" \
-  "File storage — storage for uploading and serving files and images"
-```
+**Question 1** — "Which sites do you want to deploy?"
+| Label | Description |
+|-------|-------------|
+| Main site | Your website deployed on Cloudflare Workers |
+| Admin site | Administration panel at admin.\<domain\> on Cloudflare Workers |
+| Dashboard site | User dashboard at dashboard.\<domain\> on Cloudflare Workers |
 
-The user navigates with arrow keys, toggles with spacebar, and presses Enter when done. Parse the selected lines to determine which services were chosen.
+**Question 2** — "Which backend services do you need?"
+| Label | Description |
+|-------|-------------|
+| Backend API | Server-side API using Hono with PostgreSQL on Railway |
+| Auth service | Shared JWT authentication service on Railway |
+| Staging environment | Separate staging backend on Railway for pre-production testing |
 
-If `gum` is not installed, fall back to asking: "What would you like to set up? Pick by number (e.g. 1,2,4)" with a numbered list.
+**Question 3** — "What extras do you want?"
+| Label | Description |
+|-------|-------------|
+| Hello world starter | Basic index page with styles to get you started |
+| GitHub repository | Create a new private GitHub repository for this project |
+
+**Question 4** — "Do you need storage?"
+| Label | Description |
+|-------|-------------|
+| SQL database | A database for structured data like users, posts, and settings |
+| Key-value storage | Fast storage for simple data like config, cache, and session state |
+| File storage | Storage for uploading and serving files and images |
+
+Present all 4 questions in a single AskUserQuestion call. The user clicks checkboxes to select.
 
 **STOP. Wait for the user's selections.**
 
@@ -232,21 +247,20 @@ Record rendering mode (`"static"` or `"ssr"`).
 
 **Skip if:** backend was not selected in step 1c.
 
-Ask ONE question:
+Use AskUserQuestion with `multiSelect: false` to ask about auth, and optionally a second question for OAuth providers:
 
-```
-How should authentication work?
-
-  1. Shared auth service — validate JWTs from an existing auth service
-  2. Built-in auth — email/password + OAuth providers in this backend
-  3. No auth — public API, no authentication
-```
+**Question 1** — "How should authentication work?"
+| Label | Description |
+|-------|-------------|
+| Shared auth service | Validate JWTs from an existing auth service you already run |
+| Built-in auth | Email/password and OAuth providers built into this backend |
+| No auth | Public API, no authentication required |
 
 **STOP. Wait for the user's answer.**
 
 - If **shared**: ask for the auth service URL (one more question, then STOP again).
-- If **built-in**: ask which OAuth providers (GitHub, Google, etc.) (one more question, then STOP again).
-- If **none**: proceed.
+- If **built-in**: use AskUserQuestion with `multiSelect: true` — "Which OAuth providers?" with options: GitHub, Google, Apple, Email/password only. Then STOP again.
+- If **no auth**: proceed.
 
 #### Step 1f — *(removed — storage is now covered in step 1c)*
 
