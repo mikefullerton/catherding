@@ -156,16 +156,16 @@ Ask ONE question — checkboxes, pick any combination. Every item is its own lin
 ```
 What would you like to set up?
 
-  [ ] Main site              — your website on Cloudflare Workers
-  [ ] Admin site             — admin.<domain> on Cloudflare Workers
-  [ ] Dashboard site         — dashboard.<domain> on Cloudflare Workers
-  [ ] Backend API            — Hono + PostgreSQL on Railway
-  [ ] Auth service           — shared JWT authentication on Railway
-  [ ] Hello world starter    — basic index page + styles to get started
-  [ ] GitHub repository      — create a new private repo
-  [ ] D1 database            — SQLite on Cloudflare (structured data)
-  [ ] KV storage             — key-value on Cloudflare (config, cache)
-  [ ] R2 storage             — object storage on Cloudflare (files, images)
+  [ ] Main site              — your website deployed on Cloudflare Workers
+  [ ] Admin site             — administration panel at admin.<domain> on Cloudflare Workers
+  [ ] Dashboard site         — user dashboard at dashboard.<domain> on Cloudflare Workers
+  [ ] Backend API            — server-side API using Hono with PostgreSQL on Railway
+  [ ] Auth service           — shared JWT authentication service on Railway
+  [ ] Hello world starter    — basic index page with styles to get you started
+  [ ] GitHub repository      — create a new private GitHub repository for this project
+  [ ] D1 database            — Cloudflare D1 SQLite database for structured data
+  [ ] KV storage             — Cloudflare Workers KV for key-value data like config and cache
+  [ ] R2 storage             — Cloudflare R2 object storage for files and images
 ```
 
 **STOP. Wait for the user's answer.**
