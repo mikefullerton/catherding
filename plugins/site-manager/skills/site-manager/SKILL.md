@@ -164,9 +164,9 @@ What would you like to set up?
   [ ] Staging environment    — separate staging backend on Railway for pre-production testing
   [ ] Hello world starter    — basic index page with styles to get you started
   [ ] GitHub repository      — create a new private GitHub repository for this project
-  [ ] D1 database            — Cloudflare D1 SQLite database for structured data
-  [ ] KV storage             — Cloudflare Workers KV for key-value data like config and cache
-  [ ] R2 storage             — Cloudflare R2 object storage for files and images
+  [ ] SQL database            — a database for structured data like users, posts, and settings
+  [ ] Key-value storage      — fast storage for simple data like config, cache, and session state
+  [ ] File storage           — storage for uploading and serving files and images
 ```
 
 **STOP. Wait for the user's answer.**
@@ -177,7 +177,7 @@ Store selections in `SERVICES`. Auto-include dependencies:
 - **Staging environment** requires **Backend API** — auto-include if not selected, tell user
 - **Hello world starter** only applies if FLOW=new (skip silently for existing sites)
 - **GitHub repository** only applies if no git remote was detected in step 1a (skip silently if already in a repo)
-- **D1/KV/R2** are recorded as storage selections (replaces step 1f)
+- **SQL database / Key-value / File storage** are recorded as storage selections — implemented as Cloudflare D1, KV, and R2 respectively (replaces step 1f)
 
 Derive the internal project type silently (never show to user):
 - Main only → `existing` (if FLOW=existing) or `worker` (if FLOW=new)
