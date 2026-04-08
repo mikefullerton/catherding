@@ -149,25 +149,33 @@ Deploy this existing site to Cloudflare, or scaffold a brand new project?
 - If **1**: set `FLOW=existing`
 - If **2**: set `FLOW=new`
 
-#### Step 1c — What services?
+#### Step 1c — What do you want?
 
-Ask ONE question — checkboxes, any combination:
+Ask ONE question — checkboxes, pick any combination. Every item is its own line:
 
 ```
-Which services do you want?
+What would you like to set up?
 
-  [ ] Main site          — Cloudflare Worker (serves your website)
-  [ ] Backend API        — Hono + PostgreSQL on Railway
-  [ ] Admin dashboard    — admin.<domain>, React on Cloudflare
-  [ ] Dashboard          — dashboard.<domain>, React + D1 on Cloudflare
-  [ ] Auth service       — shared JWT auth on Railway
+  [ ] Main site              — your website on Cloudflare Workers
+  [ ] Admin site             — admin.<domain> on Cloudflare Workers
+  [ ] Dashboard site         — dashboard.<domain> on Cloudflare Workers
+  [ ] Backend API            — Hono + PostgreSQL on Railway
+  [ ] Auth service           — shared JWT authentication on Railway
+  [ ] Hello world starter    — basic index page + styles to get started
+  [ ] GitHub repository      — create a new private repo
+  [ ] D1 database            — SQLite on Cloudflare (structured data)
+  [ ] KV storage             — key-value on Cloudflare (config, cache)
+  [ ] R2 storage             — object storage on Cloudflare (files, images)
 ```
 
 **STOP. Wait for the user's answer.**
 
-Store the selected services in `SERVICES`. Auto-include dependencies:
-- **Admin** requires **Backend** — auto-include if not selected, tell user
-- **Dashboard** requires **Backend** — auto-include if not selected, tell user
+Store selections in `SERVICES`. Auto-include dependencies:
+- **Admin site** requires **Backend API** — auto-include if not selected, tell user
+- **Dashboard site** requires **Backend API** — auto-include if not selected, tell user
+- **Hello world starter** only applies if FLOW=new (skip silently for existing sites)
+- **GitHub repository** only applies if no git remote was detected in step 1a (skip silently if already in a repo)
+- **D1/KV/R2** are recorded as storage selections (replaces step 1f)
 
 Derive the internal project type silently (never show to user):
 - Main only → `existing` (if FLOW=existing) or `worker` (if FLOW=new)
@@ -235,22 +243,7 @@ How should authentication work?
 - If **built-in**: ask which OAuth providers (GitHub, Google, etc.) (one more question, then STOP again).
 - If **none**: proceed.
 
-#### Step 1f — Storage *(only if main site selected WITHOUT backend)*
-
-**Skip if:** backend is in SERVICES, or main site is not in SERVICES.
-
-Ask ONE question:
-
-```
-Do you need persistent storage for the Worker?
-
-  [ ] D1 SQLite  — structured data (lists, records, settings)
-  [ ] KV         — key-value (config, cache, simple state)
-  [ ] R2         — files and blobs (images, uploads, exports)
-  [ ] None       — static site or external APIs only
-```
-
-**STOP. Wait for the user's answer.**
+#### Step 1f — *(removed — storage is now covered in step 1c)*
 
 #### Step 1g — Project name
 
@@ -280,18 +273,17 @@ Type a different name, or press Enter to confirm.
 
 **STOP. Wait for the user's answer.**
 
-#### Step 1i — GitHub repo *(only if no git remote detected)*
+#### Step 1i — GitHub org *(only if GitHub repository selected in step 1c)*
 
-**Skip if:** `git remote -v` found an existing remote in step 1a.
+**Skip if:** GitHub repository was not selected in step 1c, or git remote already exists.
 
 Ask ONE question:
 
 ```
-Create a GitHub repository?
+GitHub repository — personal account or organization?
 
-  1. Yes (personal account)
-  2. Yes (organization) — I'll ask which org next
-  3. No
+  1. Personal account
+  2. Organization — I'll ask which org next
 ```
 
 **STOP. Wait for the user's answer.**
