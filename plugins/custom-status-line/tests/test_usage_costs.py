@@ -129,7 +129,7 @@ class TestRun:
         result = run(make_claude_data(rate_7d=50.0), ["existing"])
         assert len(result) == 2
         assert "Today:" in result[1]
-        assert "active day" in result[1]
+        assert "days left" in result[1]
         assert "daily ave:" in result[1]
         assert "projected" in result[1]
 

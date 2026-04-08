@@ -133,20 +133,16 @@ def run(claude_data: dict, lines: list) -> list:
     today_cost = daily_costs.get(today_str, 0)
     today_pct = today_cost * pct_per_dollar
 
-    # Daily average based on active days (days with actual usage)
-    active_days = len([v for v in daily_costs.values() if v > 0])
-    daily_avg_pct = rate_7d / max(1, active_days)
-
-    # Projection: active-day average * 7 (assumes all 7 days are active)
-    # If fewer active days so far, scale down expectation
+    # Days elapsed in the 7-day window
     elapsed_s = (now - wed_10am).total_seconds()
-    elapsed_days = max(0.1, elapsed_s / 86400)
-    # Expected active days in full week based on ratio seen so far
-    expected_active = min(7, active_days * 7.0 / elapsed_days)
-    projected = daily_avg_pct * expected_active
+    elapsed_days = max(0.04, elapsed_s / 86400)  # floor ~1 hour
+    remaining_days = max(0, 7.0 - elapsed_days)
 
-    # Overage: if currently over 100%, compute actual overage cost from
-    # existing formula ($2 per 1% over)
+    # Daily average and projection over the full 7-day window
+    daily_avg_pct = rate_7d / elapsed_days
+    projected = daily_avg_pct * 7.0
+
+    # Overage: $2 per 1% over 100%
     overage_dollars = 0
     if rate_7d > 100.0:
         overage_dollars = (rate_7d - 100.0) * 2
@@ -156,7 +152,7 @@ def run(claude_data: dict, lines: list) -> list:
     sep = f" {ORANGE}|{RST} "
 
     c1 = f"Today: {today_pct:.1f}%"
-    c2 = f"{active_days} active day{'s' if active_days != 1 else ''}"
+    c2 = f"{remaining_days:.1f} days left"
     c3 = f"daily ave: {daily_avg_pct:.1f}%"
 
     if projected > 100.0:
