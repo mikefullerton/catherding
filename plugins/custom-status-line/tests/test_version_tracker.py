@@ -75,7 +75,7 @@ class TestRun:
         assert len(result) == 2
         assert "line1" == result[0]
         assert "2.2.0" in result[1]
-        assert "brand_new" in result[1]
+        assert "1 new field" in result[1]
 
     def test_missing_version_file(self, tmp_path, monkeypatch):
         monkeypatch.setattr(
@@ -96,4 +96,4 @@ class TestRun:
             data[f"field_{i:02d}"] = "val"
         result = run(data, [])
         assert len(result) == 1
-        assert "+4 more" in result[0] or "more" in result[0]
+        assert "new field" in result[0]

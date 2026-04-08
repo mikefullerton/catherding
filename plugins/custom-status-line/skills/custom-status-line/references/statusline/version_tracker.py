@@ -54,10 +54,7 @@ def run(claude_data: dict, lines: list) -> list:
     version_part = f"{YELLOW}claude updated to {current_version}{RST} (built against {built_against})"
     if new_fields:
         count = len(new_fields)
-        names = ", ".join(new_fields[:8])
-        if len(new_fields) > 8:
-            names += f", +{len(new_fields) - 8} more"
-        fields_part = f"{GREEN}{count} new field{'s' if count != 1 else ''}{RST}: {names}"
+        fields_part = f"{GREEN}{count} new field{'s' if count != 1 else ''}{RST}"
     else:
         fields_part = f"{DIM}no new fields{RST}"
 
