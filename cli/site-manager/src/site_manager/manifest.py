@@ -91,8 +91,18 @@ def validate_manifest(output_json: bool = False) -> None:
     if not proj.get("created"):
         errors.append("project.created: missing")
 
-    # services
-    for svc_name in ("backend", "main", "admin", "dashboard"):
+    # Determine required services based on project type
+    project_type = proj.get("type", "")
+    REQUIRED_SERVICES = {
+        "full": ("backend", "main", "admin", "dashboard"),
+        "api": ("backend", "main"),
+        "worker": ("main",),
+        "existing": ("main",),
+        "auth-service": ("backend",),
+    }
+    required = REQUIRED_SERVICES.get(project_type, ("backend", "main", "admin", "dashboard"))
+
+    for svc_name in required:
         svc = data.get("services", {}).get(svc_name, {})
         if not svc:
             errors.append(f"services.{svc_name}: missing")
@@ -102,13 +112,24 @@ def validate_manifest(output_json: bool = False) -> None:
         if not svc.get("platform"):
             errors.append(f"services.{svc_name}.platform: missing")
 
-    # features.auth
-    auth = data.get("features", {}).get("auth", {})
-    if not isinstance(auth.get("enabled"), bool):
-        errors.append("features.auth.enabled: missing or not boolean")
-    providers = auth.get("providers", [])
-    if not providers:
-        errors.append("features.auth.providers: empty or missing")
+    # Validate any extra services present beyond the required set
+    for svc_name, svc in data.get("services", {}).items():
+        if svc_name in required:
+            continue
+        if svc.get("status") and svc.get("status") not in ("scaffolded", "deployed", "error"):
+            errors.append(f"services.{svc_name}.status: invalid '{svc.get('status')}'")
+        if svc.get("status") and not svc.get("platform"):
+            errors.append(f"services.{svc_name}.platform: missing")
+
+    # Auth validation — only for types that require auth
+    AUTH_REQUIRED_TYPES = {"full", "auth-service", ""}
+    if project_type in AUTH_REQUIRED_TYPES:
+        auth = data.get("features", {}).get("auth", {})
+        if not isinstance(auth.get("enabled"), bool):
+            errors.append("features.auth.enabled: missing or not boolean")
+        providers = auth.get("providers", [])
+        if not providers:
+            errors.append("features.auth.providers: empty or missing")
 
     if output_json:
         result = {"valid": len(errors) == 0, "errors": errors}

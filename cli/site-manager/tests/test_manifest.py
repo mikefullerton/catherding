@@ -88,6 +88,145 @@ class TestValidateManifest:
         assert exc.value.code == 1
 
 
+class TestTypeAwareValidation:
+    def test_worker_only_requires_main(self, tmp_path, monkeypatch, capsys):
+        """Worker projects should validate with only a main service."""
+        data = {
+            "version": "1.0.0",
+            "project": {"name": "my-worker", "domain": "example.com", "type": "worker", "created": "2026-01-01"},
+            "services": {
+                "main": {"status": "deployed", "platform": "cloudflare"},
+            },
+            "features": {},
+        }
+        _write_manifest(tmp_path, data)
+        monkeypatch.chdir(tmp_path)
+        validate_manifest(output_json=True)
+        result = json.loads(capsys.readouterr().out)
+        assert result["valid"] is True
+        assert result["errors"] == []
+
+    def test_existing_only_requires_main(self, tmp_path, monkeypatch, capsys):
+        """Existing projects should validate with only a main service."""
+        data = {
+            "version": "1.0.0",
+            "project": {"name": "my-site", "domain": "example.com", "type": "existing", "created": "2026-01-01"},
+            "services": {
+                "main": {"status": "deployed", "platform": "cloudflare"},
+            },
+            "features": {},
+        }
+        _write_manifest(tmp_path, data)
+        monkeypatch.chdir(tmp_path)
+        validate_manifest(output_json=True)
+        result = json.loads(capsys.readouterr().out)
+        assert result["valid"] is True
+        assert result["errors"] == []
+
+    def test_api_requires_backend_and_main(self, tmp_path, monkeypatch, capsys):
+        """API projects need backend + main, not admin/dashboard."""
+        data = {
+            "version": "1.0.0",
+            "project": {"name": "my-api", "domain": "example.com", "type": "api", "created": "2026-01-01"},
+            "services": {
+                "backend": {"status": "deployed", "platform": "railway"},
+                "main": {"status": "deployed", "platform": "cloudflare"},
+            },
+            "features": {"auth": {"enabled": True, "providers": ["email"]}},
+        }
+        _write_manifest(tmp_path, data)
+        monkeypatch.chdir(tmp_path)
+        validate_manifest(output_json=True)
+        result = json.loads(capsys.readouterr().out)
+        assert result["valid"] is True
+
+    def test_api_missing_backend_fails(self, tmp_path, monkeypatch, capsys):
+        """API projects must have a backend service."""
+        data = {
+            "version": "1.0.0",
+            "project": {"name": "my-api", "domain": "example.com", "type": "api", "created": "2026-01-01"},
+            "services": {
+                "main": {"status": "deployed", "platform": "cloudflare"},
+            },
+            "features": {"auth": {"enabled": True, "providers": ["email"]}},
+        }
+        _write_manifest(tmp_path, data)
+        monkeypatch.chdir(tmp_path)
+        validate_manifest(output_json=True)
+        result = json.loads(capsys.readouterr().out)
+        assert result["valid"] is False
+        assert any("services.backend" in e for e in result["errors"])
+
+    def test_auth_service_only_requires_backend(self, tmp_path, monkeypatch, capsys):
+        """Auth-service projects only need a backend."""
+        data = {
+            "version": "1.0.0",
+            "project": {"name": "my-auth", "domain": "example.com", "type": "auth-service", "created": "2026-01-01"},
+            "services": {
+                "backend": {"status": "deployed", "platform": "railway"},
+            },
+            "features": {"auth": {"enabled": True, "providers": ["email"]}},
+        }
+        _write_manifest(tmp_path, data)
+        monkeypatch.chdir(tmp_path)
+        validate_manifest(output_json=True)
+        result = json.loads(capsys.readouterr().out)
+        assert result["valid"] is True
+
+    def test_no_type_falls_back_to_all_services(self, tmp_path, monkeypatch, capsys):
+        """Missing project type requires all 4 services for backwards compat."""
+        data = {
+            "version": "1.0.0",
+            "project": {"name": "old-project", "domain": "example.com", "created": "2026-01-01"},
+            "services": {
+                "backend": {"status": "deployed", "platform": "railway"},
+                "main": {"status": "deployed", "platform": "cloudflare"},
+            },
+            "features": {"auth": {"enabled": True, "providers": ["email"]}},
+        }
+        _write_manifest(tmp_path, data)
+        monkeypatch.chdir(tmp_path)
+        validate_manifest(output_json=True)
+        result = json.loads(capsys.readouterr().out)
+        assert result["valid"] is False
+        assert any("services.admin" in e for e in result["errors"])
+
+    def test_worker_skips_auth_validation(self, tmp_path, monkeypatch, capsys):
+        """Worker projects don't require auth providers."""
+        data = {
+            "version": "1.0.0",
+            "project": {"name": "my-worker", "domain": "example.com", "type": "worker", "created": "2026-01-01"},
+            "services": {
+                "main": {"status": "deployed", "platform": "cloudflare"},
+            },
+            "features": {},
+        }
+        _write_manifest(tmp_path, data)
+        monkeypatch.chdir(tmp_path)
+        validate_manifest(output_json=True)
+        result = json.loads(capsys.readouterr().out)
+        assert result["valid"] is True
+        assert not any("providers" in e for e in result["errors"])
+
+    def test_existing_with_optional_backend(self, tmp_path, monkeypatch, capsys):
+        """Existing projects can have additional services beyond main."""
+        data = {
+            "version": "1.0.0",
+            "project": {"name": "my-site", "domain": "example.com", "type": "existing", "created": "2026-01-01"},
+            "services": {
+                "backend": {"status": "deployed", "platform": "railway"},
+                "main": {"status": "deployed", "platform": "cloudflare"},
+                "admin": {"status": "scaffolded", "platform": "cloudflare"},
+            },
+            "features": {"auth": {"enabled": True, "providers": ["email"]}},
+        }
+        _write_manifest(tmp_path, data)
+        monkeypatch.chdir(tmp_path)
+        validate_manifest(output_json=True)
+        result = json.loads(capsys.readouterr().out)
+        assert result["valid"] is True
+
+
 class TestShowManifest:
     def test_show_json(self, tmp_path, monkeypatch, capsys):
         _write_manifest(tmp_path, VALID_MANIFEST)
