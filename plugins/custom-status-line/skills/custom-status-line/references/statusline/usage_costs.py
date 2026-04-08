@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from statusline.formatting import (
     ORANGE, RED, DIM, RST,
+    visible_len, pad_right, pad_left,
 )
 
 USAGE_DB = os.path.expanduser("~/.claude/usage.db")
@@ -174,11 +175,6 @@ def run(claude_data: dict, lines: list) -> list:
         c3 = f"daily ave: {daily_avg_pct:.1f}%"
 
         if projected > 100.0:
-            # Estimate extended use charges at end of week
-            # Cost per 1% = total_cost / rate_7d
-            # Projected overage % = projected - 100
-            # Projected overage API cost = (projected - 100) * cost_per_pct
-            # Estimated actual charge = overage_api * discount
             cost_per_pct = total_cost / rate_7d
             proj_overage_api = (projected - 100.0) * cost_per_pct
             proj_overage_actual = proj_overage_api * EXTENDED_USE_DISCOUNT
@@ -186,5 +182,35 @@ def run(claude_data: dict, lines: list) -> list:
         else:
             c4 = f"{projected:.1f}% projected"
 
+    # Match column widths from existing lines (base_info uses 4-column layout)
+    # Parse column widths by splitting an existing line on the separator
+    col_widths = _extract_col_widths(lines)
+    if col_widths and len(col_widths) >= 4:
+        c1 = pad_left(c1, col_widths[0])
+        c2 = pad_right(c2, col_widths[1])
+        c3 = pad_right(c3, col_widths[2])
+
     lines.append(f"{lbor}{c1}{sep}{c2}{sep}{c3}{sep}{c4}")
     return lines
+
+
+def _extract_col_widths(lines):
+    """Extract column visible widths from existing status lines.
+
+    Splits on the literal separator (' | ' with ANSI orange) used by
+    base_info.  The first part includes the leading '| ' border, so we
+    subtract 2 from its visible length to get the true column 1 width.
+    """
+    sep = f" {ORANGE}|{RST} "
+
+    # Prefer line index 3 (weekly usage) or 1 (model/stats) — both 4-col
+    for idx in (3, 1, 2):
+        if idx >= len(lines):
+            continue
+        parts = lines[idx].split(sep)
+        if len(parts) >= 4:
+            # Part 0 includes "| " border prefix (2 visible chars)
+            widths = [visible_len(parts[0]) - 2]
+            widths.extend(visible_len(p) for p in parts[1:])
+            return widths
+    return None
