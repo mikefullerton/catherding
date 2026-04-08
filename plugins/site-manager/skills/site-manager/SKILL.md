@@ -1,13 +1,13 @@
 ---
 name: site-manager
 description: "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform. /site-manager init, /site-manager add, /site-manager deploy, /site-manager status, /site-manager manifest, /site-manager seed-admin, /site-manager --help"
-version: "1.13.0"
+version: "1.14.0"
 argument-hint: "[init|add|deploy|update|verify|repair|status|manifest|seed-admin|--help|--version]"
 allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), AskUserQuestion
 model: sonnet
 ---
 
-# Site Manager v1.13.0
+# Site Manager v1.14.0
 
 Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
@@ -23,10 +23,10 @@ Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
 **CRITICAL**: The very first thing you output MUST be the version line:
 
-site-manager v1.13.0
+site-manager v1.14.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> site-manager v1.13.0
+> site-manager v1.14.0
 
 Then stop.
 
@@ -477,6 +477,24 @@ cd <target>
 
 If repo creation fails, print the error and fall back to creating a local directory (Step 2b).
 
+**After creating the GitHub repo, set Cloudflare secrets from the macOS keychain:**
+
+```bash
+# Read tokens from keychain
+CF_TOKEN=$(security find-generic-password -s "CLOUDFLARE_API_TOKEN" -w 2>/dev/null)
+CF_ACCOUNT=$(security find-generic-password -s "CLOUDFLARE_ACCOUNT_ID" -w 2>/dev/null)
+
+# Set as GitHub secrets if found
+if [ -n "$CF_TOKEN" ]; then
+  gh secret set CLOUDFLARE_API_TOKEN --body "$CF_TOKEN"
+  gh secret set CLOUDFLARE_ACCOUNT_ID --body "$CF_ACCOUNT"
+fi
+```
+
+If the keychain entries are not found, warn the user:
+> Cloudflare API token not found in keychain. CI deploys will fail until you set it:
+> `gh secret set CLOUDFLARE_API_TOKEN`
+
 **If no GitHub repo (Step 2b):**
 
 ```bash
@@ -925,7 +943,7 @@ After Step 3E, proceed to Step 4 (commit and push), then Step 5 (install depende
 ### Step 4: Commit and push
 
 ```bash
-git add -A && git commit -m "feat: initial scaffold from site-manager v1.13.0"
+git add -A && git commit -m "feat: initial scaffold from site-manager v1.14.0"
 ```
 
 If a GitHub repo was created in Step 2, push the initial commit:
@@ -2020,7 +2038,7 @@ If the issues file doesn't exist or has no issues, print:
 Print:
 
 ```
-Site Manager v1.13.0 — Scaffold, deploy, and manage website suites
+Site Manager v1.14.0 — Scaffold, deploy, and manage website suites
 
 Commands (Claude session):
   /site-manager init [domain]       Scaffold a new project
