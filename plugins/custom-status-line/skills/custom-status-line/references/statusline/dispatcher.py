@@ -71,31 +71,52 @@ def run_pipeline(
                 result = run_external_script(stage["script"], state)
                 if result is not None:
                     lines = result
-        except Exception:
-            pass  # skip failed stages, preserve lines
+        except Exception as e:
+            import traceback
+            log_path = os.path.expanduser("~/.claude-status-line/dispatcher.log")
+            with open(log_path, "a") as f:
+                f.write(f"[{__import__('datetime').datetime.now().isoformat()}] Stage '{stage.get('name', '?')}' failed: {e}\n")
+                f.write(f"  {traceback.format_exc()}\n")
     return lines
 
 
 def main():
     """Entry point: read stdin, run pipeline, print lines."""
-    claude_input = json.loads(sys.stdin.read())
+    log_path = os.path.expanduser("~/.claude-status-line/dispatcher.log")
 
-    config_dir = os.path.expanduser("~/.claude-status-line")
-    config_path = os.path.join(config_dir, "pipeline.json")
-    config = load_pipeline_config(config_path)
+    try:
+        raw = sys.stdin.read()
+        claude_input = json.loads(raw)
+    except Exception as e:
+        with open(log_path, "a") as f:
+            f.write(f"[{__import__('datetime').datetime.now().isoformat()}] JSON parse error: {e}\n")
+            f.write(f"  stdin length: {len(raw) if 'raw' in dir() else 'unread'}\n")
+            f.write(f"  stdin preview: {repr(raw[:200]) if 'raw' in dir() else 'N/A'}\n")
+        return
 
-    # Import built-in modules
-    from statusline import base_info, repo_cleanup, progress_display, version_tracker
-    modules = {
-        "base_info": base_info.run,
-        "repo_cleanup": repo_cleanup.run,
-        "progress_display": progress_display.run,
-        "version_tracker": version_tracker.run,
-    }
+    try:
+        config_dir = os.path.expanduser("~/.claude-status-line")
+        config_path = os.path.join(config_dir, "pipeline.json")
+        config = load_pipeline_config(config_path)
 
-    lines = run_pipeline(claude_input, config["pipeline"], modules)
-    for line in lines:
-        print(line)
+        # Import built-in modules
+        from statusline import base_info, repo_cleanup, progress_display, version_tracker
+        modules = {
+            "base_info": base_info.run,
+            "repo_cleanup": repo_cleanup.run,
+            "progress_display": progress_display.run,
+            "version_tracker": version_tracker.run,
+        }
+
+        lines = run_pipeline(claude_input, config["pipeline"], modules)
+        for line in lines:
+            print(line)
+    except Exception as e:
+        import traceback
+        with open(log_path, "a") as f:
+            f.write(f"[{__import__('datetime').datetime.now().isoformat()}] Pipeline error: {e}\n")
+            f.write(f"  traceback: {traceback.format_exc()}\n")
+            f.write(f"  input keys: {list(claude_input.keys()) if isinstance(claude_input, dict) else type(claude_input)}\n")
 
 
 if __name__ == "__main__":
