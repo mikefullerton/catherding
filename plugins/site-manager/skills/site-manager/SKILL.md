@@ -161,6 +161,7 @@ What would you like to set up?
   [ ] Dashboard site         — user dashboard at dashboard.<domain> on Cloudflare Workers
   [ ] Backend API            — server-side API using Hono with PostgreSQL on Railway
   [ ] Auth service           — shared JWT authentication service on Railway
+  [ ] Staging environment    — separate staging backend on Railway for pre-production testing
   [ ] Hello world starter    — basic index page with styles to get you started
   [ ] GitHub repository      — create a new private GitHub repository for this project
   [ ] D1 database            — Cloudflare D1 SQLite database for structured data
@@ -173,6 +174,7 @@ What would you like to set up?
 Store selections in `SERVICES`. Auto-include dependencies:
 - **Admin site** requires **Backend API** — auto-include if not selected, tell user
 - **Dashboard site** requires **Backend API** — auto-include if not selected, tell user
+- **Staging environment** requires **Backend API** — auto-include if not selected, tell user
 - **Hello world starter** only applies if FLOW=new (skip silently for existing sites)
 - **GitHub repository** only applies if no git remote was detected in step 1a (skip silently if already in a repo)
 - **D1/KV/R2** are recorded as storage selections (replaces step 1f)
