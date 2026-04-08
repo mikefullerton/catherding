@@ -143,6 +143,34 @@ Since we already detected the site, only ask what we can't auto-detect. Pre-fill
 3. **Domain** — pre-fill from `$ARGUMENTS` if provided, otherwise ask.
    Explain: "The custom domain for your site. This won't be connected yet — you'll run `/site-manager go-live` when ready."
 
+**Phase 1.5E — static or SSR:**
+
+Ask: **Is this a static site or does it need server-side rendering?**
+
+```
+How does your site render?
+
+  1. Static / SPA — pre-built HTML + JS, served as static assets (React, Vue, Svelte with client-side routing)
+  2. Server-side rendered (SSR) — pages rendered on each request (Next.js SSR, Nuxt SSR, Astro SSR, SvelteKit SSR)
+```
+
+**If you can auto-detect, pre-fill and confirm instead of asking:**
+- Next.js with no `output: 'export'` in `next.config.*` → likely SSR
+- Nuxt without `ssr: false` → likely SSR
+- Astro with `output: 'server'` or `output: 'hybrid'` → SSR
+- SvelteKit with `adapter-cloudflare` → SSR
+- Plain Vite + React/Vue/Svelte with no SSR adapter → static
+- `index.html` at root with no framework → static
+
+**Static site** — the Worker serves pre-built assets from the `dist/` (or equivalent) directory. The `worker.ts` entry point uses the `ASSETS` binding to serve files and falls back to `index.html` for SPA routing.
+
+**SSR site** — the Worker runs the framework's server-side rendering on each request. The `worker.ts` entry point imports the framework's Cloudflare adapter/handler. This changes the wrangler config:
+- `main` points to the framework's worker entry (e.g., `.output/server/index.mjs` for Nuxt, or the adapter output for Next.js/Astro)
+- `assets.directory` may differ (e.g., `.output/public` for Nuxt, `public/` for Next.js)
+- The build command may need adjustment (e.g., `nuxt build`, `next build`)
+
+Record the rendering mode (`"static"` or `"ssr"`) in the manifest under `services.main.rendering`.
+
 **Phase 2E — choose what to deploy:**
 
 Ask: **Which services do you want alongside your site?**
@@ -187,6 +215,8 @@ Multiple storage options can be selected.
 
 Before proceeding, show the user exactly what will happen. Be specific — list every file that will be created or modified, and every external action.
 
+**Static site example:**
+
 ```
 === Here's what I'm going to do ===
 
@@ -194,6 +224,7 @@ Before proceeding, show the user exactly what will happen. Be specific — list 
   Display:     My Cool Site
   Domain:      mycoolsite.com
   Type:        existing (your code + Cloudflare Worker)
+  Rendering:   static (pre-built assets)
   Git repo:    mikefullerton/my-cool-site (already exists, won't create)
   Build:       npm run build -> dist/
 
@@ -214,6 +245,49 @@ Before proceeding, show the user exactly what will happen. Be specific — list 
 
   Files I will NOT touch:
     All your existing source code, HTML, CSS, components, configs
+
+  External actions:
+    npm install                  — install new dependencies
+    npm run build                — build your site
+    npx wrangler deploy          — deploy to Cloudflare Workers
+
+  After deploy, your site will be live at:
+    <project-name>-main.<account>.workers.dev
+
+Proceed?
+```
+
+**SSR site example:**
+
+```
+=== Here's what I'm going to do ===
+
+  Project:     my-next-site
+  Display:     My Next Site
+  Domain:      mynextsite.com
+  Type:        existing (your code + Cloudflare Worker)
+  Rendering:   SSR (server-side rendered via Next.js)
+  Git repo:    mikefullerton/my-next-site (already exists, won't create)
+  Build:       npm run build (next build)
+
+  Services to deploy:
+    [x] Main site (your existing code) -> Cloudflare Worker (SSR)
+    [ ] Backend API                    -> Railway + PostgreSQL
+    [ ] Admin site                     -> Cloudflare Worker
+    [ ] Dashboard                      -> Cloudflare Worker
+
+  Files I'll CREATE (new):
+    .site/manifest.json          — project config and deployment state
+    wrangler.jsonc               — Cloudflare Worker configuration (SSR mode)
+
+  Files I'll MODIFY (existing):
+    package.json                 — add wrangler, @cloudflare/workers-types, @opennextjs/cloudflare
+    .gitignore                   — add .site/ and .wrangler/
+
+  No worker.ts needed — Next.js provides its own Cloudflare entry point.
+
+  Files I will NOT touch:
+    All your existing source code, pages, components, configs
 
   External actions:
     npm install                  — install new dependencies
@@ -622,6 +696,7 @@ Record the build command and output directory for wrangler config.
       "platform": "cloudflare",
       "status": "scaffolded",
       "directory": ".",
+      "rendering": "<static or ssr>",
       "buildCommand": "<detected build command, e.g. npx vite build>"
     }
   },
@@ -647,6 +722,8 @@ If backend/admin/dashboard were selected in Phase 2E, add those service entries 
 
 Only create if `wrangler.jsonc` and `wrangler.toml` do not already exist.
 
+**Static site:**
+
 ```jsonc
 {
   "name": "<project-name>-main",
@@ -665,13 +742,47 @@ Only create if `wrangler.jsonc` and `wrangler.toml` do not already exist.
 }
 ```
 
+**SSR site:**
+
+The wrangler config depends on the framework. The key difference is `main` points to the framework's server entry point, not a custom `worker.ts`.
+
+- **Next.js** (with `@opennextjs/cloudflare`): `"main": ".open-next/worker.ts"`, assets from `.open-next/assets/`
+- **Nuxt**: `"main": ".output/server/index.mjs"`, assets from `.output/public/`
+- **Astro** (with `@astrojs/cloudflare`): `"main": "dist/_worker.js"`, assets from `dist/`
+- **SvelteKit** (with `@sveltejs/adapter-cloudflare`): `"main": ".svelte-kit/cloudflare/_worker.js"`, assets from `.svelte-kit/cloudflare/`
+
+```jsonc
+{
+  "name": "<project-name>-main",
+  "main": "<framework-specific entry, see above>",
+  "compatibility_date": "2024-12-01",
+  "assets": {
+    "directory": "<framework-specific assets dir>",
+    "binding": "ASSETS"
+  },
+  "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    {
+      "pattern": "<domain>",
+      "custom_domain": true
+    }
+  ]
+}
+```
+
+SSR sites typically need `nodejs_compat` for Node.js API access. Check the framework's Cloudflare adapter docs for exact config.
+
 If backend was selected, add `"vars": { "API_BACKEND_URL": "" }` (will be filled after Railway deploy).
 
 If D1 was selected, add `d1_databases` binding (placeholder ID — real ID after `wrangler d1 create`).
 If KV was selected, add `kv_namespaces` binding.
 If R2 was selected, add `r2_buckets` binding.
 
-**3E.4 — Create `src/worker.ts`:**
+**3E.4 — Create worker entry point (static sites only):**
+
+**Skip this step for SSR sites.** SSR frameworks provide their own Cloudflare worker entry point via their adapter — no custom `worker.ts` is needed. The `wrangler.jsonc` `main` field already points to the framework's output (see 3E.3).
+
+**For static sites only:**
 
 Only create if `src/worker.ts` does not already exist. If the user's source files are in `src/`, use a different path like `worker.ts` at the root and update `wrangler.jsonc` `main` to match.
 
@@ -740,6 +851,15 @@ Merge these dependencies into the existing `package.json` (do not overwrite othe
 ```
 
 If `package.json` doesn't have a `build` script, add one based on what was detected. If it already has one, leave it alone.
+
+**For SSR sites**, also add the framework's Cloudflare adapter if not already installed:
+
+- **Next.js**: `@opennextjs/cloudflare` in devDependencies
+- **Nuxt**: `nitro-preset-cloudflare` or check if `nitro.preset` is already set to `cloudflare` in `nuxt.config.*`
+- **Astro**: `@astrojs/cloudflare` in dependencies
+- **SvelteKit**: `@sveltejs/adapter-cloudflare` in devDependencies
+
+Check the framework's Cloudflare deployment docs for the correct adapter and any required config changes.
 
 **3E.6 — Update `.gitignore`:**
 
