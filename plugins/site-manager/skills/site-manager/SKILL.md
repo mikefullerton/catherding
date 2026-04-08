@@ -1,13 +1,13 @@
 ---
 name: site-manager
 description: "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform. /site-manager init, /site-manager add, /site-manager deploy, /site-manager status, /site-manager manifest, /site-manager seed-admin, /site-manager --help"
-version: "1.7.0"
+version: "1.8.0"
 argument-hint: "[init|add|deploy|update|verify|repair|status|manifest|seed-admin|--help|--version]"
 allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), AskUserQuestion
 model: sonnet
 ---
 
-# Site Manager v1.7.0
+# Site Manager v1.8.0
 
 Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
@@ -23,10 +23,10 @@ Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
 **CRITICAL**: The very first thing you output MUST be the version line:
 
-site-manager v1.7.0
+site-manager v1.8.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> site-manager v1.7.0
+> site-manager v1.8.0
 
 Then stop.
 
@@ -164,28 +164,32 @@ Use AskUserQuestion to present interactive checkboxes. Group into up to 4 questi
 | Main site | Your website deployed on Cloudflare Workers |
 | Admin site | Administration panel at admin.\<domain\> on Cloudflare Workers |
 | Dashboard site | User dashboard at dashboard.\<domain\> on Cloudflare Workers |
+| None | No sites, backend only |
 
 **Question 2** — "Which backend services do you need?"
 | Label | Description |
 |-------|-------------|
 | Backend API | Server-side API using Hono with PostgreSQL on Railway |
-| Auth service | Shared JWT authentication service on Railway |
+| New auth service | Scaffold a brand new shared JWT auth service on Railway (use this if you don't have one yet) |
 | Staging environment | Separate staging backend on Railway for pre-production testing |
+| None | No backend services |
 
 **Question 3** — "What extras do you want?"
 | Label | Description |
 |-------|-------------|
 | Hello world starter | Basic index page with styles to get you started |
 | GitHub repository | Create a new private GitHub repository for this project |
+| None | No extras |
 
-**Question 4** — "Do you need storage?"
+**Question 4** — "Do you need frontend storage? (for the Worker, not the backend)"
 | Label | Description |
 |-------|-------------|
 | SQL database | A database for structured data like users, posts, and settings |
 | Key-value storage | Fast storage for simple data like config, cache, and session state |
 | File storage | Storage for uploading and serving files and images |
+| None | No frontend storage |
 
-Present all 4 questions in a single AskUserQuestion call. The user clicks checkboxes to select.
+Present all 4 questions in a single AskUserQuestion call. The user clicks checkboxes to select. Every question must have a "None" option so the user can explicitly answer it — this prevents "unanswered question" warnings.
 
 **STOP. Wait for the user's selections.**
 
@@ -202,7 +206,7 @@ Derive the internal project type silently (never show to user):
 - Main + backend → `existing` or `api`
 - Main + backend + admin + dashboard → `existing` or `full`
 - Backend only → `api`
-- Auth service only → `auth-service`
+- New auth service only → `auth-service`
 
 #### Step 1d — Rendering mode *(only if main site in SERVICES)*
 
@@ -909,7 +913,7 @@ After Step 3E, proceed to Step 4 (commit and push), then Step 5 (install depende
 ### Step 4: Commit and push
 
 ```bash
-git add -A && git commit -m "feat: initial scaffold from site-manager v1.7.0"
+git add -A && git commit -m "feat: initial scaffold from site-manager v1.8.0"
 ```
 
 If a GitHub repo was created in Step 2, push the initial commit:
@@ -2004,7 +2008,7 @@ If the issues file doesn't exist or has no issues, print:
 Print:
 
 ```
-Site Manager v1.7.0 — Scaffold, deploy, and manage website suites
+Site Manager v1.8.0 — Scaffold, deploy, and manage website suites
 
 Commands (Claude session):
   /site-manager init [domain]       Scaffold a new project
