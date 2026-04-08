@@ -1,13 +1,13 @@
 ---
 name: site-manager
 description: "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform. /site-manager init, /site-manager add, /site-manager deploy, /site-manager status, /site-manager manifest, /site-manager seed-admin, /site-manager --help"
-version: "1.12.0"
+version: "1.13.0"
 argument-hint: "[init|add|deploy|update|verify|repair|status|manifest|seed-admin|--help|--version]"
 allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), AskUserQuestion
 model: sonnet
 ---
 
-# Site Manager v1.12.0
+# Site Manager v1.13.0
 
 Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
@@ -23,10 +23,10 @@ Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
 **CRITICAL**: The very first thing you output MUST be the version line:
 
-site-manager v1.12.0
+site-manager v1.13.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> site-manager v1.12.0
+> site-manager v1.13.0
 
 Then stop.
 
@@ -925,7 +925,7 @@ After Step 3E, proceed to Step 4 (commit and push), then Step 5 (install depende
 ### Step 4: Commit and push
 
 ```bash
-git add -A && git commit -m "feat: initial scaffold from site-manager v1.12.0"
+git add -A && git commit -m "feat: initial scaffold from site-manager v1.13.0"
 ```
 
 If a GitHub repo was created in Step 2, push the initial commit:
@@ -1060,7 +1060,7 @@ railway link --project <project-id> --service Postgres --environment production
 
 Extract `DATABASE_PUBLIC_URL` from `railway variables list --json`.
 
-Ask the user for their admin email and password (min 12 chars).
+Ask the user for their admin email and password (min 8 chars).
 
 ```bash
 cd backend && DATABASE_URL="<public-db-url>" ADMIN_EMAIL="<email>" ADMIN_PASSWORD="<password>" npx tsx src/db/seed.ts
@@ -1646,7 +1646,7 @@ Ask the user:
 | Field | Validation |
 |-------|-----------|
 | Admin email | valid email address |
-| Admin password | minimum 12 characters |
+| Admin password | minimum 8 characters |
 
 ### Step 3: Run seed
 
@@ -2020,7 +2020,7 @@ If the issues file doesn't exist or has no issues, print:
 Print:
 
 ```
-Site Manager v1.12.0 — Scaffold, deploy, and manage website suites
+Site Manager v1.13.0 — Scaffold, deploy, and manage website suites
 
 Commands (Claude session):
   /site-manager init [domain]       Scaffold a new project
