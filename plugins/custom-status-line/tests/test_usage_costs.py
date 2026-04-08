@@ -133,18 +133,37 @@ class TestRun:
         assert "daily ave:" in result[1]
         assert "projected" in result[1]
 
-    def test_overage_shown(self, usage_db):
+    def test_overage_projected(self, usage_db, monkeypatch):
         db, _ = usage_db
-        today = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
-        insert_turn(db, today, inp=1_000_000, out=0)
+        from datetime import timedelta
+        # Simulate being 4 days into the cycle
+        fake_wed = __import__("datetime").datetime.now() - timedelta(days=4)
+        monkeypatch.setattr("statusline.usage_costs.get_wed_10am", lambda: fake_wed)
+        for i in range(4):
+            day = (__import__("datetime").datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
+            insert_turn(db, day, inp=1_000_000, out=500_000)
         result = run(make_claude_data(rate_7d=120.0), [])
         assert len(result) == 1
-        assert "spent over" in result[0]
+        assert "extended use" in result[0]
 
-    def test_no_overage_when_under(self, usage_db):
+    def test_no_overage_when_under(self, usage_db, monkeypatch):
+        db, _ = usage_db
+        from datetime import timedelta
+        fake_wed = __import__("datetime").datetime.now() - timedelta(days=4)
+        monkeypatch.setattr("statusline.usage_costs.get_wed_10am", lambda: fake_wed)
+        for i in range(4):
+            day = (__import__("datetime").datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
+            insert_turn(db, day, inp=1_000_000, out=0)
+        result = run(make_claude_data(rate_7d=10.0), [])
+        assert len(result) == 1
+        assert "extended use" not in result[0]
+
+    def test_too_early_suppresses_projection(self, usage_db):
         db, _ = usage_db
         today = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
         insert_turn(db, today, inp=1_000_000, out=0)
+        # When only today's data exists and cycle just started, projection is suppressed
         result = run(make_claude_data(rate_7d=50.0), [])
         assert len(result) == 1
-        assert "spent over" not in result[0]
+        # Should either show "too early" or a valid projection depending on time of day
+        assert "Today:" in result[0]

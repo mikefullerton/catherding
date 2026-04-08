@@ -244,14 +244,20 @@ def run(claude_data: dict, lines: list) -> list:
     elapsed_hours, wed_10am = get_wed_10am_elapsed_hours()
     proj = compute_projection(rate_7d, elapsed_hours)
 
-    if proj["projected"] > 100.0:
+    too_early = elapsed_hours < 6
+
+    if too_early:
+        l3c4 = f"{DIM}projected: too early{RST}"
+        l3c3 = f"{DIM}daily ave: --{RST}"
+    elif proj["projected"] > 100.0:
         l3c4 = f"{RED}{proj['projected']}%{RST} projected (~${proj['overage_dollars']} overage)"
+        l3c3 = f"daily ave: {proj['daily_avg']:.1f}%"
     else:
         l3c4 = f"{proj['projected']}% projected"
+        l3c3 = f"daily ave: {proj['daily_avg']:.1f}%"
 
     l3c1 = f"Weekly usage {rate_7d:.1f}%"
     l3c2 = f"day: {proj['elapsed_day']:.2f}"
-    l3c3 = f"daily ave: {proj['daily_avg']:.1f}%"
 
     l2c4 = context_col
 

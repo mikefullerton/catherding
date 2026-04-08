@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pipeline module: transcript-calibrated weekly usage with per-day accuracy."""
+"""Pipeline module: transcript-calibrated weekly usage with extended use tracking."""
 import os
 import sqlite3
 import time
@@ -8,13 +8,16 @@ from datetime import datetime, timedelta
 
 from statusline.formatting import (
     ORANGE, RED, DIM, RST,
-    visible_len, pad_right, pad_left,
 )
 
 USAGE_DB = os.path.expanduser("~/.claude/usage.db")
 SCANNER_DIR = os.path.expanduser("~/projects/external/claude-usage")
 THROTTLE_FILE = os.path.expanduser("~/.claude-status-line/scanner-last-run")
 SCAN_INTERVAL = 300  # 5 minutes
+
+# Estimated ratio: actual extended use charges / API-equivalent cost
+# Derived from: ~$200 actual charges / ~$1,300 API-equivalent post-limit usage
+EXTENDED_USE_DISCOUNT = 0.15
 
 # Per-MTok pricing (input, output) — matches claude-usage/cli.py
 PRICING = {
@@ -87,8 +90,19 @@ def query_daily_costs(db: sqlite3.Connection, since_str: str) -> dict:
     return dict(daily)
 
 
+def query_cost_since(db: sqlite3.Connection, since_str: str) -> float:
+    """Total API-equivalent cost since a timestamp."""
+    rows = db.execute("""
+        SELECT model, sum(input_tokens), sum(output_tokens),
+               sum(cache_read_tokens), sum(cache_creation_tokens)
+        FROM turns WHERE timestamp >= ?
+        GROUP BY model
+    """, (since_str,)).fetchall()
+    return sum(calc_cost(m, i or 0, o or 0, cr or 0, cc or 0) for m, i, o, cr, cc in rows)
+
+
 def run(claude_data: dict, lines: list) -> list:
-    """Append a transcript-calibrated usage line."""
+    """Append a transcript-calibrated usage line with extended use tracking."""
     maybe_run_scanner()
 
     rate_7d = float(
@@ -113,7 +127,10 @@ def run(claude_data: dict, lines: list) -> list:
 
         wed_10am = get_wed_10am()
         wed_str = wed_10am.strftime("%Y-%m-%dT%H:%M:%S")
+
         daily_costs = query_daily_costs(db, wed_str)
+        total_cost = sum(daily_costs.values())
+
         db.close()
     except Exception:
         try:
@@ -122,7 +139,6 @@ def run(claude_data: dict, lines: list) -> list:
             pass
         return lines
 
-    total_cost = sum(daily_costs.values())
     if total_cost <= 0:
         return lines
 
@@ -135,34 +151,40 @@ def run(claude_data: dict, lines: list) -> list:
 
     # Days elapsed in the 7-day window
     elapsed_s = (now - wed_10am).total_seconds()
-    elapsed_days = max(0.04, elapsed_s / 86400)  # floor ~1 hour
+    elapsed_hours = max(1, elapsed_s / 3600)
+    elapsed_days = elapsed_s / 86400
     remaining_days = max(0, 7.0 - elapsed_days)
 
-    # Daily average and projection over the full 7-day window
-    daily_avg_pct = rate_7d / elapsed_days
-    projected = daily_avg_pct * 7.0
+    # Too early to project reliably
+    too_early = elapsed_hours < 6
 
-    # Overage: $2 per 1% over 100%
-    overage_dollars = 0
-    if rate_7d > 100.0:
-        overage_dollars = (rate_7d - 100.0) * 2
-
-    # Format — mirror existing line 3 structure
     lbor = f"{ORANGE}|{RST} "
     sep = f" {ORANGE}|{RST} "
 
     c1 = f"Today: {today_pct:.1f}%"
     c2 = f"{remaining_days:.1f} days left"
-    c3 = f"daily ave: {daily_avg_pct:.1f}%"
 
-    if projected > 100.0:
-        proj_overage = (projected - 100.0) * 2
-        c4 = f"{RED}{projected:.1f}%{RST} projected (~${proj_overage:.0f} overage)"
+    if too_early:
+        c3 = f"{DIM}daily ave: --{RST}"
+        c4 = f"{DIM}projected: too early{RST}"
     else:
-        c4 = f"{projected:.1f}% projected"
+        daily_avg_pct = rate_7d / elapsed_days
+        projected = daily_avg_pct * 7.0
 
-    if overage_dollars > 0:
-        c4 += f"  {RED}${overage_dollars:.2f} spent over{RST}"
+        c3 = f"daily ave: {daily_avg_pct:.1f}%"
+
+        if projected > 100.0:
+            # Estimate extended use charges at end of week
+            # Cost per 1% = total_cost / rate_7d
+            # Projected overage % = projected - 100
+            # Projected overage API cost = (projected - 100) * cost_per_pct
+            # Estimated actual charge = overage_api * discount
+            cost_per_pct = total_cost / rate_7d
+            proj_overage_api = (projected - 100.0) * cost_per_pct
+            proj_overage_actual = proj_overage_api * EXTENDED_USE_DISCOUNT
+            c4 = f"{RED}{projected:.1f}%{RST} projected (~${proj_overage_actual:.0f} extended use)"
+        else:
+            c4 = f"{projected:.1f}% projected"
 
     lines.append(f"{lbor}{c1}{sep}{c2}{sep}{c3}{sep}{c4}")
     return lines
