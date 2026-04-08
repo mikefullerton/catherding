@@ -154,19 +154,19 @@ Deploy this existing site to Cloudflare, or scaffold a brand new project?
 Ask ONE question — checkboxes, pick any combination. Every item is its own line:
 
 ```
-What would you like to set up?
+What would you like to set up? (pick numbers, e.g. 1,2,4)
 
-  [ ] Main site              — your website deployed on Cloudflare Workers
-  [ ] Admin site             — administration panel at admin.<domain> on Cloudflare Workers
-  [ ] Dashboard site         — user dashboard at dashboard.<domain> on Cloudflare Workers
-  [ ] Backend API            — server-side API using Hono with PostgreSQL on Railway
-  [ ] Auth service           — shared JWT authentication service on Railway
-  [ ] Staging environment    — separate staging backend on Railway for pre-production testing
-  [ ] Hello world starter    — basic index page with styles to get you started
-  [ ] GitHub repository      — create a new private GitHub repository for this project
-  [ ] SQL database            — a database for structured data like users, posts, and settings
-  [ ] Key-value storage      — fast storage for simple data like config, cache, and session state
-  [ ] File storage           — storage for uploading and serving files and images
+   1. Main site              — your website deployed on Cloudflare Workers
+   2. Admin site             — administration panel at admin.<domain> on Cloudflare Workers
+   3. Dashboard site         — user dashboard at dashboard.<domain> on Cloudflare Workers
+   4. Backend API            — server-side API using Hono with PostgreSQL on Railway
+   5. Auth service           — shared JWT authentication service on Railway
+   6. Staging environment    — separate staging backend on Railway for pre-production testing
+   7. Hello world starter    — basic index page with styles to get you started
+   8. GitHub repository      — create a new private GitHub repository for this project
+   9. SQL database           — a database for structured data like users, posts, and settings
+  10. Key-value storage      — fast storage for simple data like config, cache, and session state
+  11. File storage           — storage for uploading and serving files and images
 ```
 
 **STOP. Wait for the user's answer.**
