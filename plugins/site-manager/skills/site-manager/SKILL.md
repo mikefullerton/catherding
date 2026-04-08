@@ -74,6 +74,102 @@ All references to "manifest" in this skill mean `.site/manifest.json`.
 
 Ask the user for project info, then determine the site architecture based on their answers. If `$ARGUMENTS` contains a domain (e.g., `init foo.com`), use it and skip the domain question.
 
+**Phase 0 — detect existing website:**
+
+Before asking any questions, check if the current working directory already contains a website. Look for these signals:
+
+| Signal | Weight | What it means |
+|--------|--------|--------------|
+| `index.html` exists | strong | Static site or SPA entry point |
+| `package.json` with web deps (`react`, `vue`, `svelte`, `next`, `nuxt`, `astro`, `vite`, `webpack`) | strong | JavaScript web project |
+| `vite.config.*` or `next.config.*` or `webpack.config.*` or `astro.config.*` | strong | Build tool configured |
+| `public/` or `static/` directory | moderate | Static assets present |
+| `src/` with `.tsx`, `.jsx`, `.vue`, `.svelte` files | moderate | Component-based web app |
+| `tsconfig.json` | weak | TypeScript project (could be backend) |
+| `.site/manifest.json` exists | **abort** | Already a site-manager project — print "This is already a site-manager project. Use `/site-manager update` instead." and stop |
+
+If **2+ strong signals** or **1 strong + 2 moderate signals** are detected, report the findings and enter the existing-site flow:
+
+```
+=== Existing website detected ===
+
+  Framework:  React + Vite (from package.json + vite.config.ts)
+  Entry:      index.html
+  Source:     src/ (14 .tsx files)
+  Build:      npm run build -> dist/
+  Git:        mikefullerton/my-site (main)
+
+I'll configure this for Cloudflare Workers without modifying your existing code.
+```
+
+Then skip to **Phase 1E** below. If no existing website is detected, continue to Phase 1 as before.
+
+**Phase 1E — existing site basics:**
+
+| Field | Validation | Default |
+|-------|-----------|---------|
+| Project name | lowercase, `[a-z0-9-]+` | from `package.json` name, or directory name |
+| Display name | free text | from `package.json` description, or title-cased project name |
+| Domain | valid domain name | from `$ARGUMENTS` if provided |
+| GitHub repo | detected from `git remote -v` | auto-detected |
+
+Do not ask about target directory — we're already in it.
+
+**Phase 2E — services:**
+
+Ask: **What would you like to deploy?**
+
+| Choice | Description |
+|--------|------------|
+| **Just this site** | Deploy to Cloudflare Workers (no backend) |
+| **This site + backend API** | Add a Railway backend alongside the site |
+| **Full suite** | Add backend + admin site + dashboard alongside the site |
+
+Based on the choice:
+
+- **Just this site** — project type `existing`, only `main` service
+- **This site + backend API** — project type `existing`, `main` + `backend` services. Ask about auth service (same as current API type questions).
+- **Full suite** — project type `existing`, all services. Ask about auth service (same as current full type questions).
+
+**Phase 2E storage (just this site only):**
+
+If "just this site" was chosen, ask about persistent storage (same as current worker type):
+
+| Storage | Use case |
+|---------|----------|
+| D1 SQLite | Structured data (lists, records, settings) |
+| KV | Key-value (config, cache, simple state) |
+| R2 | Files and blobs (images, uploads, exports) |
+| None | Static site or external APIs only |
+
+Multiple storage options can be selected.
+
+**Phase 3E — confirm:**
+
+Display a summary appropriate to the selection:
+
+```
+Project:   my-site
+Name:      My Cool Site
+Domain:    mysite.com
+Type:      existing (your code + Cloudflare Worker)
+Services:  main only (or: main + backend, or: full suite)
+Storage:   none (or: D1, KV, R2)
+GitHub:    mikefullerton/my-site (detected)
+Build:     npm run build -> dist/
+
+No files will be added or modified except:
+  + .site/manifest.json
+  + wrangler.jsonc
+  + src/worker.ts (Cloudflare entry point)
+  ~ package.json (add wrangler dependency)
+  + .site/ added to .gitignore (if not present)
+```
+
+Wait for the user to confirm before proceeding. If confirmed, go to **Step 3E**.
+
+Record the project type as `"existing"` in `.site/manifest.json`.
+
 **Phase 1 — basics (always ask):**
 
 | Field | Validation | Default |
@@ -426,6 +522,187 @@ Add a divider between the OAuth buttons and the email/password form:
 - `root/env.example.tmpl` → write as `.env.example` AND copy to `.env` (so dev works immediately)
 - `root/site-manifest.json.tmpl` → write as `.site/manifest.json` (create `.site/` dir first)
 
+### Step 3E: Configure existing site for Cloudflare (existing type only)
+
+**This step replaces Step 2 and Step 3 for existing projects. Do NOT create directories, copy templates, or scaffold content files.**
+
+**3E.1 — Detect build configuration:**
+
+Read `package.json` to determine:
+- **Build command**: Look for `scripts.build`. Common patterns:
+  - `vite build` → output: `dist/`
+  - `next build` → output: `.next/` (needs `next export` for static, or use `out/`)
+  - `npm run build` → check what it runs
+  - No build script → treat as static site, assets in current directory or `public/`
+
+- **Output directory**: Look for build tool config:
+  - `vite.config.*` → `build.outDir` (default: `dist`)
+  - `next.config.*` → check for `output: 'export'` (uses `out/`)
+  - If unclear, default to `dist/`
+
+Record the build command and output directory for wrangler config.
+
+**3E.2 — Create `.site/manifest.json`:**
+
+```json
+{
+  "version": "1.0.0",
+  "_site_manager_version": "<current version>",
+  "project": {
+    "name": "<project-name>",
+    "displayName": "<display-name>",
+    "domain": "<domain>",
+    "type": "existing",
+    "created": "<ISO 8601 timestamp>"
+  },
+  "services": {
+    "main": {
+      "platform": "cloudflare",
+      "status": "scaffolded",
+      "directory": ".",
+      "buildCommand": "<detected build command, e.g. npx vite build>"
+    }
+  },
+  "features": {},
+  "dns": {
+    "provider": "cloudflare",
+    "zoneId": null,
+    "nameservers": [],
+    "status": "pending",
+    "records": []
+  },
+  "storage": {
+    "d1": false,
+    "kv": false,
+    "r2": false
+  }
+}
+```
+
+If backend/admin/dashboard were selected in Phase 2E, add those service entries too (with `"status": "scaffolded"` and appropriate platform).
+
+**3E.3 — Create `wrangler.jsonc`:**
+
+Only create if `wrangler.jsonc` and `wrangler.toml` do not already exist.
+
+```jsonc
+{
+  "name": "<project-name>-main",
+  "main": "src/worker.ts",
+  "compatibility_date": "2024-12-01",
+  "assets": {
+    "directory": "<detected output dir, e.g. dist>",
+    "binding": "ASSETS"
+  },
+  "routes": [
+    {
+      "pattern": "<domain>",
+      "custom_domain": true
+    }
+  ]
+}
+```
+
+If backend was selected, add `"vars": { "API_BACKEND_URL": "" }` (will be filled after Railway deploy).
+
+If D1 was selected, add `d1_databases` binding (placeholder ID — real ID after `wrangler d1 create`).
+If KV was selected, add `kv_namespaces` binding.
+If R2 was selected, add `r2_buckets` binding.
+
+**3E.4 — Create `src/worker.ts`:**
+
+Only create if `src/worker.ts` does not already exist. If the user's source files are in `src/`, use a different path like `worker.ts` at the root and update `wrangler.jsonc` `main` to match.
+
+**Without backend:**
+
+```typescript
+interface Env {
+  ASSETS: Fetcher;
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const response = await env.ASSETS.fetch(request);
+    if (response.status === 404) {
+      return env.ASSETS.fetch(new URL("/index.html", request.url));
+    }
+    return response;
+  },
+};
+```
+
+**With backend:**
+
+```typescript
+interface Env {
+  API_BACKEND_URL: string;
+  ASSETS: Fetcher;
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+
+    if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/auth/")) {
+      const backendUrl = new URL(url.pathname + url.search, env.API_BACKEND_URL);
+      const headers = new Headers(request.headers);
+      headers.set("X-Forwarded-For", request.headers.get("cf-connecting-ip") ?? "");
+      headers.set("X-Forwarded-Proto", "https");
+      return fetch(backendUrl.toString(), {
+        method: request.method,
+        headers,
+        body: request.body,
+      });
+    }
+
+    const response = await env.ASSETS.fetch(request);
+    if (response.status === 404) {
+      return env.ASSETS.fetch(new URL("/index.html", request.url));
+    }
+    return response;
+  },
+};
+```
+
+**3E.5 — Update `package.json`:**
+
+Merge these dependencies into the existing `package.json` (do not overwrite other fields):
+
+```json
+{
+  "devDependencies": {
+    "wrangler": "^4.0.0",
+    "@cloudflare/workers-types": "^4.0.0"
+  }
+}
+```
+
+If `package.json` doesn't have a `build` script, add one based on what was detected. If it already has one, leave it alone.
+
+**3E.6 — Update `.gitignore`:**
+
+Append these lines if not already present:
+
+```
+.site/
+.wrangler/
+```
+
+**3E.7 — Scaffold backend/admin/dashboard (if selected):**
+
+If the user selected additional services in Phase 2E:
+
+- **Backend**: Create `backend/` directory and copy templates from `${CLAUDE_SKILL_DIR}/references/templates/backend/` (same as Init Step 3 for full/api types). Also copy `root/Dockerfile.tmpl`, `root/railway.toml.tmpl`, and `root/docker-compose.yml.tmpl` to the project root. Copy `shared/` templates to `shared/`. Add `"workspaces"` to root package.json if not present.
+- **Admin**: Create `sites/admin/` and copy templates from `${CLAUDE_SKILL_DIR}/references/templates/sites/admin/`.
+- **Dashboard**: Create `sites/dashboard/` and copy templates from `${CLAUDE_SKILL_DIR}/references/templates/sites/dashboard/`.
+
+Do NOT create `sites/main/` — the main site stays at the project root.
+
+After Step 3E, proceed to Step 4 (commit and push), then Step 5 (install dependencies), then:
+- If backend was selected: follow Steps 6-8 (database migration, Railway deploy, seed admin)
+- Then go to **Step 9E** for Cloudflare deployment.
+- If no backend: skip Steps 6-8, go directly to **Step 9E**.
+
 ### Step 4: Commit and push
 
 ```bash
@@ -639,6 +916,43 @@ npx vite build && npx wrangler deploy
 
 Capture all deployed URLs from the wrangler output.
 
+### Step 9E: Deploy existing site to Cloudflare (existing type only)
+
+**This step replaces Steps 7-9 for existing projects without additional services.**
+
+Remove the `routes` block from `wrangler.jsonc` for the initial deploy (routes are re-added during go-live after DNS is configured).
+
+Install dependencies and build:
+
+```bash
+npm install
+```
+
+If a build command exists:
+```bash
+npm run build
+```
+
+Create Cloudflare resources if storage was selected:
+
+- D1: `npx wrangler d1 create <project-name>-db` → update wrangler.jsonc with real database ID
+- KV: `npx wrangler kv namespace create <project-name>-kv` → update wrangler.jsonc with namespace ID
+- R2: `npx wrangler r2 bucket create <project-name>-storage`
+
+Deploy:
+
+```bash
+npx wrangler deploy
+```
+
+Capture the deployed URL from wrangler output.
+
+**If backend was also selected**, follow Init Steps 7-8 for the backend (Railway setup, deploy, seed admin) before this step.
+
+**If admin/dashboard were also selected**, deploy those after the main site using Init Step 9's instructions for those sites (they live in `sites/admin/` and `sites/dashboard/` as usual).
+
+After deployment, proceed to Step 10.
+
 ### Step 10: Run smoke tests
 
 **Full and API projects only.** Skip for worker projects (no backend to test).
@@ -755,6 +1069,61 @@ Print the final summary appropriate to the project type.
   Site:          <project>.<account>.workers.dev
   Storage:       <D1, KV, R2, or none>
   GitHub:        <repo-url>
+
+  To connect your custom domain:
+    /site-manager go-live
+```
+
+**Existing project (site only):**
+```
+=== {{DISPLAY_NAME}} is deployed! ===
+
+  Type:          existing (your code on Cloudflare Workers)
+  Site:          <project>-main.<account>.workers.dev
+  Storage:       <D1, KV, R2, or none>
+  GitHub:        <repo-url>
+
+  Files added:
+    .site/manifest.json
+    wrangler.jsonc
+    src/worker.ts (or worker.ts)
+    (package.json updated)
+
+  To connect your custom domain:
+    /site-manager go-live
+```
+
+**Existing project (with backend):**
+```
+=== {{DISPLAY_NAME}} is deployed! ===
+
+  Type:          existing (your code + backend API)
+  Site:          <project>-main.<account>.workers.dev
+  Backend API:   <railway-url>
+  GitHub:        <repo-url>
+
+  Admin login:
+    Email:    <admin-email>
+    Password: <admin-password>
+
+  To connect your custom domain:
+    /site-manager go-live
+```
+
+**Existing project (full suite):**
+```
+=== {{DISPLAY_NAME}} is deployed! ===
+
+  Type:          existing (your code + full suite)
+  Main site:     <project>-main.<account>.workers.dev
+  Admin site:    <project>-admin.<account>.workers.dev
+  Dashboard:     <project>-dashboard.<account>.workers.dev
+  Backend API:   <railway-url>
+  GitHub:        <repo-url>
+
+  Admin login:
+    Email:    <admin-email>
+    Password: <admin-password>
 
   To connect your custom domain:
     /site-manager go-live
@@ -1178,6 +1547,11 @@ Add custom domain routes based on project type:
 **Worker project:**
 - `wrangler.jsonc`: `"routes": [{"pattern": "<domain>", "custom_domain": true}]`
 
+**Existing project:**
+- Main site: `wrangler.jsonc` (at project root): `"routes": [{"pattern": "<domain>", "custom_domain": true}]`
+- If has admin: `sites/admin/wrangler.jsonc`: `"routes": [{"pattern": "admin.<domain>", "custom_domain": true}]`
+- If has dashboard: `sites/dashboard/wrangler.jsonc`: `"routes": [{"pattern": "dashboard.<domain>", "custom_domain": true}]`
+
 Redeploy all affected workers.
 
 ### Step 6: Verify and update manifest
@@ -1453,6 +1827,7 @@ Project types:
   full                              Backend + main + admin + dashboard (multi-user)
   api                               Backend + main site (single-user with API)
   worker                            Single Cloudflare Worker (frontend-only)
+  existing                          Existing website configured for Cloudflare
 
 Project directory:
   .site/manifest.json               Project configuration and deployment state
