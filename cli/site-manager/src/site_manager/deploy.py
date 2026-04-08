@@ -33,6 +33,35 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# Canonical service order for deploy
+_ALL_SERVICES = ("backend", "main", "admin", "dashboard")
+
+# Types where the main site lives at project root instead of sites/main/
+_ROOT_SITE_TYPES = {"worker", "existing"}
+
+
+def _services_to_deploy(manifest: dict) -> list[str]:
+    """Return the ordered list of services to deploy based on manifest."""
+    services = manifest.get("services", {})
+    return [s for s in _ALL_SERVICES if s in services]
+
+
+def _site_directory(name: str, manifest: dict) -> str:
+    """Return the directory for a site service.
+
+    Checks for an explicit directory in the service entry first,
+    then falls back to type-based defaults.
+    """
+    svc = manifest.get("services", {}).get(name, {})
+    if svc.get("directory"):
+        return svc["directory"]
+
+    project_type = manifest.get("project", {}).get("type", "")
+    if name == "main" and project_type in _ROOT_SITE_TYPES:
+        return "."
+    return f"sites/{name}"
+
+
 def _deploy_backend(manifest: dict) -> bool:
     print("Deploying backend (Railway)...")
     out = _run(["railway", "up", "--detach"], cwd="backend")
@@ -55,21 +84,24 @@ def _deploy_backend(manifest: dict) -> bool:
 
 
 def _deploy_site(name: str, manifest: dict) -> bool:
-    site_dir = f"sites/{name}"
-    if not Path(site_dir).exists():
+    site_dir = _site_directory(name, manifest)
+    cwd = site_dir if site_dir != "." else None
+    if site_dir != "." and not Path(site_dir).exists():
         print(f"  {name}: directory not found, skipping")
         return False
 
     print(f"Deploying {name} (Wrangler)...")
 
-    # Build first
-    build = _run(["npx", "vite", "build"], cwd=site_dir)
+    # Build — use custom command if specified, otherwise default
+    svc = manifest.get("services", {}).get(name, {})
+    build_cmd = svc.get("buildCommand", "npx vite build")
+    build = _run(build_cmd.split(), cwd=cwd)
     if build.returncode != 0:
         print(f"  {name} build FAILED: {build.stderr.strip()}", file=sys.stderr)
         return False
 
     # Deploy
-    out = _run(["npx", "wrangler", "deploy"], cwd=site_dir)
+    out = _run(["npx", "wrangler", "deploy"], cwd=cwd)
     if out.returncode != 0:
         print(f"  {name} deploy FAILED: {out.stderr.strip()}", file=sys.stderr)
         return False
@@ -82,11 +114,14 @@ def _deploy_site(name: str, manifest: dict) -> bool:
 
 def deploy_all(output_json: bool = False) -> None:
     manifest = _read_manifest()
+    services = _services_to_deploy(manifest)
     results = {}
 
-    results["backend"] = _deploy_backend(manifest)
-    for name in ("main", "admin", "dashboard"):
-        results[name] = _deploy_site(name, manifest)
+    for name in services:
+        if name == "backend":
+            results[name] = _deploy_backend(manifest)
+        else:
+            results[name] = _deploy_site(name, manifest)
 
     _save_manifest(manifest)
 
