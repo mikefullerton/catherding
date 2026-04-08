@@ -151,25 +151,28 @@ Deploy this existing site to Cloudflare, or scaffold a brand new project?
 
 #### Step 1c — What do you want?
 
-Ask ONE question — checkboxes, pick any combination. Every item is its own line:
+Run `gum choose` to present interactive checkboxes the user can navigate with arrow keys and select with spacebar:
 
+```bash
+gum choose --no-limit \
+  "Main site — your website deployed on Cloudflare Workers" \
+  "Admin site — administration panel at admin.<domain> on Cloudflare Workers" \
+  "Dashboard site — user dashboard at dashboard.<domain> on Cloudflare Workers" \
+  "Backend API — server-side API using Hono with PostgreSQL on Railway" \
+  "Auth service — shared JWT authentication service on Railway" \
+  "Staging environment — separate staging backend on Railway for pre-production testing" \
+  "Hello world starter — basic index page with styles to get you started" \
+  "GitHub repository — create a new private GitHub repository for this project" \
+  "SQL database — a database for structured data like users, posts, and settings" \
+  "Key-value storage — fast storage for simple data like config, cache, and session state" \
+  "File storage — storage for uploading and serving files and images"
 ```
-What would you like to set up? (pick numbers, e.g. 1,2,4)
 
-   1. Main site              — your website deployed on Cloudflare Workers
-   2. Admin site             — administration panel at admin.<domain> on Cloudflare Workers
-   3. Dashboard site         — user dashboard at dashboard.<domain> on Cloudflare Workers
-   4. Backend API            — server-side API using Hono with PostgreSQL on Railway
-   5. Auth service           — shared JWT authentication service on Railway
-   6. Staging environment    — separate staging backend on Railway for pre-production testing
-   7. Hello world starter    — basic index page with styles to get you started
-   8. GitHub repository      — create a new private GitHub repository for this project
-   9. SQL database           — a database for structured data like users, posts, and settings
-  10. Key-value storage      — fast storage for simple data like config, cache, and session state
-  11. File storage           — storage for uploading and serving files and images
-```
+The user navigates with arrow keys, toggles with spacebar, and presses Enter when done. Parse the selected lines to determine which services were chosen.
 
-**STOP. Wait for the user's answer.**
+If `gum` is not installed, fall back to asking: "What would you like to set up? Pick by number (e.g. 1,2,4)" with a numbered list.
+
+**STOP. Wait for the user's selections.**
 
 Store selections in `SERVICES`. Auto-include dependencies:
 - **Admin site** requires **Backend API** — auto-include if not selected, tell user
