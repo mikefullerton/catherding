@@ -1,13 +1,13 @@
 ---
 name: site-manager
 description: "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform. /site-manager init, /site-manager add, /site-manager deploy, /site-manager status, /site-manager manifest, /site-manager seed-admin, /site-manager --help"
-version: "1.8.0"
+version: "1.9.0"
 argument-hint: "[init|add|deploy|update|verify|repair|status|manifest|seed-admin|--help|--version]"
 allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), AskUserQuestion
 model: sonnet
 ---
 
-# Site Manager v1.8.0
+# Site Manager v1.9.0
 
 Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
@@ -23,10 +23,10 @@ Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
 **CRITICAL**: The very first thing you output MUST be the version line:
 
-site-manager v1.8.0
+site-manager v1.9.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> site-manager v1.8.0
+> site-manager v1.9.0
 
 Then stop.
 
@@ -257,13 +257,13 @@ Use AskUserQuestion with `multiSelect: false` to ask about auth, and optionally 
 | Label | Description |
 |-------|-------------|
 | Shared auth service | Validate JWTs from an existing auth service you already run |
-| Built-in auth | Email/password and OAuth providers built into this backend |
+| Built-in auth | Email/password always included, plus optional OAuth providers |
 | No auth | Public API, no authentication required |
 
 **STOP. Wait for the user's answer.**
 
 - If **shared**: ask for the auth service URL (one more question, then STOP again).
-- If **built-in**: use AskUserQuestion with `multiSelect: true` — "Which OAuth providers?" with options: GitHub, Google, Apple, Email/password only. Then STOP again.
+- If **built-in**: use AskUserQuestion with `multiSelect: true` — "Which OAuth providers? (email/password is always included)" with options: GitHub, Google, Apple, None (email/password only). Then STOP again.
 - If **no auth**: proceed.
 
 #### Step 1f — *(removed — storage is now covered in step 1c)*
@@ -913,7 +913,7 @@ After Step 3E, proceed to Step 4 (commit and push), then Step 5 (install depende
 ### Step 4: Commit and push
 
 ```bash
-git add -A && git commit -m "feat: initial scaffold from site-manager v1.8.0"
+git add -A && git commit -m "feat: initial scaffold from site-manager v1.9.0"
 ```
 
 If a GitHub repo was created in Step 2, push the initial commit:
@@ -2008,7 +2008,7 @@ If the issues file doesn't exist or has no issues, print:
 Print:
 
 ```
-Site Manager v1.8.0 — Scaffold, deploy, and manage website suites
+Site Manager v1.9.0 — Scaffold, deploy, and manage website suites
 
 Commands (Claude session):
   /site-manager init [domain]       Scaffold a new project
