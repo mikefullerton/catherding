@@ -41,6 +41,12 @@
       "description": "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform",
       "source": "./plugins/site-manager",
       "category": "infrastructure"
+    },
+    {
+      "name": "new-project",
+      "description": "Create a new GitHub repo with project scaffolding, CLAUDE.md, and docs",
+      "source": "./plugins/new-project",
+      "category": "development"
     }
   ]
 }

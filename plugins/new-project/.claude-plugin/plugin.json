@@ -1,0 +1,9 @@
+{
+  "name": "new-project",
+  "description": "Create a new GitHub repo with project scaffolding, CLAUDE.md, and docs",
+  "version": "1.0.0",
+  "author": {
+    "name": "Mike Fullerton"
+  },
+  "license": "MIT"
+}
