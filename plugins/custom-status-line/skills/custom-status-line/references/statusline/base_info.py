@@ -126,17 +126,17 @@ def run(claude_data: dict, lines: list) -> list:
     """Generate 3 status lines: project/git, model/stats, weekly usage."""
     claude = claude_data
 
-    # Extract fields
-    model_name = claude.get("model", {}).get("display_name", "unknown")
-    rem_pct = int(claude.get("context_window", {}).get("remaining_percentage", 100))
-    duration_ms = int(claude.get("cost", {}).get("total_duration_ms", 0))
-    lines_added = int(claude.get("cost", {}).get("total_lines_added", 0))
-    lines_removed = int(claude.get("cost", {}).get("total_lines_removed", 0))
-    session_name = claude.get("session_name", "")
+    # Extract fields — use `or` to coalesce None values to defaults
+    model_name = (claude.get("model") or {}).get("display_name") or "unknown"
+    rem_pct = int((claude.get("context_window") or {}).get("remaining_percentage") or 100)
+    duration_ms = int((claude.get("cost") or {}).get("total_duration_ms") or 0)
+    lines_added = int((claude.get("cost") or {}).get("total_lines_added") or 0)
+    lines_removed = int((claude.get("cost") or {}).get("total_lines_removed") or 0)
+    session_name = claude.get("session_name") or ""
     total_changes = lines_added + lines_removed
-    rate_5h = float(claude.get("rate_limits", {}).get("five_hour", {}).get("used_percentage", 0))
-    rate_7d = float(claude.get("rate_limits", {}).get("seven_day", {}).get("used_percentage", 0))
-    session_id = claude.get("session_id", "")
+    rate_5h = float(((claude.get("rate_limits") or {}).get("five_hour") or {}).get("used_percentage") or 0)
+    rate_7d = float(((claude.get("rate_limits") or {}).get("seven_day") or {}).get("used_percentage") or 0)
+    session_id = claude.get("session_id") or ""
 
     duration = format_duration(duration_ms)
 
