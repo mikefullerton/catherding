@@ -74,66 +74,105 @@ All references to "manifest" in this skill mean `.site/manifest.json`.
 
 Ask the user for project info, then determine the site architecture based on their answers. If `$ARGUMENTS` contains a domain (e.g., `init foo.com`), use it and skip the domain question.
 
-**Phase 0 — detect existing website:**
+**Phase 0 — detect existing website (ALWAYS run first):**
 
-Before asking any questions, check if the current working directory already contains a website. Look for these signals:
+The very first thing you do — before asking any questions — is inspect the current working directory. Run these checks silently (do not ask the user):
 
-| Signal | Weight | What it means |
-|--------|--------|--------------|
-| `index.html` exists | strong | Static site or SPA entry point |
-| `package.json` with web deps (`react`, `vue`, `svelte`, `next`, `nuxt`, `astro`, `vite`, `webpack`) | strong | JavaScript web project |
-| `vite.config.*` or `next.config.*` or `webpack.config.*` or `astro.config.*` | strong | Build tool configured |
-| `public/` or `static/` directory | moderate | Static assets present |
-| `src/` with `.tsx`, `.jsx`, `.vue`, `.svelte` files | moderate | Component-based web app |
-| `tsconfig.json` | weak | TypeScript project (could be backend) |
-| `.site/manifest.json` exists | **abort** | Already a site-manager project — print "This is already a site-manager project. Use `/site-manager update` instead." and stop |
+```bash
+ls -la                              # files in current directory
+cat package.json 2>/dev/null        # read package.json if it exists
+git remote -v 2>/dev/null           # check for git repo
+git branch --show-current 2>/dev/null
+```
 
-If **2+ strong signals** or **1 strong + 2 moderate signals** are detected, report the findings and enter the existing-site flow:
+Check for `.site/manifest.json` first. If it exists, print:
+> This is already a site-manager project. Use `/site-manager update` instead.
+
+Then stop.
+
+**Detection checklist** — check ALL of these:
+
+| Check | How to detect |
+|-------|--------------|
+| Git repo | `.git/` exists, or `git remote -v` succeeds |
+| package.json | File exists in current directory |
+| Web framework | `package.json` dependencies or devDependencies contain any of: `react`, `vue`, `svelte`, `next`, `nuxt`, `astro`, `solid-js`, `preact`, `angular`, `lit`, `qwik` |
+| Build tool | Any of: `vite.config.*`, `next.config.*`, `webpack.config.*`, `astro.config.*`, `svelte.config.*`, `nuxt.config.*`, `rollup.config.*` |
+| Entry HTML | `index.html` exists (at root or in `public/`) |
+| Source files | `src/` directory contains `.tsx`, `.jsx`, `.vue`, `.svelte`, or `.astro` files |
+| Static assets | `public/` or `static/` directory exists |
+| TypeScript | `tsconfig.json` exists |
+| Build output | `dist/`, `build/`, `out/`, or `.next/` directory exists |
+
+If **any web framework is detected in package.json** OR **a build tool config file exists** OR **index.html exists with source files**, this is an existing website. Report what you found immediately:
 
 ```
 === Existing website detected ===
 
-  Framework:  React + Vite (from package.json + vite.config.ts)
+  Directory:  /Users/mike/projects/my-cool-site
+  Git repo:   mikefullerton/my-cool-site (branch: main)
+  Framework:  React 19 (from package.json)
+  Build tool: Vite 6.x (vite.config.ts)
   Entry:      index.html
   Source:     src/ (14 .tsx files)
-  Build:      npm run build -> dist/
-  Git:        mikefullerton/my-site (main)
+  Build cmd:  npm run build (vite build)
+  Output dir: dist/
 
-I'll configure this for Cloudflare Workers without modifying your existing code.
+I'll configure this site for Cloudflare Workers without modifying your existing code.
 ```
 
-Then skip to **Phase 1E** below. If no existing website is detected, continue to Phase 1 as before.
+Then proceed to **Phase 1E**. If nothing is detected, continue to Phase 1 (new project flow) as before.
 
-**Phase 1E — existing site basics:**
+**Phase 1E — existing site info:**
 
-| Field | Validation | Default |
-|-------|-----------|---------|
-| Project name | lowercase, `[a-z0-9-]+` | from `package.json` name, or directory name |
-| Display name | free text | from `package.json` description, or title-cased project name |
-| Domain | valid domain name | from `$ARGUMENTS` if provided |
-| GitHub repo | detected from `git remote -v` | auto-detected |
+Since we already detected the site, only ask what we can't auto-detect. Pre-fill everything possible.
 
-Do not ask about target directory — we're already in it.
+**Auto-detect (do not ask):**
+- **Git repo**: already detected — do NOT offer to create one
+- **Build command**: from `package.json` `scripts.build`, or inferred from build tool
+- **Output directory**: from build tool config (vite default: `dist/`, next with export: `out/`), or `dist/` as fallback
 
-**Phase 2E — services:**
+**Ask only these questions:**
 
-Ask: **What would you like to deploy?**
+1. **Project name** — pre-fill from `package.json` `name` field, or directory name.
+   Explain: "This will be used as the Cloudflare Worker name (`<name>-main`) and in the `.site/manifest.json`."
 
-| Choice | Description |
-|--------|------------|
-| **Just this site** | Deploy to Cloudflare Workers (no backend) |
-| **This site + backend API** | Add a Railway backend alongside the site |
-| **Full suite** | Add backend + admin site + dashboard alongside the site |
+2. **Display name** — pre-fill from `package.json` `description`, or title-cased project name.
+   Explain: "This is the human-readable name shown in status output and reports."
 
-Based on the choice:
+3. **Domain** — pre-fill from `$ARGUMENTS` if provided, otherwise ask.
+   Explain: "The custom domain for your site. This won't be connected yet — you'll run `/site-manager go-live` when ready."
 
-- **Just this site** — project type `existing`, only `main` service
-- **This site + backend API** — project type `existing`, `main` + `backend` services. Ask about auth service (same as current API type questions).
-- **Full suite** — project type `existing`, all services. Ask about auth service (same as current full type questions).
+**Phase 2E — choose what to deploy:**
 
-**Phase 2E storage (just this site only):**
+Ask: **Which services do you want alongside your site?**
 
-If "just this site" was chosen, ask about persistent storage (same as current worker type):
+Present as a checklist — the main site (Cloudflare Worker) is always included:
+
+```
+Your existing site will be deployed as a Cloudflare Worker.
+
+What else would you like to add?
+
+  1. Nothing — just deploy this site to Cloudflare
+  2. Backend API (Hono + PostgreSQL on Railway)
+  3. Admin site (admin.<domain>, React on Cloudflare)
+  4. Dashboard (dashboard.<domain>, React + D1 on Cloudflare)
+
+You can select multiple (e.g., 2,3,4), or just 1 for the site only.
+```
+
+Based on the selection:
+
+- **1 only** — project type `existing`, only `main` service. Ask about storage (Phase 2E storage below).
+- **2 selected** — adds `backend` service. Ask about auth (same as current API type questions: "Do you have a shared auth service?").
+- **3 selected** — adds `admin` service (requires backend — auto-include 2 if not selected).
+- **4 selected** — adds `dashboard` service (requires backend — auto-include 2 if not selected).
+- **2,3,4 selected** — project type `existing`, all services. Ask about auth (same as current full type questions).
+
+**Phase 2E storage (site-only, no backend):**
+
+If only option 1 was chosen, ask about persistent storage:
 
 | Storage | Use case |
 |---------|----------|
@@ -144,29 +183,52 @@ If "just this site" was chosen, ask about persistent storage (same as current wo
 
 Multiple storage options can be selected.
 
-**Phase 3E — confirm:**
+**Phase 3E — confirm with exact action plan:**
 
-Display a summary appropriate to the selection:
+Before proceeding, show the user exactly what will happen. Be specific — list every file that will be created or modified, and every external action.
 
 ```
-Project:   my-site
-Name:      My Cool Site
-Domain:    mysite.com
-Type:      existing (your code + Cloudflare Worker)
-Services:  main only (or: main + backend, or: full suite)
-Storage:   none (or: D1, KV, R2)
-GitHub:    mikefullerton/my-site (detected)
-Build:     npm run build -> dist/
+=== Here's what I'm going to do ===
 
-No files will be added or modified except:
-  + .site/manifest.json
-  + wrangler.jsonc
-  + src/worker.ts (Cloudflare entry point)
-  ~ package.json (add wrangler dependency)
-  + .site/ added to .gitignore (if not present)
+  Project:     my-cool-site
+  Display:     My Cool Site
+  Domain:      mycoolsite.com
+  Type:        existing (your code + Cloudflare Worker)
+  Git repo:    mikefullerton/my-cool-site (already exists, won't create)
+  Build:       npm run build -> dist/
+
+  Services to deploy:
+    [x] Main site (your existing code) -> Cloudflare Worker
+    [ ] Backend API                    -> Railway + PostgreSQL
+    [ ] Admin site                     -> Cloudflare Worker
+    [ ] Dashboard                      -> Cloudflare Worker
+
+  Files I'll CREATE (new):
+    .site/manifest.json          — project config and deployment state
+    wrangler.jsonc               — Cloudflare Worker configuration
+    src/worker.ts                — Worker entry point (serves your built assets)
+
+  Files I'll MODIFY (existing):
+    package.json                 — add wrangler + @cloudflare/workers-types to devDependencies
+    .gitignore                   — add .site/ and .wrangler/
+
+  Files I will NOT touch:
+    All your existing source code, HTML, CSS, components, configs
+
+  External actions:
+    npm install                  — install new dependencies
+    npm run build                — build your site
+    npx wrangler deploy          — deploy to Cloudflare Workers
+
+  After deploy, your site will be live at:
+    <project-name>-main.<account>.workers.dev
+
+Proceed?
 ```
 
-Wait for the user to confirm before proceeding. If confirmed, go to **Step 3E**.
+If backend/admin/dashboard were selected, the confirmation also lists those services, the additional template files that will be scaffolded in `backend/`, `sites/admin/`, `sites/dashboard/`, the Railway setup steps, and any other external actions.
+
+Wait for the user to confirm. If confirmed, go to **Step 3E**.
 
 Record the project type as `"existing"` in `.site/manifest.json`.
 
