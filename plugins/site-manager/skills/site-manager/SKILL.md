@@ -1,13 +1,13 @@
 ---
 name: site-manager
 description: "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform. /site-manager init, /site-manager add, /site-manager deploy, /site-manager status, /site-manager manifest, /site-manager seed-admin, /site-manager --help"
-version: "1.10.0"
+version: "1.11.0"
 argument-hint: "[init|add|deploy|update|verify|repair|status|manifest|seed-admin|--help|--version]"
 allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), AskUserQuestion
 model: sonnet
 ---
 
-# Site Manager v1.10.0
+# Site Manager v1.11.0
 
 Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
@@ -23,10 +23,10 @@ Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
 **CRITICAL**: The very first thing you output MUST be the version line:
 
-site-manager v1.10.0
+site-manager v1.11.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> site-manager v1.10.0
+> site-manager v1.11.0
 
 Then stop.
 
@@ -82,8 +82,9 @@ All references to "manifest" in this skill mean `.site/manifest.json`.
 >
 > **The order is: 1a → 1b → 1c → 1d → 1e → 1g → 1h → 1i → 1j → 1k → confirm.**
 > Do NOT reorder steps. Do NOT ask domain before services. Do NOT ask
-> project name before services. The order above is final. Skip steps
-> whose conditions are not met, but never change the sequence.
+> project name before services. Do NOT ask domain if no sites selected.
+> The order above is final. Skip steps whose conditions are not met,
+> but never change the sequence.
 
 Work through sub-steps 1a through 1k in the exact order listed above. Skip steps whose conditions are not met. Track two internal variables:
 - `FLOW` — `"existing"` or `"new"` (set in 1a/1b)
@@ -324,9 +325,9 @@ Type a different path, or press Enter to confirm.
 
 **STOP. Wait for the user's answer.**
 
-#### Step 1k — Domain *(always, asked last)*
+#### Step 1k — Domain *(asked last, only if any site selected)*
 
-**Skip if:** domain was already provided in `$ARGUMENTS`.
+**Skip if:** domain was already provided in `$ARGUMENTS`, or no sites were selected in step 1c (no main site, admin site, or dashboard site). Backend-only and auth-service-only projects don't need a domain.
 
 Ask ONE question:
 
@@ -909,7 +910,7 @@ After Step 3E, proceed to Step 4 (commit and push), then Step 5 (install depende
 ### Step 4: Commit and push
 
 ```bash
-git add -A && git commit -m "feat: initial scaffold from site-manager v1.10.0"
+git add -A && git commit -m "feat: initial scaffold from site-manager v1.11.0"
 ```
 
 If a GitHub repo was created in Step 2, push the initial commit:
@@ -2004,7 +2005,7 @@ If the issues file doesn't exist or has no issues, print:
 Print:
 
 ```
-Site Manager v1.10.0 — Scaffold, deploy, and manage website suites
+Site Manager v1.11.0 — Scaffold, deploy, and manage website suites
 
 Commands (Claude session):
   /site-manager init [domain]       Scaffold a new project

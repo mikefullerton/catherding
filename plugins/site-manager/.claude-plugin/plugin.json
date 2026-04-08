@@ -1,7 +1,7 @@
 {
   "name": "site-manager",
   "description": "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "author": {
     "name": "Mike Fullerton"
   },
