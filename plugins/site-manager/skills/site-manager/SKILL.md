@@ -1,13 +1,13 @@
 ---
 name: site-manager
 description: "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform. /site-manager init, /site-manager add, /site-manager deploy, /site-manager status, /site-manager manifest, /site-manager seed-admin, /site-manager --help"
-version: "1.11.0"
+version: "1.12.0"
 argument-hint: "[init|add|deploy|update|verify|repair|status|manifest|seed-admin|--help|--version]"
 allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), AskUserQuestion
 model: sonnet
 ---
 
-# Site Manager v1.11.0
+# Site Manager v1.12.0
 
 Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
@@ -23,10 +23,10 @@ Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
 **CRITICAL**: The very first thing you output MUST be the version line:
 
-site-manager v1.11.0
+site-manager v1.12.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> site-manager v1.11.0
+> site-manager v1.12.0
 
 Then stop.
 
@@ -106,9 +106,22 @@ ls .site/manifest.json wrangler.jsonc wrangler.toml 2>/dev/null
 
 Check for existing config first:
 - If `.site/manifest.json` exists → print "This is already a site-manager project. Use `/site-manager add` to add services." Then **stop**.
-- If `wrangler.jsonc` or `wrangler.toml` exists → note it (already configured for Workers).
+- If `wrangler.jsonc` or `wrangler.toml` exists at root → note it (already configured for Workers).
 
-Run the detection checklist:
+**Check the root directory first, then scan immediate subdirectories.** Websites often live in a subdirectory like `site/`, `web/`, `frontend/`, `app/`, or `www/`. Run the detection checklist against the root AND each immediate subdirectory that contains a `package.json` or `index.html`:
+
+```bash
+# Check root
+ls package.json vite.config.* next.config.* index.html 2>/dev/null
+# Scan subdirectories
+for dir in */; do
+  ls "$dir"package.json "$dir"vite.config.* "$dir"index.html 2>/dev/null
+done
+```
+
+If a website is found in a subdirectory, record the **site directory** (e.g., `site/`) — this is where the site lives and where wrangler/build commands will run. The `.site/manifest.json` goes at the project root.
+
+**Detection checklist** (run against root AND each candidate subdirectory):
 - **Git repo**: `.git/` exists, or `git remote -v` succeeds
 - **package.json**: file exists
 - **Web framework**: dependencies contain `react`, `vue`, `svelte`, `next`, `nuxt`, `astro`, `solid-js`, `preact`, `angular`, `lit`, `qwik`
@@ -118,13 +131,15 @@ Run the detection checklist:
 - **Static assets**: `public/` or `static/` directory exists
 - **TypeScript**: `tsconfig.json` exists
 - **Build output**: `dist/`, `build/`, `out/`, or `.next/` directory exists
+- **Already configured**: `wrangler.jsonc` or `wrangler.toml` exists (site is already set up for Cloudflare Workers — skip scaffolding, just create manifest and deploy)
 
 Classify the directory:
+- **Already configured** — wrangler config exists with a deploy script. Skip scaffolding entirely — just create `.site/manifest.json` and deploy.
 - **Existing website** — web framework detected in package.json, OR build tool config exists, OR index.html exists with source files
 - **Existing code** — package.json or source files exist but no web framework indicators
 - **Empty** — no significant files
 
-Store all detection results internally. Do NOT print anything yet — proceed to step 1b or 1c.
+Store all detection results internally, including the site directory if found in a subdirectory. Do NOT print anything yet — proceed to step 1b or 1c.
 
 #### Step 1b — Deploy or scaffold? *(only if existing website detected)*
 
@@ -910,7 +925,7 @@ After Step 3E, proceed to Step 4 (commit and push), then Step 5 (install depende
 ### Step 4: Commit and push
 
 ```bash
-git add -A && git commit -m "feat: initial scaffold from site-manager v1.11.0"
+git add -A && git commit -m "feat: initial scaffold from site-manager v1.12.0"
 ```
 
 If a GitHub repo was created in Step 2, push the initial commit:
@@ -2005,7 +2020,7 @@ If the issues file doesn't exist or has no issues, print:
 Print:
 
 ```
-Site Manager v1.11.0 — Scaffold, deploy, and manage website suites
+Site Manager v1.12.0 — Scaffold, deploy, and manage website suites
 
 Commands (Claude session):
   /site-manager init [domain]       Scaffold a new project
