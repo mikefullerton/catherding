@@ -121,46 +121,81 @@ If **any web framework is detected in package.json** OR **a build tool config fi
 I'll configure this site for Cloudflare Workers without modifying your existing code.
 ```
 
-Then proceed to **Phase 1E**. If nothing is detected, continue to Phase 1 (new project flow) as before.
+Store the detection results internally. Then proceed to **Phase 1E**. If nothing is detected, continue to Phase 1 (new project flow) as before.
 
-**Phase 1E — existing site info:**
+**Phase 1E — what to deploy (ask FIRST):**
 
-Since we already detected the site, only ask what we can't auto-detect. Pre-fill everything possible.
+The very first question is what services the user wants. Present all options — the existing site is one of them, not assumed:
 
-**Auto-detect (do not ask):**
-- **Git repo**: already detected — do NOT offer to create one
-- **Build command**: from `package.json` `scripts.build`, or inferred from build tool
-- **Output directory**: from build tool config (vite default: `dist/`, next with export: `out/`), or `dist/` as fallback
+```
+What would you like to deploy?
 
-**Ask only these questions:**
+  1. Main site       — Cloudflare Worker (serves your website)
+  2. Backend API     — Hono + PostgreSQL on Railway
+  3. Admin site      — admin.<domain>, React on Cloudflare
+  4. Dashboard       — dashboard.<domain>, React + D1 on Cloudflare
 
-1. **Project name** — pre-fill from `package.json` `name` field, or directory name.
-   Explain: "This will be used as the Cloudflare Worker name (`<name>-main`) and in the `.site/manifest.json`."
+Select one or more (e.g., 1,2 or 1,2,3,4):
+```
 
-2. **Display name** — pre-fill from `package.json` `description`, or title-cased project name.
-   Explain: "This is the human-readable name shown in status output and reports."
+Dependencies:
+- **3 (admin)** requires **2 (backend)** — auto-include if not selected
+- **4 (dashboard)** requires **2 (backend)** — auto-include if not selected
 
-3. **Domain** — pre-fill from `$ARGUMENTS` if provided, otherwise ask.
-   Explain: "The custom domain for your site. This won't be connected yet — you'll run `/site-manager go-live` when ready."
+If **1 is selected** and an existing website was detected in Phase 0, proceed to **Phase 1.5E**.
+If **1 is selected** and no existing website was detected, this is a new site — continue to Phase 1 (new project flow) with the appropriate project type based on services selected.
+If **1 is NOT selected**, skip Phase 1.5E entirely (no main site to configure).
 
-**Phase 1.5E — static or SSR:**
+Based on final selection, determine project type:
+- 1 only → `existing` (if existing site) or `worker` (if new)
+- 1+2 → `existing` or `api`
+- 1+2+3+4 → `existing` or `full`
+- 2 only → `auth-service` or `api` (backend with no frontend)
+
+If backend was selected, ask about auth (same as current flow: "Do you have a shared auth service?").
+
+**Phase 1.5E — existing site confirmation (only if main site selected AND existing site detected):**
+
+Show what was detected and confirm the user wants to deploy it:
+
+```
+I detected an existing website in this directory:
+
+  Framework:  React 19 (from package.json)
+  Build tool: Vite 6.x (vite.config.ts)
+  Source:     src/ (14 .tsx files)
+  Build cmd:  npm run build (vite build)
+  Output dir: dist/
+
+Deploy this existing site to Cloudflare, or scaffold a new one?
+
+  1. Deploy this site — configure Cloudflare Worker for your existing code
+  2. Start fresh — scaffold a new site from templates (replaces existing files)
+```
+
+If **1 (deploy this site)**: project type is `existing`. Continue to ask about rendering mode.
+If **2 (start fresh)**: continue to Phase 1 (new project flow) — this becomes a standard init.
+
+**Rendering mode:**
 
 Ask: **Is this a static site or does it need server-side rendering?**
 
 ```
 How does your site render?
 
-  1. Static / SPA — pre-built HTML + JS, served as static assets (React, Vue, Svelte with client-side routing)
-  2. Server-side rendered (SSR) — pages rendered on each request (Next.js SSR, Nuxt SSR, Astro SSR, SvelteKit SSR)
+  1. Static / SPA — pre-built HTML + JS, served as static assets
+  2. Server-side rendered (SSR) — pages rendered on each request
 ```
 
-**If you can auto-detect, pre-fill and confirm instead of asking:**
+**Auto-detect and pre-fill when possible:**
 - Next.js with no `output: 'export'` in `next.config.*` → likely SSR
 - Nuxt without `ssr: false` → likely SSR
 - Astro with `output: 'server'` or `output: 'hybrid'` → SSR
 - SvelteKit with `adapter-cloudflare` → SSR
 - Plain Vite + React/Vue/Svelte with no SSR adapter → static
 - `index.html` at root with no framework → static
+
+If auto-detected, confirm instead of asking: "This looks like a static React + Vite site. Correct?"
 
 **Static site** — the Worker serves pre-built assets from the `dist/` (or equivalent) directory. The `worker.ts` entry point uses the `ASSETS` binding to serve files and falls back to `index.html` for SPA routing.
 
@@ -171,36 +206,9 @@ How does your site render?
 
 Record the rendering mode (`"static"` or `"ssr"`) in the manifest under `services.main.rendering`.
 
-**Phase 2E — choose what to deploy:**
+**Phase 1.5E storage (site-only, no backend):**
 
-Ask: **Which services do you want alongside your site?**
-
-Present as a checklist — the main site (Cloudflare Worker) is always included:
-
-```
-Your existing site will be deployed as a Cloudflare Worker.
-
-What else would you like to add?
-
-  1. Nothing — just deploy this site to Cloudflare
-  2. Backend API (Hono + PostgreSQL on Railway)
-  3. Admin site (admin.<domain>, React on Cloudflare)
-  4. Dashboard (dashboard.<domain>, React + D1 on Cloudflare)
-
-You can select multiple (e.g., 2,3,4), or just 1 for the site only.
-```
-
-Based on the selection:
-
-- **1 only** — project type `existing`, only `main` service. Ask about storage (Phase 2E storage below).
-- **2 selected** — adds `backend` service. Ask about auth (same as current API type questions: "Do you have a shared auth service?").
-- **3 selected** — adds `admin` service (requires backend — auto-include 2 if not selected).
-- **4 selected** — adds `dashboard` service (requires backend — auto-include 2 if not selected).
-- **2,3,4 selected** — project type `existing`, all services. Ask about auth (same as current full type questions).
-
-**Phase 2E storage (site-only, no backend):**
-
-If only option 1 was chosen, ask about persistent storage:
+If only the main site was selected (no backend), ask about persistent storage:
 
 | Storage | Use case |
 |---------|----------|
@@ -211,7 +219,28 @@ If only option 1 was chosen, ask about persistent storage:
 
 Multiple storage options can be selected.
 
-**Phase 3E — confirm with exact action plan:**
+**Phase 2E — project name and display name:**
+
+**Auto-detect (do not ask):**
+- **Git repo**: already detected in Phase 0 — do NOT offer to create one
+- **Build command**: from `package.json` `scripts.build`, or inferred from build tool
+- **Output directory**: from build tool config (vite default: `dist/`, next with export: `out/`), or `dist/` as fallback
+
+**Ask:**
+
+1. **Project name** — pre-fill from `package.json` `name` field, or directory name.
+   Explain: "This will be used as the Cloudflare Worker name (`<name>-main`) and in the `.site/manifest.json`."
+
+2. **Display name** — pre-fill from `package.json` `description`, or title-cased project name.
+   Explain: "This is the human-readable name shown in status output and reports."
+
+**Phase 3E — domain (ask LAST):**
+
+Ask for the domain after everything else is decided. Pre-fill from `$ARGUMENTS` if provided.
+
+**Domain** — Explain: "The custom domain for your site. This won't be connected yet — you'll run `/site-manager go-live` when ready."
+
+**Phase 4E — confirm with exact action plan:**
 
 Before proceeding, show the user exactly what will happen. Be specific — list every file that will be created or modified, and every external action.
 
