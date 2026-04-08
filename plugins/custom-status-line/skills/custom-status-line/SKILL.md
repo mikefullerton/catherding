@@ -1,13 +1,13 @@
 ---
 name: custom-status-line
 description: "Install or remove the composable status line pipeline with project info, git stats, worktree detection, and repo cleanup status"
-version: "4.2.0"
+version: "4.3.0"
 argument-hint: "<install|uninstall|--help> [--version] [--progress-style <compact|standard>] [--show-progress-example]"
 allowed-tools: Read, Write, Edit, Bash(chmod *), Bash(chmod +x *), Bash(mkdir *), Bash(mkdir -p *), Bash(test *), Bash(jq *), Bash(rm *), Bash(rm -f *), Bash(rm -rf *), Bash(sleep *), Bash(~/.claude-status-line/progress/update-progress.py *), Bash($HOME/.claude-status-line/progress/update-progress.py *), Bash(PYTHONPATH=* python3 *), AskUserQuestion
 model: haiku
 ---
 
-# Custom Status Line v4.2.0
+# Custom Status Line v4.3.0
 
 Install or remove a composable status line pipeline for Claude Code. Multiple plugins can contribute to the status line without knowing about each other.
 
@@ -17,10 +17,10 @@ Install or remove a composable status line pipeline for Claude Code. Multiple pl
 
 **CRITICAL**: Print the version line first:
 
-custom-status-line v4.2.0
+custom-status-line v4.3.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> custom-status-line v4.2.0
+> custom-status-line v4.3.0
 
 Then stop.
 
@@ -56,8 +56,10 @@ Print the following exactly, then stop:
 >     base_info.py         # Built-in: project path, git branch/stats, model
 >     repo_cleanup.py      # Built-in: stale branches, worktree warnings
 >     progress_display.py  # Built-in: per-session progress bar box
+>     version_tracker.py   # Built-in: Claude version change detection
 >     formatting.py        # Shared: ANSI colors, column alignment
 >     db.py                # Shared: SQLite usage tracking
+>   claude_version.json    # Baseline: Claude version and known fields
 >   pipeline.json          # Ordered list of pipeline stages
 >   scripts/               # Directory for external drop-in scripts
 >   progress/
@@ -227,6 +229,8 @@ mkdir -p ~/.claude-status-line/scripts ~/.claude-status-line/progress
 
 Copy the entire `statusline` package from `${CLAUDE_SKILL_DIR}/references/statusline/` to `~/.claude-status-line/statusline/`. Read each `.py` file from the source and write it to the destination.
 
+Copy `${CLAUDE_SKILL_DIR}/references/claude_version.json` to `~/.claude-status-line/claude_version.json`. If the file already exists, preserve it (it tracks the user's acknowledged baseline).
+
 Write a Python entry point at `~/.claude-status-line/progress/update-progress.py`:
 
 ```python
@@ -258,14 +262,15 @@ If `~/.claude-status-line/pipeline.json` does not exist, write it:
   "pipeline": [
     {"name": "base-info", "module": "base_info"},
     {"name": "repo-cleanup", "module": "repo_cleanup"},
-    {"name": "progress-display", "module": "progress_display"}
+    {"name": "progress-display", "module": "progress_display"},
+    {"name": "version-tracker", "module": "version_tracker"}
   ]
 }
 ```
 
 If it already exists:
 - Replace any built-in `"script"` entries (referencing `base-info.sh`, `repo-cleanup.sh`, `progress-display.sh`) with `"module"` entries as shown above.
-- Ensure `base-info`, `repo-cleanup`, and `progress-display` entries are present. Add any that are missing.
+- Ensure `base-info`, `repo-cleanup`, `progress-display`, and `version-tracker` entries are present. Add any that are missing.
 - Preserve any user-added external script entries unchanged.
 
 ### Step 5: Configure settings.json
@@ -289,6 +294,7 @@ Print:
 > - base-info: project path, git branch/stats, worktree detection, model/context
 > - repo-cleanup: stale branches, merged branches, prunable/finished worktrees
 > - progress-display: per-session progress bar
+> - version-tracker: detects Claude Code updates, shows new fields
 >
 > **Progress display** — show a progress bar from any skill or agent:
 > ```bash
