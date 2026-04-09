@@ -307,15 +307,15 @@ def run(claude_data: dict, lines: list) -> list:
     sc3 = f"{s_thinking} thinking"
     sc4 = f"{s_waiting} waiting"
 
-    # Column alignment
-    col1_w = max(visible_len(l1c1), visible_len(l2c1), visible_len(sc1), visible_len(l3c1))
-    col2_w = max(visible_len(l1c2), visible_len(l2c2), visible_len(sc2), visible_len(l3c2))
+    # Column alignment — line 1 is free-form, align lines 2+ only
+    col1_w = max(visible_len(l2c1), visible_len(sc1), visible_len(l3c1))
+    col2_w = max(visible_len(l2c2), visible_len(sc2), visible_len(l3c2))
     col3_w = max(visible_len(l2c3), visible_len(sc3), visible_len(l3c3))
     col4_w = max(visible_len(sc4), visible_len(l3c4))
 
     lbor = f"{ORANGE}|{RST} "
 
-    line1 = f"{lbor}{pad_right(l1c1, col1_w)}"
+    line1 = f"{lbor}{l1c1}"
     if branch:
         line1 += f"{sep}{l1c2} {l1c3}"
 
