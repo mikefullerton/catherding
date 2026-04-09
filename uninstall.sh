@@ -20,9 +20,9 @@ done
 
 echo ""
 echo "Removing CLIs..."
-for cli_dir in "$REPO_DIR"/skills/*/cli/; do
-    [ -d "$cli_dir" ] || continue
-    pkg_name="$(grep '^name' "$cli_dir/pyproject.toml" | head -1 | sed 's/.*= *"\(.*\)"/\1/')"
+for pyproject in "$REPO_DIR"/skills/*/*/pyproject.toml; do
+    [ -f "$pyproject" ] || continue
+    pkg_name="$(grep '^name' "$pyproject" | head -1 | sed 's/.*= *"\(.*\)"/\1/')"
     if uv tool list 2>/dev/null | grep -q "^$pkg_name "; then
         echo "  $pkg_name"
         uv tool uninstall "$pkg_name" 2>&1 | sed 's/^/    /'

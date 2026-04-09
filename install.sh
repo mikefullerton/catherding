@@ -22,10 +22,11 @@ done
 
 echo ""
 echo "Installing CLIs..."
-for cli_dir in "$REPO_DIR"/skills/*/cli/; do
-    [ -d "$cli_dir" ] || continue
-    name="$(basename "$(dirname "$cli_dir")")"
-    echo "  $name CLI"
+for pyproject in "$REPO_DIR"/skills/*/*/pyproject.toml; do
+    [ -f "$pyproject" ] || continue
+    cli_dir="$(dirname "$pyproject")"
+    pkg_name="$(grep '^name' "$pyproject" | head -1 | sed 's/.*= *"\(.*\)"/\1/')"
+    echo "  $pkg_name ($(basename "$cli_dir"))"
     uv tool install -e "$cli_dir" 2>&1 | sed 's/^/    /'
 done
 
