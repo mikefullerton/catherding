@@ -362,7 +362,7 @@ function setLink(id, svcKey) {{
     const url = URLS[svcKey];
     if (url) {{
         const el = $(`#${{id}}`);
-        el.style.display = "";
+        el.style.display = "block";
         const a = el.querySelector("a");
         a.href = url;
         a.textContent = url;
