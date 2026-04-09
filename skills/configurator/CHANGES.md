@@ -2,6 +2,12 @@
 
 Changes to what the configurator deploys. Each entry represents a new deployment option, improved template, or fix that affects deployed projects. The CLI shows relevant changes when a project's manifest version is behind the current configurator version.
 
+## 0.6.0
+
+- **Feature plugin architecture**: Each configurable feature (project, website, backend, admin, dashboard, auth) is now a self-contained plugin with its own file, version, HTML, JS, and config logic. Adding new features no longer risks regressions in existing ones.
+- **Per-feature versioning**: Each feature plugin has its own semver version, independent of the CLI version.
+- **Coordinator-based web editor**: The web editor composes the page from feature fragments instead of a single monolithic template.
+
 ## 0.3.0
 
 - **Cookie-based auth**: Refresh tokens stored in httpOnly cookies instead of localStorage. Access tokens kept in memory only. Auto-refresh every 13 minutes with retry on 401.

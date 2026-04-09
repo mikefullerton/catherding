@@ -100,91 +100,36 @@ def _load_manifest(path: Path) -> dict | None:
 
 def _manifest_to_config(manifest: dict) -> dict:
     """Map a .site/manifest.json to a configurator config structure."""
+    from configurator.features import discover_features
     cfg: dict = {}
-    project = manifest.get("project", {})
-
-    if project.get("name"):
-        cfg["repo"] = project["name"]
-    if project.get("org"):
-        cfg["org"] = project["org"]
-    if project.get("domain"):
-        cfg["domain"] = project["domain"]
-
-    # Map services
-    services = manifest.get("services", {})
-
-    # Website (main)
-    if "main" in services:
-        main_svc = services["main"]
-        ws: dict = {"type": "existing"}
-        if main_svc.get("domain"):
-            ws["domain"] = main_svc["domain"]
-        addons: list[str] = []
-        if main_svc.get("d1") or main_svc.get("database"):
-            addons.append("sqlite database")
-        if main_svc.get("kv"):
-            addons.append("key-value storage")
-        if main_svc.get("r2"):
-            addons.append("file storage")
-        if addons:
-            ws["addons"] = addons
-        cfg["website"] = ws
-    else:
-        cfg["website"] = {"type": "none"}
-
-    # Backend — any backend-related service means backend is enabled
-    has_backend = "backend" in services or "api" in services or "api-docs" in services
-    if has_backend:
-        be: dict = {"enabled": True, "type": "full"}
-        be_svc = services.get("backend", services.get("api", {}))
-        if be_svc.get("domain"):
-            be["domain"] = be_svc["domain"]
-        if services.get("api-docs", {}).get("domain"):
-            be["docs_domain"] = services["api-docs"]["domain"]
-        cfg["backend"] = be
-    else:
-        cfg["backend"] = {"enabled": False}
-
-    # Admin sites
-    admin_sites: dict = {}
-    for site_type in ("admin", "dashboard"):
-        if site_type in services:
-            s: dict = {"enabled": True}
-            if services[site_type].get("domain"):
-                s["domain"] = services[site_type]["domain"]
-            admin_sites[site_type] = s
-        else:
-            admin_sites[site_type] = {"enabled": False}
-    cfg["admin_sites"] = admin_sites
-
-    # Auth providers — check both top-level and features.auth for compatibility
-    auth = manifest.get("features", {}).get("auth", manifest.get("auth", {}))
-    if auth.get("providers"):
-        # Map manifest provider names to CLI names (e.g., "email" -> "email/password")
-        provider_map = {"email": "email/password"}
-        cfg["auth_providers"] = [provider_map.get(p, p) for p in auth["providers"]]
-
+    for feature in discover_features():
+        _apply_feature_config(cfg, feature, feature.manifest_to_config(manifest))
     return cfg
 
 
 def _deployed_keys_from_manifest(manifest: dict) -> set[str]:
     """Extract which features are deployed from a manifest."""
+    from configurator.features import discover_features
     keys: set[str] = set()
-    project = manifest.get("project", {})
-    if project.get("name"):
-        keys.add("repo")
-    if project.get("org"):
-        keys.add("org")
-    services = manifest.get("services", {})
-    if "main" in services:
-        keys.add("website")
-    if "backend" in services or "api" in services or "api-docs" in services:
-        keys.add("backend")
-    if "admin" in services:
-        keys.add("admin")
-    if "dashboard" in services:
-        keys.add("dashboard")
+    for feature in discover_features():
+        keys.update(feature.deployed_keys(manifest))
     return keys
+
+
+def _apply_feature_config(cfg: dict, feature, feature_cfg) -> None:
+    """Write a feature's config into the full config dict, maintaining backward compat."""
+    fid = feature.meta().id
+    if fid == "project":
+        cfg.update(feature_cfg)
+    elif fid == "admin":
+        cfg.setdefault("admin_sites", {})["admin"] = feature_cfg
+    elif fid == "dashboard":
+        cfg.setdefault("admin_sites", {})["dashboard"] = feature_cfg
+    elif fid == "auth":
+        if feature_cfg:
+            cfg["auth_providers"] = feature_cfg
+    else:
+        cfg[fid] = feature_cfg
 
 
 def _detect_org_from_git(path: Path) -> str | None:
