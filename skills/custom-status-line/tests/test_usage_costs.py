@@ -127,11 +127,13 @@ class TestRun:
         insert_turn(db, today, inp=1_000_000, out=0)
         insert_turn(db, yesterday, inp=1_000_000, out=0)
         result = run(make_claude_data(rate_7d=50.0), ["existing"])
-        assert len(result) == 2
+        assert len(result) == 3
         assert "today" in result[1]
+        assert "daily usage ave:" in result[1]
         assert "left" in result[1]
-        assert "daily" in result[1]
         assert "projected" in result[1]
+        assert "daily usage ave 2:" in result[2]
+        assert "projected" in result[2]
 
     def test_overage_projected(self, usage_db, monkeypatch):
         db, _ = usage_db
@@ -143,8 +145,9 @@ class TestRun:
             day = (__import__("datetime").datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
             insert_turn(db, day, inp=1_000_000, out=500_000)
         result = run(make_claude_data(rate_7d=120.0), [])
-        assert len(result) == 1
+        assert len(result) == 2
         assert "projected" in result[0]
+        assert "projected" in result[1]
 
     def test_no_overage_when_under(self, usage_db, monkeypatch):
         db, _ = usage_db
@@ -155,9 +158,9 @@ class TestRun:
             day = (__import__("datetime").datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
             insert_turn(db, day, inp=1_000_000, out=0)
         result = run(make_claude_data(rate_7d=10.0), [])
-        assert len(result) == 1
-        # Under 100%, no RED color in projected
+        assert len(result) == 2
         assert "projected" in result[0]
+        assert "projected" in result[1]
 
     def test_too_early_suppresses_projection(self, usage_db):
         db, _ = usage_db
@@ -165,9 +168,10 @@ class TestRun:
         insert_turn(db, today, inp=1_000_000, out=0)
         # When only today's data exists and cycle just started, projection is suppressed
         result = run(make_claude_data(rate_7d=50.0), [])
-        assert len(result) == 1
+        assert len(result) == 2
         # Should either show "too early" or a valid projection depending on time of day
         assert "today" in result[0]
+        assert "daily usage ave 2:" in result[1]
 
 
 class TestExtractColWidths:
