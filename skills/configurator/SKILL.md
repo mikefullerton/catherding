@@ -72,19 +72,21 @@ All references to "manifest" in this skill mean `.site/manifest.json`.
 
 ### Step 1: Load config
 
-The config is created by the user via the `configurator` CLI (run `configurator` in the terminal). Configs are stored at `~/.configurator/<config-name>.json`.
+Configs are stored at `~/.configurator/<config-name>.json`. The `configurator` CLI opens a local web editor in the browser where the user can review and edit the config, then click **Deploy** or **Cancel**.
 
 #### Step 1a — Resolve config
 
 **If `$ARGUMENTS` is a config name** (not a subcommand like `deploy`, `verify`, etc.):
+- Check if `~/.configurator/$ARGUMENTS.json` exists
+- If it doesn't exist, run `uv run --project ${CLAUDE_SKILL_DIR}/configurator-cli configurator` in cwd to create it. Parse the output for `ACTION:deploy` or `ACTION:cancel`. If cancel, stop. If deploy, continue.
+- If it does exist, run `uv run --project ${CLAUDE_SKILL_DIR}/configurator-cli configurator` in cwd to open the web editor. Parse the output for `ACTION:deploy` or `ACTION:cancel`. If cancel, stop. If deploy, continue.
 - Read `~/.configurator/$ARGUMENTS.json`
-- If it doesn't exist, print: "Configuration '$ARGUMENTS' not found. Run `configurator` in the terminal to create one." and stop.
 
 **If `$ARGUMENTS` is empty:**
 - List all `.json` files in `~/.configurator/` (excluding `configurator-config.json`)
-- If none found: print "No configurations found. Run `configurator` in the terminal to create one." and stop.
-- If exactly one: load it automatically and tell the user which config you're using.
-- If multiple: use AskUserQuestion to ask the user which config to deploy.
+- If none found: run `uv run --project ${CLAUDE_SKILL_DIR}/configurator-cli configurator` in cwd. Parse for `ACTION:deploy` or `ACTION:cancel`. If cancel, stop. If deploy, find the newly created config and continue.
+- If exactly one: load it automatically and tell the user which config you're using. Then run `uv run --project ${CLAUDE_SKILL_DIR}/configurator-cli configurator` in cwd so the user can review in the web editor. Parse for `ACTION:deploy` or `ACTION:cancel`. If cancel, stop.
+- If multiple: use AskUserQuestion to ask the user which config to deploy. Then open the web editor as above.
 
 #### Step 1b — Parse config and set variables
 
@@ -189,7 +191,7 @@ Adapt the confirmation for the project type (full/api/worker/auth-service/existi
 
 If `CREATE_REPO` is `true`, include the GitHub repo creation step and Cloudflare secret setup.
 
-If the user says "change something" → tell them to re-run `configurator` in the terminal to update the config, then re-invoke `/configurator <config-name>`.
+If the user says "change something" → re-run `uv run --project ${CLAUDE_SKILL_DIR}/configurator-cli configurator` to reopen the web editor. Parse for `ACTION:deploy` or `ACTION:cancel`.
 
 **STOP. Wait for the user to confirm.**
 

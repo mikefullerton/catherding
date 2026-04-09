@@ -86,6 +86,23 @@ input[type="text"]:disabled, select:disabled {{
 }}
 .sub-field {{ margin-left: 1.4rem; margin-top: 0.4rem; }}
 .readonly {{ font-size: 0.9rem; color: #666; padding: 0.4rem 0; }}
+.actions {{
+    display: flex; justify-content: flex-end; gap: 0.8rem;
+    margin-top: 0.5rem; margin-bottom: 2rem;
+}}
+.btn {{
+    padding: 0.5rem 1.4rem; border: none; border-radius: 6px;
+    font-size: 0.9rem; font-weight: 500; cursor: pointer;
+    font-family: inherit;
+}}
+.btn-cancel {{
+    background: #e0e0e0; color: #555;
+}}
+.btn-cancel:hover {{ background: #d0d0d0; }}
+.btn-deploy {{
+    background: #1976d2; color: #fff;
+}}
+.btn-deploy:hover {{ background: #1565c0; }}
 .saved-indicator {{
     position: fixed; top: 1rem; right: 1rem; font-size: 0.8rem;
     color: #888; opacity: 0; transition: opacity 0.3s;
@@ -239,6 +256,11 @@ input[type="text"]:disabled, select:disabled {{
     </div>
 </div>
 </fieldset>
+
+<div class="actions">
+    <button type="button" id="btn-cancel" class="btn btn-cancel">Cancel</button>
+    <button type="button" id="btn-deploy" class="btn btn-deploy">Deploy</button>
+</div>
 
 </div>
 
@@ -512,6 +534,27 @@ document.addEventListener("DOMContentLoaded", () => {{
             debounceSave();
         }});
     }}
+
+    // Cancel/Deploy buttons
+    $("#btn-cancel").addEventListener("click", () => {{
+        const cfg = readForm();
+        fetch("/api/config", {{
+            method: "PATCH",
+            headers: {{"Content-Type": "application/json"}},
+            body: JSON.stringify(cfg),
+        }}).then(() => fetch("/api/cancel", {{ method: "POST" }}))
+          .then(() => {{ document.body.textContent = "Cancelled. You can close this tab."; }});
+    }});
+
+    $("#btn-deploy").addEventListener("click", () => {{
+        const cfg = readForm();
+        fetch("/api/config", {{
+            method: "PATCH",
+            headers: {{"Content-Type": "application/json"}},
+            body: JSON.stringify(cfg),
+        }}).then(() => fetch("/api/deploy", {{ method: "POST" }}))
+          .then(() => {{ document.body.textContent = "Deploying... check your terminal."; }});
+    }});
 }});
 </script>
 </body>
@@ -519,7 +562,7 @@ document.addEventListener("DOMContentLoaded", () => {{
 
 
 class _Handler(BaseHTTPRequestHandler):
-    """Handles GET / and PATCH /api/config."""
+    """Handles GET /, PATCH /api/config, POST /api/deploy, POST /api/cancel."""
 
     def do_GET(self):
         if self.path == "/":
@@ -551,6 +594,20 @@ class _Handler(BaseHTTPRequestHandler):
         else:
             self.send_error(404)
 
+    def do_POST(self):
+        if self.path in ("/api/deploy", "/api/cancel"):
+            action = "deploy" if self.path == "/api/deploy" else "cancel"
+            self.server.action = action
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"ok":true}')
+            # Shut down in a thread so the response completes first
+            import threading
+            threading.Thread(target=self.server.shutdown, daemon=True).start()
+        else:
+            self.send_error(404)
+
     def log_message(self, format, *args):
         pass  # suppress request logging
 
@@ -574,6 +631,7 @@ def start_server(
     httpd.deployed_keys = deployed_keys
     httpd.urls = urls or {}
     httpd.live_domains = live_domains or set()
+    httpd.action = "cancel"  # default if Ctrl+C or window closed
     port = httpd.server_address[1]
     return httpd, port
 
@@ -586,8 +644,11 @@ def serve_editor(
     urls: dict[str, str] | None = None,
     live_domains: set[str] | None = None,
     port: int | None = None,
-) -> None:
-    """Open the web editor and block until Ctrl+C."""
+) -> str:
+    """Open the web editor and block until deploy/cancel/Ctrl+C.
+
+    Returns ``"deploy"`` or ``"cancel"``.
+    """
     if deployed_keys is None:
         deployed_keys = set()
     if port is None:
@@ -600,11 +661,12 @@ def serve_editor(
         port=port,
     )
     url = f"http://localhost:{port}/"
-    print(f"  Editing at {url} — press Ctrl+C when done")
+    print(f"  Editing at {url} — press Ctrl+C to cancel")
     webbrowser.open(url)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        pass
+        httpd.action = "cancel"
     finally:
         httpd.server_close()
+    return httpd.action

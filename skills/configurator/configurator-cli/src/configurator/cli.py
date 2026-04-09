@@ -769,7 +769,8 @@ def cmd_configure(*, tui: bool = False) -> None:
                 deployed.add("org")
             urls = _extract_urls_from_manifest(manifest)
             live = _check_live_domains(manifest)
-            serve_editor(name, cfg, deployed_keys=deployed, urls=urls, live_domains=live)
+            action = serve_editor(name, cfg, deployed_keys=deployed, urls=urls, live_domains=live)
+            print(f"ACTION:{action}")
 
         return
 
@@ -845,7 +846,8 @@ def cmd_configure(*, tui: bool = False) -> None:
             save_config(name, cfg)
 
         from configurator.web import serve_editor
-        serve_editor(name, cfg, deployed_keys=set())
+        action = serve_editor(name, cfg, deployed_keys=set())
+        print(f"ACTION:{action}")
 
 
 # ── Entry point ─────────────────────────────────────────────────────────────
