@@ -198,7 +198,7 @@ def run(claude_data: dict, lines: list) -> list:
             s = f"{sym}{n}"
             return f"{YELLOW}{s}{RST}" if n > 0 else s
 
-        gs1 = "git status"
+        gs1 = "git"
         gs2 = f"files: {_c(changed, '~')} {_c(added, '+')} {_c(deleted, '-')}"
 
         if branch not in ("main", "master"):
@@ -323,13 +323,13 @@ def run(claude_data: dict, lines: list) -> list:
     result = [line1]
 
     if branch:
-        git_line = f"{lbor}{pad_right(gs1, col1_w)}{sep}{pad_right(gs2, col2_w)}"
+        git_line = f"{lbor}{pad_left(gs1, col1_w)}{sep}{pad_right(gs2, col2_w)}"
         if gs3:
             git_line += f"{sep}{pad_right(gs3, col3_w)}"
         git_line += f"{sep}{gs4}"
         result.append(git_line)
 
-    line2 = f"{lbor}{pad_right(l2c1, col1_w)}{sep}{pad_right(l2c2, col2_w)}{sep}{l2c3}"
+    line2 = f"{lbor}{pad_left(l2c1, col1_w)}{sep}{pad_right(l2c2, col2_w)}{sep}{l2c3}"
     if yolo_col:
         line2 += f"  {yolo_col}"
 
