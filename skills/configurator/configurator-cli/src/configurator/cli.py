@@ -420,7 +420,7 @@ def run_questions(name: str | None, cfg: dict) -> str:
     ws["domain"] = ws_domain or domain
 
     # Q4.2: website addons
-    addon_choices = ["authentication", "sqlite database", "key-value storage", "file storage"]
+    addon_choices = ["sqlite database", "key-value storage", "file storage"]
     addon_defaults = ws.get("addons", [])
     addons = ask_clarifying_list(f"What addons do you want for {ws.get('domain', domain)}?", addon_choices, defaults=addon_defaults)
     ws["addons"] = addons

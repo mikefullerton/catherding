@@ -99,7 +99,7 @@ Read the config JSON and set these internal variables:
 | `domain` | `DOMAIN` | Domain name for the project |
 | `website.type` | `FLOW` | `"new"` or `"existing"` |
 | `website.domain` | `SITE_DOMAIN` | Domain for the main site (defaults to `DOMAIN`) |
-| `website.addons` | `ADDONS` | List: `authentication`, `sqlite database`, `key-value storage`, `file storage` |
+| `website.addons` | `ADDONS` | List: `sqlite database`, `key-value storage`, `file storage` |
 | `backend.enabled` | — | If `true`, include backend in `SERVICES` |
 | `backend.domain` | `BACKEND_DOMAIN` | Domain for the backend (defaults to `backend.DOMAIN`) |
 | `admin_sites.admin.enabled` | — | If `true`, include admin in `SERVICES` |
