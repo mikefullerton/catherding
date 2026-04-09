@@ -19,6 +19,7 @@ def discover_features() -> list[Feature]:
     from configurator.features.ab_testing import AbTestingFeature
     from configurator.features.logging import LoggingFeature
     from configurator.features.login_tracking import LoginTrackingFeature
+    from configurator.features.pausing import PausingFeature
 
     features = [
         ProjectFeature(),
@@ -28,6 +29,7 @@ def discover_features() -> list[Feature]:
         DashboardFeature(),
         AuthFeature(),
         LoginTrackingFeature(),
+        PausingFeature(),
         EmailFeature(),
         SmsFeature(),
         AnalyticsFeature(),
