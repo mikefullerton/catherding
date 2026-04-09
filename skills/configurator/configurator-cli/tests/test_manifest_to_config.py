@@ -1,5 +1,7 @@
 """Tests for _manifest_to_config — populating a draft config from a site manifest."""
 
+from copy import deepcopy
+
 import pytest
 
 from configurator.cli import _manifest_to_config
@@ -54,35 +56,45 @@ FULL_PROJECT_MANIFEST = {
 }
 
 
+@pytest.fixture
+def full_manifest():
+    return deepcopy(FULL_PROJECT_MANIFEST)
+
+
 class TestFullProject:
-    def test_project_fields(self):
-        cfg = _manifest_to_config(FULL_PROJECT_MANIFEST)
+    def test_project_fields(self, full_manifest):
+        cfg = _manifest_to_config(full_manifest)
         assert cfg["repo"] == "agenticdeveloperhub"
         assert cfg["domain"] == "agenticdeveloperhub.com"
 
-    def test_website_from_main_service(self):
-        cfg = _manifest_to_config(FULL_PROJECT_MANIFEST)
+    def test_website_from_main_service(self, full_manifest):
+        cfg = _manifest_to_config(full_manifest)
         assert cfg["website"]["type"] == "existing"
         assert cfg["website"]["domain"] == "agenticdeveloperhub.com"
 
-    def test_backend_enabled(self):
-        cfg = _manifest_to_config(FULL_PROJECT_MANIFEST)
+    def test_backend_enabled(self, full_manifest):
+        cfg = _manifest_to_config(full_manifest)
         assert cfg["backend"]["enabled"] is True
         assert cfg["backend"]["type"] == "full"
 
-    def test_admin_enabled(self):
-        cfg = _manifest_to_config(FULL_PROJECT_MANIFEST)
+    def test_admin_enabled(self, full_manifest):
+        cfg = _manifest_to_config(full_manifest)
         assert cfg["admin_sites"]["admin"]["enabled"] is True
         assert cfg["admin_sites"]["admin"]["domain"] == "admin.agenticdeveloperhub.com"
 
-    def test_dashboard_enabled(self):
-        cfg = _manifest_to_config(FULL_PROJECT_MANIFEST)
+    def test_dashboard_enabled(self, full_manifest):
+        cfg = _manifest_to_config(full_manifest)
         assert cfg["admin_sites"]["dashboard"]["enabled"] is True
         assert cfg["admin_sites"]["dashboard"]["domain"] == "dashboard.agenticdeveloperhub.com"
 
-    def test_auth_providers_mapped(self):
-        cfg = _manifest_to_config(FULL_PROJECT_MANIFEST)
+    def test_auth_providers_mapped(self, full_manifest):
+        cfg = _manifest_to_config(full_manifest)
         assert cfg["auth_providers"] == ["email/password", "github"]
+
+    def test_does_not_mutate_input(self, full_manifest):
+        original = deepcopy(full_manifest)
+        _manifest_to_config(full_manifest)
+        assert full_manifest == original
 
 
 # ── Auth provider mapping ────────────────────────────────────────────────
@@ -91,6 +103,12 @@ class TestFullProject:
 class TestAuthProviders:
     def test_email_maps_to_email_password(self):
         manifest = {"features": {"auth": {"providers": ["email"]}}}
+        cfg = _manifest_to_config(manifest)
+        assert cfg["auth_providers"] == ["email/password"]
+
+    def test_email_password_passes_through(self):
+        """Manifest may already store 'email/password' — should not double-map."""
+        manifest = {"features": {"auth": {"providers": ["email/password"]}}}
         cfg = _manifest_to_config(manifest)
         assert cfg["auth_providers"] == ["email/password"]
 
@@ -138,6 +156,11 @@ class TestAuthProviders:
         cfg = _manifest_to_config(manifest)
         assert "auth_providers" not in cfg
 
+    def test_empty_providers_list(self):
+        manifest = {"features": {"auth": {"providers": []}}}
+        cfg = _manifest_to_config(manifest)
+        assert "auth_providers" not in cfg
+
 
 # ── Backend detection ────────────────────────────────────────────────────
 
@@ -156,11 +179,12 @@ class TestBackend:
         assert cfg["backend"]["enabled"] is True
         assert cfg["backend"]["domain"] == "api.example.com"
 
-    def test_api_docs_service_enables_backend(self):
+    def test_api_docs_only_enables_backend(self):
         manifest = {"services": {"api-docs": {"domain": "api.example.com"}}}
         cfg = _manifest_to_config(manifest)
         assert cfg["backend"]["enabled"] is True
         assert cfg["backend"]["docs_domain"] == "api.example.com"
+        assert "domain" not in cfg["backend"]
 
     def test_backend_with_api_docs(self):
         manifest = {
@@ -302,5 +326,19 @@ class TestProjectFields:
         cfg = _manifest_to_config({})
         assert cfg["website"] == {"type": "none"}
         assert cfg["backend"]["enabled"] is False
+        assert cfg["admin_sites"]["admin"]["enabled"] is False
+        assert cfg["admin_sites"]["dashboard"]["enabled"] is False
+
+    def test_backend_only_project(self):
+        """Backend-only deployment — no main, no admin, no dashboard."""
+        manifest = {
+            "project": {"name": "api-service", "domain": "api.example.com"},
+            "services": {"backend": {"status": "deployed", "domain": "backend.api.example.com"}},
+        }
+        cfg = _manifest_to_config(manifest)
+        assert cfg["repo"] == "api-service"
+        assert cfg["website"]["type"] == "none"
+        assert cfg["backend"]["enabled"] is True
+        assert cfg["backend"]["domain"] == "backend.api.example.com"
         assert cfg["admin_sites"]["admin"]["enabled"] is False
         assert cfg["admin_sites"]["dashboard"]["enabled"] is False
