@@ -154,11 +154,13 @@ def run(claude_data: dict, lines: list) -> list:
 
     sep = f" {ORANGE}|{RST} "
 
-    # Detect worktree
-    is_worktree = False
-    git_dir = git_cmd("rev-parse", "--git-dir")
-    if git_dir and "/worktrees/" in git_dir:
-        is_worktree = True
+    # Detect worktree — prefer the field Claude provides, fall back to git
+    wt_field = (claude.get("workspace") or {}).get("git_worktree")
+    if wt_field is not None:
+        is_worktree = bool(wt_field)
+    else:
+        git_dir = git_cmd("rev-parse", "--git-dir")
+        is_worktree = bool(git_dir and "/worktrees/" in git_dir)
 
     # LINE 1
     l1c1 = f"{BLUE}{cwd}{RST}"
@@ -208,7 +210,11 @@ def run(claude_data: dict, lines: list) -> list:
     except (OSError, json.JSONDecodeError):
         pass
 
-    l2c1 = model_name
+    ctx_size = int((claude.get("context_window") or {}).get("context_window_size") or 200000)
+    exceeds_200k = bool(claude.get("exceeds_200k_tokens"))
+    ctx_label = "1M" if ctx_size > 200000 else "200k"
+
+    l2c1 = f"{model_name}, {ctx_label}"
     if effort:
         l2c1 += f", {effort}"
 
@@ -232,13 +238,13 @@ def run(claude_data: dict, lines: list) -> list:
     l2c3 = f"{total_changes} lines changed"
 
     used_pct = 100 - rem_pct
-    is_opus_1m = "opus" in model_name.lower() and "1m" in model_name.lower()
-    if is_opus_1m and used_pct > 20:
-        context_col = f"{RED}{used_pct}% context used (compact needed){RST}"
-    elif is_opus_1m and used_pct >= 18:
-        context_col = f"{YELLOW}{used_pct}% context used{RST}"
+
+    if exceeds_200k:
+        context_col = f"{RED}{used_pct}% context (extended){RST}"
+    elif ctx_size > 200000 and used_pct > 20:
+        context_col = f"{YELLOW}{used_pct}% context{RST}"
     else:
-        context_col = f"{used_pct}% context used"
+        context_col = f"{used_pct}% context"
 
     # LINE 3
     elapsed_hours, wed_10am = get_wed_10am_elapsed_hours()
