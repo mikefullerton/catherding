@@ -21,10 +21,12 @@ def discover_features() -> list[Feature]:
     from configurator.features.login_tracking import LoginTrackingFeature
     from configurator.features.pausing import PausingFeature
     from configurator.features.credentials import CredentialsFeature
+    from configurator.features.theme import ThemeFeature
 
     features = [
         ProjectFeature(),
         WebsiteFeature(),
+        ThemeFeature(),
         BackendFeature(),
         AdminFeature(),
         DashboardFeature(),
