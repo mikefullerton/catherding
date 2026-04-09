@@ -2,6 +2,37 @@
 
 Changes to what the configurator deploys. Each entry represents a new deployment option, improved template, or fix that affects deployed projects. The CLI shows relevant changes when a project's manifest version is behind the current configurator version.
 
+## 1.22.0
+
+- **Two-column layout**: Web editor now uses a two-column grid — infrastructure & deployments on the left, settings & features on the right. Responsive: collapses to single column on narrow screens.
+- **Dev-team theme**: Dark theme with gold accents, DM Mono / Instrument Serif / Manrope fonts, grain overlay, matching the Agentic Cookbook design system.
+- **Config merge**: Saved config preferences (environments, theme, etc.) are now preserved when rebuilding from a manifest, instead of being discarded.
+- **Backend environments**: `manifest_to_config()` now extracts staging/testing environments from manifest services and features sections.
+
+## 0.6.15
+
+- **Display name**: Project config now includes a human-readable display name field.
+- **Email config**: New email feature plugin — provider selection (Resend, SendGrid, SES, SMTP), from address/name.
+- **SMS config**: New SMS feature plugin — provider selection (Twilio, Vonage, Amazon SNS), from number.
+- **Analytics**: New analytics feature plugin — Plausible, PostHog, Cloudflare Web Analytics, Google Analytics.
+- **A/B testing**: New A/B testing feature plugin — GrowthBook, LaunchDarkly, Statsig, custom.
+- **Logging**: New logging feature plugin — Axiom, Datadog, Logtail, Sentry with configurable log level.
+- **Login tracking**: New login tracking feature plugin — track user logins and API token usage with retention.
+- **User/token pausing**: New pausing feature plugin — temporary suspension with optional auto-unpause.
+- **Credentials**: New credentials feature plugin — track required keychain entries (Cloudflare, Railway, GitHub, DB).
+- **Dark/light mode**: New theme feature plugin — system preference, light only, dark only, or user toggle.
+- **Text size**: New text size feature plugin — system, small, medium, large, or custom pixel size.
+- **User settings panel**: New user settings feature plugin — profile editing, password change, theme, notifications.
+- **Feedback/bug reporting**: New feedback feature plugin — report to GitHub Issues, email, or backend API.
+- **Capabilities editing**: New capabilities feature plugin — define permission scopes for users and tokens.
+- **Feature flags**: New feature flags feature plugin — client-side hooks for capabilities, flags, and A/B tests.
+
+## 0.6.0
+
+- **Feature plugin architecture**: Each configurable feature (project, website, backend, admin, dashboard, auth) is now a self-contained plugin with its own file, version, HTML, JS, and config logic. Adding new features no longer risks regressions in existing ones.
+- **Per-feature versioning**: Each feature plugin has its own semver version, independent of the CLI version.
+- **Coordinator-based web editor**: The web editor composes the page from feature fragments instead of a single monolithic template.
+
 ## 0.3.0
 
 - **Cookie-based auth**: Refresh tokens stored in httpOnly cookies instead of localStorage. Access tokens kept in memory only. Auto-refresh every 13 minutes with retry on 401.
