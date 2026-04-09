@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Pipeline module: transcript-calibrated weekly usage with extended use tracking."""
-import math
 import os
 import sqlite3
 import time
@@ -180,9 +179,8 @@ def run(claude_data: dict, lines: list) -> list:
         c3 = f"daily usage ave: {daily_avg_pct:.1f}%"
         c5 = f"{RED}{projected:.1f}%{RST} projected" if projected > 100.0 else f"{projected:.1f}% projected"
 
-        # Actual calendar days (partial days rounded up)
-        actual_days = max(1, math.ceil(elapsed_days))
-        daily_avg_pct_2 = rate_7d / actual_days
+        # Actual elapsed days (fractional)
+        daily_avg_pct_2 = rate_7d / max(1.0, elapsed_days)
         projected_2 = daily_avg_pct_2 * 7.0
         t3 = f"daily usage ave: {daily_avg_pct_2:.1f}%"
         t5 = f"{RED}{projected_2:.1f}%{RST} projected" if projected_2 > 100.0 else f"{projected_2:.1f}% projected"
