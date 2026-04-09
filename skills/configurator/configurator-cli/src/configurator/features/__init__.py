@@ -20,6 +20,7 @@ def discover_features() -> list[Feature]:
     from configurator.features.logging import LoggingFeature
     from configurator.features.login_tracking import LoginTrackingFeature
     from configurator.features.pausing import PausingFeature
+    from configurator.features.credentials import CredentialsFeature
 
     features = [
         ProjectFeature(),
@@ -35,6 +36,7 @@ def discover_features() -> list[Feature]:
         AnalyticsFeature(),
         AbTestingFeature(),
         LoggingFeature(),
+        CredentialsFeature(),
     ]
     return _topo_sort(features)
 
