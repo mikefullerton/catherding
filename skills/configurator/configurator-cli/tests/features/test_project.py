@@ -11,6 +11,11 @@ def ctx(**kwargs):
 
 
 class TestManifestToConfig:
+    def test_maps_display_name(self):
+        f = ProjectFeature()
+        cfg = f.manifest_to_config({"project": {"displayName": "My Project"}})
+        assert cfg["displayName"] == "My Project"
+
     def test_maps_name_to_repo(self):
         f = ProjectFeature()
         assert f.manifest_to_config({"project": {"name": "my-repo"}}) == {"repo": "my-repo"}
@@ -33,6 +38,23 @@ class TestManifestToConfig:
         f = ProjectFeature()
         assert f.manifest_to_config({"project": {}}) == {}
 
+    def test_all_fields(self):
+        f = ProjectFeature()
+        cfg = f.manifest_to_config({
+            "project": {
+                "displayName": "Cool App",
+                "name": "cool-app",
+                "org": "my-org",
+                "domain": "cool-app.com",
+            }
+        })
+        assert cfg == {
+            "displayName": "Cool App",
+            "repo": "cool-app",
+            "org": "my-org",
+            "domain": "cool-app.com",
+        }
+
 
 class TestDeployedKeys:
     def test_repo_deployed(self):
@@ -49,6 +71,11 @@ class TestDeployedKeys:
 
 
 class TestConfigHtml:
+    def test_contains_display_name_input(self):
+        f = ProjectFeature()
+        html = f.config_html(ctx())
+        assert 'id="display-name"' in html
+
     def test_contains_repo_input(self):
         f = ProjectFeature()
         html = f.config_html(ctx())
@@ -88,6 +115,7 @@ class TestMeta:
 class TestDefaultConfig:
     def test_has_required_keys(self):
         cfg = ProjectFeature().default_config()
+        assert "displayName" in cfg
         assert "repo" in cfg
         assert "org" in cfg
         assert "domain" in cfg

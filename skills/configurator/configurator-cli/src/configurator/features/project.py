@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from configurator.features.base import Feature, FeatureMeta, RenderContext
 
-_VERSION = "1.0.0"
+_VERSION = "1.1.0"
 
 
 class ProjectFeature(Feature):
@@ -17,6 +17,10 @@ class ProjectFeature(Feature):
     def config_html(self, ctx: RenderContext) -> str:
         return """<fieldset>
 <legend>Project</legend>
+<div class="field">
+    <label for="display-name">Display name</label>
+    <input type="text" id="display-name" data-key="displayName" placeholder="My Cool Project">
+</div>
 <div class="field">
     <label for="repo">Repository name</label>
     <input type="text" id="repo" data-key="repo">
@@ -51,6 +55,9 @@ class ProjectFeature(Feature):
     def config_js_read(self) -> str:
         return """\
     // Project
+    const displayName = $("#display-name").value.trim();
+    if (displayName) cfg.displayName = displayName;
+
     const repo = $("#repo").value.trim();
     if (repo) cfg.repo = repo;
 
@@ -75,6 +82,7 @@ class ProjectFeature(Feature):
     def config_js_populate(self) -> str:
         return """\
     // Project
+    $("#display-name").value = CONFIG.displayName || "";
     $("#repo").value = CONFIG.repo || "";
     const org = CONFIG.org || "";
     const orgSelect = $("#org");
@@ -107,11 +115,13 @@ class ProjectFeature(Feature):
     $("#org-other-field").style.display = $("#org").value === "other" ? "" : "none";"""
 
     def default_config(self) -> dict:
-        return {"repo": "", "org": "", "domain": ""}
+        return {"displayName": "", "repo": "", "org": "", "domain": ""}
 
     def manifest_to_config(self, manifest: dict) -> dict:
         cfg: dict = {}
         project = manifest.get("project", {})
+        if project.get("displayName"):
+            cfg["displayName"] = project["displayName"]
         if project.get("name"):
             cfg["repo"] = project["name"]
         if project.get("org"):

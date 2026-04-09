@@ -64,6 +64,7 @@ def full_manifest():
 class TestFullProject:
     def test_project_fields(self, full_manifest):
         cfg = _manifest_to_config(full_manifest)
+        assert cfg["displayName"] == "Agenticdeveloperhub"
         assert cfg["repo"] == "agenticdeveloperhub"
         assert cfg["domain"] == "agenticdeveloperhub.com"
 
