@@ -20,6 +20,7 @@ def discover_features() -> list[Feature]:
     from configurator.features.logging import LoggingFeature
     from configurator.features.login_tracking import LoginTrackingFeature
     from configurator.features.pausing import PausingFeature
+    from configurator.features.capabilities import CapabilitiesFeature
     from configurator.features.credentials import CredentialsFeature
     from configurator.features.theme import ThemeFeature
     from configurator.features.text_size import TextSizeFeature
@@ -39,6 +40,7 @@ def discover_features() -> list[Feature]:
         AuthFeature(),
         LoginTrackingFeature(),
         PausingFeature(),
+        CapabilitiesFeature(),
         EmailFeature(),
         SmsFeature(),
         AnalyticsFeature(),
