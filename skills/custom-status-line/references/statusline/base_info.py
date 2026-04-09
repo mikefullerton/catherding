@@ -226,21 +226,11 @@ def run(claude_data: dict, lines: list) -> list:
         l1c3 = f"[{osep.join(parts)}]"
 
     # LINE 2
-    settings_path = os.path.expanduser("~/.claude/settings.json")
-    effort = ""
-    try:
-        with open(settings_path) as f:
-            effort = json.load(f).get("effortLevel", "")
-    except (OSError, json.JSONDecodeError):
-        pass
-
     ctx_size = int((claude.get("context_window") or {}).get("context_window_size") or 200000)
     exceeds_200k = bool(claude.get("exceeds_200k_tokens"))
     ctx_label = "1M" if ctx_size > 200000 else "200k"
 
     l2c1 = model_name
-    if effort:
-        l2c1 += f", {effort}"
 
     # YOLO indicator (appended as last column on line 2)
     yolo_col = ""
