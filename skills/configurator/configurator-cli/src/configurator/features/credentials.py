@@ -1,62 +1,84 @@
-"""Credentials feature — keychain credential and API key management."""
+"""Credentials feature — keychain secret status and management."""
 
 from __future__ import annotations
 
+import subprocess
+
 from configurator.features.base import Feature, FeatureMeta, RenderContext
 
-_VERSION = "1.0.0"
+_VERSION = "1.1.0"
 
-_CREDENTIAL_KEYS = [
-    ("cloudflare_api_token", "Cloudflare API token"),
-    ("cloudflare_account_id", "Cloudflare account ID"),
-    ("railway_token", "Railway token"),
-    ("github_token", "GitHub token"),
-    ("database_url", "Database URL"),
+KEYCHAIN_SERVICE = "configurator"
+
+# (key, label, reason)
+CREDENTIAL_DEFS = [
+    ("cloudflare_api_token", "Cloudflare API token", "Deploy workers and DNS records to Cloudflare"),
+    ("cloudflare_account_id", "Cloudflare account ID", "Identify your Cloudflare account for deployments"),
+    ("railway_token", "Railway token", "Deploy backend API and database to Railway"),
+    ("github_token", "GitHub token", "Create repos, set secrets, push code"),
+    ("database_url", "Database URL", "Connect backend to PostgreSQL database"),
 ]
+
+
+def keychain_has(key: str) -> bool:
+    """Check if a credential exists in macOS keychain."""
+    result = subprocess.run(
+        ["security", "find-generic-password", "-s", KEYCHAIN_SERVICE, "-a", key, "-w"],
+        capture_output=True, text=True,
+    )
+    return result.returncode == 0
 
 
 class CredentialsFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
-            id="credentials", label="Credentials", version=_VERSION,
-            order=80, dependencies=["project"], category="ops",
+            id="credentials", label="Secrets", version=_VERSION,
+            order=80, dependencies=["project"], category="secrets",
         )
 
     def config_html(self, ctx: RenderContext) -> str:
-        checkboxes = "\n        ".join(
-            f'<label><input type="checkbox" id="cred-{kid}" value="{kid}"> <span>{label}</span></label>'
-            for kid, label in _CREDENTIAL_KEYS
-        )
+        rows: list[str] = []
+        any_missing = False
+        for key, label, reason in CREDENTIAL_DEFS:
+            present = keychain_has(key)
+            if present:
+                icon = '<span class="secret-ok">set</span>'
+            else:
+                icon = '<span class="secret-missing">missing</span>'
+                any_missing = True
+            rows.append(
+                f'<div class="secret-row">'
+                f'<span class="secret-name">{label}</span>'
+                f'{icon}'
+                f'<span class="secret-reason">{reason}</span>'
+                f'</div>'
+            )
+
+        hint = ""
+        if any_missing:
+            hint = (
+                '<div class="secret-hint">'
+                'Run <code>configurator --set-credentials</code> in your terminal to set missing secrets.'
+                '</div>'
+            )
+
+        rows_html = "\n".join(rows)
         return f"""<fieldset>
-<legend>Credentials</legend>
+<legend>Secrets</legend>
 <div class="field">
-    <label>Required credentials (stored in macOS Keychain)</label>
-    <div class="checkbox-group">
-        {checkboxes}
+    <div class="secret-list">
+        {rows_html}
     </div>
+    {hint}
 </div>
 </fieldset>"""
 
     def config_js_read(self) -> str:
-        checks = "\n".join(
-            f'        if ($("#cred-{kid}").checked) creds.push("{kid}");'
-            for kid, _ in _CREDENTIAL_KEYS
-        )
-        return f"""\
-    // Credentials
-    const creds = [];
-{checks}
-    if (creds.length) cfg.credentials = creds;"""
+        # Secrets are read-only in the web UI — they're managed via --set-credentials
+        return ""
 
     def config_js_populate(self) -> str:
-        sets = "\n".join(
-            f'    $("#cred-{kid}").checked = creds.includes("{kid}");'
-            for kid, _ in _CREDENTIAL_KEYS
-        )
-        return f"""\
-    // Credentials
-    const creds = CONFIG.credentials || [];
-{sets}"""
+        return ""
 
     def config_js_update_disabled(self) -> str:
         return ""

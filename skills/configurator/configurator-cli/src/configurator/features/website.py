@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from configurator.features.base import Feature, FeatureMeta, RenderContext
 
-_VERSION = "1.0.0"
+_VERSION = "1.0.1"
 
 
 class WebsiteFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="website", label="Website", version=_VERSION,
-            order=10, dependencies=["project"], category="project",
+            order=10, dependencies=["project"], category="website",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

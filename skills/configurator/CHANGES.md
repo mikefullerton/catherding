@@ -2,6 +2,13 @@
 
 Changes to what the configurator deploys. Each entry represents a new deployment option, improved template, or fix that affects deployed projects. The CLI shows relevant changes when a project's manifest version is behind the current configurator version.
 
+## 1.25.0
+
+- **Sidebar nav categories**: Reorganized web editor categories — added "Website" section, moved logging to "Analytics & Flags", renamed "Operations" to "Secrets".
+- **Secrets status display**: Credentials page now shows live keychain status (set/missing) per secret with reasons, and a hint to run `--set-credentials` when any are missing.
+- **Manifest panel**: New "Manifest" nav section shows the current config as filtered JSON (only set values).
+- **Pinned action buttons**: Deploy/Cancel buttons are now fixed to the bottom of the page.
+
 ## 1.22.0
 
 - **Two-column layout**: Web editor now uses a two-column grid — infrastructure & deployments on the left, settings & features on the right. Responsive: collapses to single column on narrow screens.

@@ -823,21 +823,11 @@ def cmd_configure(*, tui: bool = False) -> None:
 # ── Keychain credentials ───────────────────────────────────────────────────
 
 
-_KEYCHAIN_SERVICE = "configurator"
-
-_CREDENTIAL_DEFS = [
-    ("cloudflare_api_token", "Cloudflare API token"),
-    ("cloudflare_account_id", "Cloudflare account ID"),
-    ("railway_token", "Railway token"),
-    ("github_token", "GitHub token"),
-    ("database_url", "Database URL"),
-]
-
-
 def _keychain_get(key: str) -> str | None:
     """Read a credential from macOS keychain. Returns None if not found."""
+    from configurator.features.credentials import KEYCHAIN_SERVICE
     result = subprocess.run(
-        ["security", "find-generic-password", "-s", _KEYCHAIN_SERVICE, "-a", key, "-w"],
+        ["security", "find-generic-password", "-s", KEYCHAIN_SERVICE, "-a", key, "-w"],
         capture_output=True, text=True,
     )
     if result.returncode == 0:
@@ -847,13 +837,13 @@ def _keychain_get(key: str) -> str | None:
 
 def _keychain_set(key: str, value: str) -> None:
     """Store a credential in macOS keychain (add or update)."""
-    # Delete existing entry first (ignore errors if not found)
+    from configurator.features.credentials import KEYCHAIN_SERVICE
     subprocess.run(
-        ["security", "delete-generic-password", "-s", _KEYCHAIN_SERVICE, "-a", key],
+        ["security", "delete-generic-password", "-s", KEYCHAIN_SERVICE, "-a", key],
         capture_output=True,
     )
     subprocess.run(
-        ["security", "add-generic-password", "-s", _KEYCHAIN_SERVICE, "-a", key, "-w", value],
+        ["security", "add-generic-password", "-s", KEYCHAIN_SERVICE, "-a", key, "-w", value],
         check=True, capture_output=True,
     )
 
@@ -861,21 +851,22 @@ def _keychain_set(key: str, value: str) -> None:
 def cmd_set_credentials() -> None:
     """Prompt for each credential and store in macOS keychain."""
     import getpass
+    from configurator.features.credentials import KEYCHAIN_SERVICE, CREDENTIAL_DEFS
 
-    print(f"\n  Set credentials (stored in macOS Keychain as service '{_KEYCHAIN_SERVICE}')\n")
+    print(f"\n  Set credentials (stored in macOS Keychain as service '{KEYCHAIN_SERVICE}')\n")
 
-    for key, label in _CREDENTIAL_DEFS:
+    for key, label, reason in CREDENTIAL_DEFS:
         existing = _keychain_get(key)
         if existing:
             masked = existing[:4] + "..." + existing[-4:] if len(existing) > 12 else "****"
             prompt = f"  {label} [{masked}]: "
         else:
-            prompt = f"  {label}: "
+            prompt = f"  {label} ({reason}): "
 
         value = getpass.getpass(prompt=prompt)
         if value:
             _keychain_set(key, value)
-            print(f"    ✓ saved")
+            print(f"    saved")
         elif existing:
             print(f"    (kept existing)")
         else:

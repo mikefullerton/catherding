@@ -23,6 +23,9 @@ class TestMeta:
     def test_no_group(self):
         assert CredentialsFeature().meta().group is None
 
+    def test_category(self):
+        assert CredentialsFeature().meta().category == "secrets"
+
 
 class TestManifestToConfig:
     def test_list_of_keys(self):
@@ -57,21 +60,28 @@ class TestDeployedKeys:
 
 
 class TestConfigHtml:
-    def test_contains_cloudflare_api_token(self):
+    def test_contains_credential_labels(self):
         html = CredentialsFeature().config_html(ctx())
-        assert 'id="cred-cloudflare_api_token"' in html
+        assert "Cloudflare API token" in html
+        assert "Railway token" in html
+        assert "GitHub token" in html
+        assert "Database URL" in html
 
-    def test_contains_railway_token(self):
+    def test_shows_status_per_credential(self):
         html = CredentialsFeature().config_html(ctx())
-        assert 'id="cred-railway_token"' in html
+        # Each credential gets a secret-row with set/missing status
+        assert 'class="secret-row"' in html
+        assert 'class="secret-ok"' in html or 'class="secret-missing"' in html
 
-    def test_contains_github_token(self):
+    def test_shows_reasons(self):
         html = CredentialsFeature().config_html(ctx())
-        assert 'id="cred-github_token"' in html
+        assert "Deploy workers and DNS records" in html
+        assert "Deploy backend API" in html
 
-    def test_contains_database_url(self):
+    def test_hint_when_missing(self):
         html = CredentialsFeature().config_html(ctx())
-        assert 'id="cred-database_url"' in html
+        # At least some credentials will be missing in test env
+        assert "configurator --set-credentials" in html
 
     def test_wrapped_in_fieldset(self):
         html = CredentialsFeature().config_html(ctx())

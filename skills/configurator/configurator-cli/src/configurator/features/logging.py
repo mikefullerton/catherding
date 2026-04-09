@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from configurator.features.base import Feature, FeatureMeta, RenderContext
 
-_VERSION = "1.0.0"
+_VERSION = "1.0.1"
 
 _PROVIDERS = [
     ("axiom", "Axiom"),
@@ -18,7 +18,7 @@ class LoggingFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="logging", label="Logging", version=_VERSION,
-            order=70, dependencies=["backend"], category="ops",
+            order=70, dependencies=["backend"], category="analytics",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

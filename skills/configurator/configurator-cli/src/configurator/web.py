@@ -14,12 +14,14 @@ from configurator.features.base import Feature, RenderContext
 # Category definitions: (id, label) in display order
 CATEGORIES = [
     ("project", "Project"),
+    ("website", "Website"),
     ("backend", "Backend"),
     ("auth", "Auth & Access"),
     ("ux", "User Experience"),
     ("comms", "Communications"),
     ("analytics", "Analytics & Flags"),
-    ("ops", "Operations"),
+    ("secrets", "Secrets"),
+    ("manifest", "Manifest"),
 ]
 
 
@@ -83,6 +85,15 @@ def build_page(
     # Build panels per category
     panels_html = ""
     for cat_id, cat_label in CATEGORIES:
+        if cat_id == "manifest":
+            # Manifest panel is JS-driven, not feature-composed
+            panels_html += (
+                '<div class="panel" id="cat-manifest" style="display:none">\n'
+                '<fieldset>\n<legend>Manifest</legend>\n'
+                '<pre id="manifest-json" class="manifest-pre"></pre>\n'
+                '</fieldset>\n</div>\n\n'
+            )
+            continue
         cat_html = _compose_category(features, ctx, cat_id)
         if not cat_html:
             continue
@@ -92,6 +103,10 @@ def build_page(
     # Build nav links
     nav_html = ""
     for cat_id, cat_label in CATEGORIES:
+        if cat_id == "manifest":
+            # Always show manifest nav link
+            nav_html += f'    <a href="#" data-cat="manifest">Manifest</a>\n'
+            continue
         cat_features = [f for f in features if f.meta().category == cat_id]
         if not cat_features:
             continue
@@ -190,7 +205,7 @@ nav a.active {{
 /* Main content */
 main {{
     margin-left: var(--nav-w);
-    padding: 2rem 2.5rem 1rem;
+    padding: 2rem 2.5rem 5rem;
     max-width: 48rem;
 }}
 .panel {{ animation: fadeIn 0.15s ease; }}
@@ -266,11 +281,14 @@ input[type="checkbox"] {{ accent-color: var(--accent); }}
     color: var(--fg-dim); padding: 0.4rem 0;
 }}
 
-/* Actions bar */
+/* Actions bar — pinned to bottom */
 .actions {{
+    position: fixed; bottom: 0; left: var(--nav-w); right: 0;
     display: flex; justify-content: flex-end; gap: 0.8rem;
-    margin-top: 1.5rem; padding-top: 1.5rem;
+    padding: 1rem 2.5rem;
+    background: var(--bg);
     border-top: 1px solid var(--border);
+    z-index: 100;
 }}
 .btn {{
     padding: 0.5rem 1.6rem; border: 1px solid var(--border);
@@ -296,10 +314,48 @@ input[type="checkbox"] {{ accent-color: var(--accent); }}
 }}
 .saved-indicator.visible {{ opacity: 1; }}
 
+/* Manifest */
+.manifest-pre {{
+    font-family: var(--mono); font-size: 0.8rem;
+    color: var(--fg); line-height: 1.6;
+    white-space: pre-wrap; word-break: break-word;
+    padding: 0.4rem 0; margin: 0;
+}}
+
+/* Secrets */
+.secret-list {{ display: flex; flex-direction: column; gap: 0.5rem; }}
+.secret-row {{
+    display: flex; align-items: center; gap: 0.8rem;
+    font-size: 0.85rem;
+}}
+.secret-name {{
+    font-family: var(--mono); font-size: 0.8rem; color: var(--fg);
+    min-width: 140px;
+}}
+.secret-ok {{
+    font-family: var(--mono); font-size: 0.75rem; color: var(--green);
+    font-weight: 500; letter-spacing: 0.03em;
+}}
+.secret-missing {{
+    font-family: var(--mono); font-size: 0.75rem; color: var(--red);
+    font-weight: 500; letter-spacing: 0.03em;
+}}
+.secret-reason {{
+    font-size: 0.75rem; color: var(--fg-dim); font-style: italic;
+}}
+.secret-hint {{
+    margin-top: 0.8rem; padding: 0.6rem 0.8rem;
+    background: rgba(212, 84, 84, 0.08); border: 1px solid rgba(212, 84, 84, 0.2);
+    border-radius: 4px; font-size: 0.8rem; color: var(--fg-muted);
+}}
+.secret-hint code {{
+    font-family: var(--mono); font-size: 0.75rem; color: var(--accent);
+}}
+
 /* Mobile */
 @media (max-width: 640px) {{
     nav {{ display: none; }}
-    main {{ margin-left: 0; padding: 1.5rem; }}
+    main {{ margin-left: 0; padding: 1.5rem 1.5rem 5rem; }}
     .panel {{ display: block !important; }}
 }}
 </style>
@@ -318,11 +374,12 @@ input[type="checkbox"] {{ accent-color: var(--accent); }}
 
 <main>
 {panels_html}
+</main>
+
 <div class="actions">
     <button type="button" id="btn-cancel" class="btn btn-cancel">Cancel</button>
     <button type="button" id="btn-deploy" class="btn btn-deploy">Deploy</button>
 </div>
-</main>
 
 <div class="saved-indicator" id="saved">Saved</div>
 
@@ -387,12 +444,30 @@ function updateDisabledState() {{
 {js_update}
 }}
 
+function filterConfig(obj) {{
+    if (Array.isArray(obj)) return obj.length ? obj : undefined;
+    if (obj && typeof obj === "object") {{
+        const out = {{}};
+        for (const [k, v] of Object.entries(obj)) {{
+            const fv = filterConfig(v);
+            if (fv !== undefined && fv !== "" && fv !== false) out[k] = fv;
+        }}
+        return Object.keys(out).length ? out : undefined;
+    }}
+    if (obj === "" || obj === false || obj === null || obj === undefined) return undefined;
+    return obj;
+}}
+
 // Nav switching
 function switchPanel(cat) {{
     for (const p of $$(".panel")) p.style.display = "none";
     const target = $(`#cat-${{cat}}`);
     if (target) target.style.display = "";
     for (const a of $$("nav a")) a.classList.toggle("active", a.dataset.cat === cat);
+    if (cat === "manifest") {{
+        const cfg = filterConfig(readForm());
+        $("#manifest-json").textContent = JSON.stringify(cfg, null, 2);
+    }}
 }}
 
 // Wire up
