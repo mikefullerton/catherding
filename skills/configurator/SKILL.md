@@ -100,8 +100,11 @@ Read the config JSON and set these internal variables:
 | `website.type` | `FLOW` | `"new"`, `"existing"`, or `"none"` (backend-only) |
 | `website.domain` | `SITE_DOMAIN` | Domain for the main site (defaults to `DOMAIN`) |
 | `website.addons` | `ADDONS` | List: `sqlite database`, `key-value storage`, `file storage` |
-| `backend.enabled` | — | If `true`, include backend in `SERVICES` |
-| `backend.domain` | `BACKEND_DOMAIN` | Domain for the backend (defaults to `backend.DOMAIN`) |
+| `backend.enabled` | — | If `true`, include backend or api in `SERVICES` |
+| `backend.type` | `BACKEND_TYPE` | `"full"` (Hono+Railway) or `"api"` (endpoint + optional docs site) |
+| `backend.domain` | `BACKEND_DOMAIN` | Domain for full backend (defaults to `backend.DOMAIN`) |
+| `backend.endpoint_url` | `API_ENDPOINT` | API endpoint URL (api type only) |
+| `backend.docs_domain` | `API_DOCS_DOMAIN` | Domain for API docs site, e.g. `api.DOMAIN` (api type, optional) |
 | `admin_sites.admin.enabled` | — | If `true`, include admin in `SERVICES` |
 | `admin_sites.admin.domain` | `ADMIN_DOMAIN` | Domain for admin site |
 | `admin_sites.dashboard.enabled` | — | If `true`, include dashboard in `SERVICES` |
@@ -110,14 +113,18 @@ Read the config JSON and set these internal variables:
 
 Build the `SERVICES` set from the config:
 - Include `main` if `website.type` is not `"none"`
-- Add `backend` if `backend.enabled` is `true`
+- Add `backend` if `backend.enabled` is `true` and `backend.type` is `"full"`
+- Add `api` if `backend.enabled` is `true` and `backend.type` is `"api"`
+- Add `api-docs` if `backend.docs_domain` is set
 - Add `admin` if `admin_sites.admin.enabled` is `true`
 - Add `dashboard` if `admin_sites.dashboard.enabled` is `true`
 
 Derive the internal project type:
 - Main only → `existing` (if FLOW=existing) or `worker` (if FLOW=new)
-- Main + backend → `existing` or `api`
-- Main + backend + admin + dashboard → `existing` or `full`
+- Main + full backend → `existing` or `full-stack`
+- Main + full backend + admin + dashboard → `existing` or `full`
+- Main + api → `existing` or `api`
+- Backend/api only (no main) → `api` or `full-stack`
 
 #### Step 1c — Check for existing project
 

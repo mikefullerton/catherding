@@ -184,7 +184,13 @@ def show_config(name: str) -> None:
     # Backend
     be = cfg.get("backend", {})
     if be.get("enabled"):
-        print(f"  Backend:        yes ({be.get('domain', f'backend.{domain}')})")
+        be_type = be.get("type", "full")
+        if be_type == "api":
+            print(f"  Backend:        api ({be.get('endpoint_url', '—')})")
+            if be.get("docs_domain"):
+                print(f"  API docs:       {be['docs_domain']}")
+        else:
+            print(f"  Backend:        full ({be.get('domain', f'backend.{domain}')})")
     else:
         print("  Backend:        no")
 
@@ -432,18 +438,40 @@ def run_questions(name: str | None, cfg: dict) -> str:
     cfg["website"] = ws
     save_config(name, cfg)
 
-    # Q5: backend
+    # Q5: backend / api
     be = cfg.get("backend", {})
-    be_default = "yes" if be.get("enabled", False) else "no"
-    be_answer = ask_choice(5, f"Do you want a backend for {domain}?", ["yes", "no"], default=be_default)
-    be["enabled"] = be_answer == "yes"
+    be_type = be.get("type", "none")
+    if be.get("enabled") and not be.get("type"):
+        be_type = "full"  # migrate old configs
+    be_answer = ask_choice(5, f"Do you want a backend for {domain}?", ["full backend", "api", "none"], default=be_type if be_type in ("full backend", "api", "none") else "none")
 
-    if be["enabled"]:
+    if be_answer == "none":
+        be = {"enabled": False}
+    elif be_answer == "full backend":
+        be["enabled"] = True
+        be["type"] = "full"
         be_domain_default = be.get("domain") or f"backend.{domain}"
-        be_domain = ask_clarifying_text(f"What domain name should we configure for the backend? (default: backend.{domain})", default=be_domain_default)
+        be_domain = ask_clarifying_text(f"What domain for the backend? (default: backend.{domain})", default=be_domain_default)
         be["domain"] = be_domain or f"backend.{domain}"
-    else:
-        be.pop("domain", None)
+    elif be_answer == "api":
+        be["enabled"] = True
+        be["type"] = "api"
+        api_url_default = be.get("endpoint_url", "")
+        api_url = ask_clarifying_text("What is the API endpoint URL?", default=api_url_default)
+        be["endpoint_url"] = api_url
+
+        # API docs site
+        api_domain_default = be.get("docs_domain") or f"api.{domain}"
+        docs_answer = ask_clarifying_choice(
+            f"Deploy an API docs site at {api_domain_default}?",
+            ["yes", "no"],
+            default="yes" if be.get("docs_domain") else "yes",
+        )
+        if docs_answer == "yes":
+            docs_domain = ask_clarifying_text(f"Domain for the API docs site? (default: api.{domain})", default=api_domain_default)
+            be["docs_domain"] = docs_domain or api_domain_default
+        else:
+            be.pop("docs_domain", None)
 
     cfg["backend"] = be
     save_config(name, cfg)
