@@ -5,7 +5,11 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+import sys
 from pathlib import Path
+
+import questionary
+from questionary import Choice
 
 CONFIG_DIR = Path.home() / ".configurator"
 TOTAL_QUESTIONS = 7
@@ -105,13 +109,7 @@ def show_config(name: str) -> None:
 # ── Prompt helpers ──────────────────────────────────────────────────────────
 
 
-def _input(prompt: str) -> str:
-    """Read input, raise UserQuit on EOF/Ctrl-C."""
-    try:
-        return input(prompt)
-    except (EOFError, KeyboardInterrupt):
-        print()
-        raise UserQuit
+QUIT_LABEL = "Quit"
 
 
 def prefix(n: int) -> str:
@@ -120,13 +118,13 @@ def prefix(n: int) -> str:
 
 def ask_text(question_num: int, message: str, *, required: bool = False, default: str = "") -> str:
     full = f"{prefix(question_num)} {message}"
-    hint = f" [{default}]" if default else ""
     while True:
-        answer = _input(f"{full}{hint}: ").strip()
+        answer = questionary.text(full, default=default).ask()
+        if answer is None:
+            raise UserQuit
+        answer = answer.strip()
         if answer.lower() == "q":
             raise UserQuit
-        if not answer and default:
-            return default
         if required and not answer:
             print("  This question is required.")
             continue
@@ -138,30 +136,11 @@ def ask_choice(question_num: int | None, message: str, choices: list[str], *, de
         full = f"{prefix(question_num)} {message}"
     else:
         full = message
-
-    print(full)
-    default_idx = None
-    for i, c in enumerate(choices, 1):
-        marker = " *" if c == default else ""
-        print(f"  {i}. {c}{marker}")
-        if c == default:
-            default_idx = i
-    print("  q. Quit")
-
-    hint = f" [{default_idx}]" if default_idx else ""
-    while True:
-        answer = _input(f"Choose{hint}: ").strip()
-        if answer.lower() == "q":
-            raise UserQuit
-        if not answer and default_idx:
-            return choices[default_idx - 1]
-        try:
-            idx = int(answer)
-            if 1 <= idx <= len(choices):
-                return choices[idx - 1]
-        except ValueError:
-            pass
-        print(f"  Enter 1-{len(choices)} or q to quit.")
+    items = [Choice(c, value=c) for c in choices] + [Choice(QUIT_LABEL, value=QUIT_LABEL)]
+    answer = questionary.select(full, choices=items, default=default).ask()
+    if answer is None or answer == QUIT_LABEL:
+        raise UserQuit
+    return answer
 
 
 def ask_list(question_num: int | None, message: str, choices: list[str], *, defaults: list[str] | None = None, min_required: int = 0) -> list[str]:
@@ -171,50 +150,26 @@ def ask_list(question_num: int | None, message: str, choices: list[str], *, defa
         full = message
 
     defaults = defaults or []
-    selected = set(defaults)
-
-    print(full)
-    for i, c in enumerate(choices, 1):
-        marker = "x" if c in selected else " "
-        print(f"  {i}. [{marker}] {c}")
-    print("  q. Quit")
-
-    default_hint = ",".join(str(i + 1) for i, c in enumerate(choices) if c in selected)
-    hint = f" [{default_hint}]" if default_hint else ""
+    items = [Choice(c, checked=(c in defaults)) for c in choices] + [Choice(QUIT_LABEL, checked=False)]
 
     while True:
-        answer = _input(f"Toggle (comma-separated), Enter to confirm{hint}: ").strip()
-        if answer.lower() == "q":
+        answer = questionary.checkbox(full, choices=items).ask()
+        if answer is None or QUIT_LABEL in answer:
             raise UserQuit
-        if not answer:
-            result = [c for c in choices if c in selected]
-            if len(result) < min_required:
-                print(f"  Please select at least {min_required}.")
-                continue
-            return result
-        try:
-            indices = [int(x.strip()) for x in answer.split(",")]
-            for idx in indices:
-                if 1 <= idx <= len(choices):
-                    c = choices[idx - 1]
-                    selected ^= {c}
-            # Redisplay
-            print()
-            print(full)
-            for i, c in enumerate(choices, 1):
-                marker = "x" if c in selected else " "
-                print(f"  {i}. [{marker}] {c}")
-            print("  q. Quit")
-        except ValueError:
-            print(f"  Enter numbers 1-{len(choices)} separated by commas, or Enter to confirm.")
+        if len(answer) < min_required:
+            print(f"  Please select at least {min_required}.")
+            continue
+        return answer
 
 
 def ask_clarifying_text(message: str, *, default: str = "") -> str:
-    hint = f" [{default}]" if default else ""
-    answer = _input(f"  {message}{hint}: ").strip()
+    answer = questionary.text(f"  {message}", default=default).ask()
+    if answer is None:
+        raise UserQuit
+    answer = answer.strip()
     if answer.lower() == "q":
         raise UserQuit
-    return answer or default
+    return answer
 
 
 def ask_clarifying_choice(message: str, choices: list[str], *, default: str | None = None) -> str:
