@@ -80,6 +80,76 @@ def _find_repo(projects_path: str, repo_name: str) -> Path | None:
     return None
 
 
+def _load_manifest_defaults(repo_path: Path) -> dict | None:
+    """Load .site/manifest.json and map to config defaults."""
+    manifest_path = repo_path / ".site" / "manifest.json"
+    if not manifest_path.exists():
+        return None
+
+    try:
+        manifest = json.loads(manifest_path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return None
+
+    cfg: dict = {}
+    project = manifest.get("project", {})
+
+    if project.get("name"):
+        cfg["repo"] = project["name"]
+    if project.get("domain"):
+        cfg["domain"] = project["domain"]
+
+    # Map services
+    services = manifest.get("services", {})
+
+    # Website (main)
+    if "main" in services:
+        main_svc = services["main"]
+        ws: dict = {"type": "existing"}
+        if main_svc.get("domain"):
+            ws["domain"] = main_svc["domain"]
+        addons: list[str] = []
+        if main_svc.get("d1") or main_svc.get("database"):
+            addons.append("sqlite database")
+        if main_svc.get("kv"):
+            addons.append("key-value storage")
+        if main_svc.get("r2"):
+            addons.append("file storage")
+        if main_svc.get("auth") or manifest.get("auth"):
+            addons.append("authentication")
+        if addons:
+            ws["addons"] = addons
+        cfg["website"] = ws
+
+    # Backend
+    if "backend" in services:
+        be: dict = {"enabled": True}
+        if services["backend"].get("domain"):
+            be["domain"] = services["backend"]["domain"]
+        cfg["backend"] = be
+    else:
+        cfg["backend"] = {"enabled": False}
+
+    # Admin sites
+    admin_sites: dict = {}
+    for site_type in ("admin", "dashboard"):
+        if site_type in services:
+            s: dict = {"enabled": True}
+            if services[site_type].get("domain"):
+                s["domain"] = services[site_type]["domain"]
+            admin_sites[site_type] = s
+        else:
+            admin_sites[site_type] = {"enabled": False}
+    cfg["admin_sites"] = admin_sites
+
+    # Auth providers
+    auth = manifest.get("auth", {})
+    if auth.get("providers"):
+        cfg["auth_providers"] = auth["providers"]
+
+    return cfg
+
+
 # ── Display ─────────────────────────────────────────────────────────────────
 
 
@@ -274,7 +344,37 @@ def run_questions(name: str | None, cfg: dict) -> str:
         if found:
             cfg["local_path"] = str(found)
             print(f"  Found repo at {found}")
-            save_config(name, cfg)
+
+            # Check for existing deployment manifest
+            manifest_cfg = _load_manifest_defaults(found)
+            if manifest_cfg:
+                # Merge manifest values as defaults (don't overwrite user's existing cfg values)
+                for key, val in manifest_cfg.items():
+                    if key not in cfg or not cfg[key]:
+                        cfg[key] = val
+                    elif isinstance(val, dict) and isinstance(cfg.get(key), dict):
+                        for k, v in val.items():
+                            if k not in cfg[key]:
+                                cfg[key][k] = v
+
+                save_config(name, cfg)
+                print()
+                print("  Found existing deployment:")
+                show_config(name)
+                try:
+                    modify = ask_clarifying_choice(
+                        "Would you like to modify the deployment configuration?",
+                        ["yes", "no"],
+                        default="yes",
+                    )
+                except UserQuit:
+                    raise
+                if modify == "no":
+                    # Save as-is and offer deploy command
+                    return name
+            else:
+                save_config(name, cfg)
+
             repo_found = True
         else:
             print(f"  Repo '{repo}' not found in {projects_path}")

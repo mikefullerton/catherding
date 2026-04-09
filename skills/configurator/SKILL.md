@@ -123,9 +123,9 @@ Derive the internal project type:
 
 `cd` into `TARGET_DIR` (or the current directory if no `local_path` in config).
 
-If `.site/manifest.json` exists → this is an existing configurator project. Set `FLOW=update`. Read the manifest, print a summary of what's configured, and skip to **Step 1-update** (re-scaffold + redeploy).
+If `.site/manifest.json` exists → this is an existing configurator project. Set `FLOW=update`. Read the manifest and continue to **Step 1d-update** (verify and update each config item).
 
-If FLOW=existing (deploying an existing site), auto-detect the rendering mode:
+If FLOW=existing (deploying an existing site, no manifest), auto-detect the rendering mode:
 - Next.js without `output: 'export'` → SSR
 - Nuxt without `ssr: false` → SSR
 - Astro with `output: 'server'` or `output: 'hybrid'` → SSR
@@ -133,9 +133,9 @@ If FLOW=existing (deploying an existing site), auto-detect the rendering mode:
 - Plain Vite + React/Vue/Svelte with no SSR adapter → static
 - `index.html` at root with no framework → static
 
-Record as `RENDERING` (`"static"` or `"ssr"`).
+Record as `RENDERING` (`"static"` or `"ssr"`). Continue to **Step 1d-new**.
 
-#### Step 1d — Confirm
+#### Step 1d-new — Confirm new deployment *(only if no manifest)*
 
 Show the full action plan derived from the config. Be specific — list every file to create, modify, and not touch. List every external action.
 
@@ -191,54 +191,112 @@ If the user says "change something" → tell them to re-run `configurator` in th
 
 Once confirmed, record the project type in `.site/manifest.json` as `project.type` (`auth-service`, `full`, `api`, `worker`, or `existing`). If FLOW=existing, go to **Step 3E**. Otherwise, continue to **Step 2**.
 
-#### Step 1-update — Re-scaffold and redeploy *(only if FLOW=update)*
+#### Step 1d-update — Verify and update existing deployment *(only if FLOW=update)*
 
-**This step runs instead of Steps 1b–1d when `.site/manifest.json` already exists.**
+**This step runs instead of Step 1d-new when `.site/manifest.json` already exists.**
 
-Read the manifest and print a summary:
+The purpose is to verify every aspect of the deployment against the config AND the latest skill version. A config may be re-run because:
+- The user changed something in the config (added a backend, changed auth providers)
+- The skill has been updated with improved templates, patterns, or best practices
+- Something drifted or broke in the live deployment
+
+**Procedure — walk through each config item and verify the deployment:**
+
+Read the manifest and print a summary header:
 
 ```
-=== Existing configurator project ===
+=== Verifying deployment: <name> ===
 
-  Project:     <name>
-  Display:     <displayName>
   Domain:      <domain>
   Type:        <type>
-  Services:    <list of services and their status>
+  Manifest:    <configurator version that created/last updated it>
+  Skill:       <current skill version>
 ```
 
-Then show what will happen:
+Then verify each area in order. For each area, check the actual deployed state, compare against the config AND the latest skill patterns, and report status:
+
+**1. GitHub repo & secrets**
+- Verify repo exists: `gh repo view <org>/<repo>`
+- Verify Cloudflare secrets are set: `gh secret list`
+- If `CREATE_REPO` is `true` and repo doesn't exist → flag for creation
+- If secrets missing → flag for setup
+
+**2. Main site (Cloudflare Worker)**
+- Verify `wrangler.jsonc` exists and matches current template patterns
+- Verify `worker.ts` (or framework entry) matches current patterns
+- Check deployment status: `npx wrangler deployments list`
+- If config addons include storage (D1, KV, R2) → verify bindings exist in wrangler config
+- If template files are outdated vs. current skill version → flag for re-scaffold
+
+**3. Backend (Railway)** — *if `backend.enabled` in config*
+- Verify Railway project exists: `railway status`
+- Verify Dockerfile, railway.toml match current templates
+- Verify environment variables are set
+- Verify database connection works
+- If not deployed yet → flag for initial setup
+- If templates outdated → flag for update
+
+**4. Admin site** — *if `admin_sites.admin.enabled` in config*
+- Same checks as main site, scoped to `sites/admin/`
+- Verify subdomain config in wrangler
+
+**5. Dashboard** — *if `admin_sites.dashboard.enabled` in config*
+- Same checks as main site, scoped to `sites/dashboard/`
+- Verify D1 database binding
+
+**6. Auth providers** — *if `auth_providers` in config*
+- Verify auth middleware matches config providers
+- Verify OAuth credentials are configured for each provider
+- If shared auth → verify auth service URL is reachable
+- Compare against latest auth patterns in skill
+
+**After verifying all areas, show the action plan:**
 
 ```
-=== Re-scaffold and redeploy ===
+=== Update plan ===
 
-  Template files to update:
-    <list of .tmpl-generated files that will be overwritten>
+  Up to date:
+    [ok] GitHub repo and secrets
+    [ok] Main site worker configuration
+
+  Needs update:
+    [update] Backend templates (skill v1.15.0 -> v1.18.0)
+    [update] Auth middleware (added google provider)
+
+  New (not yet deployed):
+    [new] Dashboard site (added in config)
+
+  Files to update:
+    backend/Dockerfile           — updated to latest template
+    backend/src/middleware/auth.ts — add google OAuth support
+    sites/dashboard/             — scaffold new dashboard site
 
   Files that will NOT be touched:
     .env, .env.example
-    .site/manifest.json
     backend/src/db/migrations/
     backend/src/db/seed.ts
     Any file you wrote or customized
 
   Actions:
     npm install
-    Rebuild all services
-    Redeploy all services
-    Run verify + repair
+    Rebuild updated services
+    Redeploy updated services
+    Run verify
 
 Proceed?
 ```
 
+If everything is already up to date, say so and stop — no action needed.
+
 **STOP. Wait for the user to confirm.**
 
 If confirmed:
-1. Re-scaffold templates — for each `.tmpl` file in `${CLAUDE_SKILL_DIR}/references/templates/`, perform placeholder substitution and overwrite the output file. **Never overwrite** preserved files listed above.
-2. Rebuild — `npm install`, then build each service.
-3. Redeploy — follow the same deploy steps as Init (Steps 9/9E for CF Workers, Railway for backend).
-4. Verify — run `site-manager verify` and fix any issues.
-5. Report what was updated.
+1. **New services** — scaffold from templates (same as a fresh Init for that service).
+2. **Updated services** — re-scaffold template files only, preserving user code. Run the same template substitution as Step 3.
+3. **Rebuild** — `npm install`, then build each updated/new service.
+4. **Redeploy** — deploy each updated/new service (Steps 9/9E for CF Workers, Railway for backend).
+5. **Verify** — run `site-manager verify` and fix any issues.
+6. **Update manifest** — update `.site/manifest.json` with current skill version and any new services.
 
 After completion, skip all remaining Init steps. Done.
 
