@@ -163,17 +163,17 @@ def run(claude_data: dict, lines: list) -> list:
     sep = " | "
 
     c1 = f"usage {rate_7d:.1f}%"
-    c2 = f"{today_pct:.1f}% today"
+    c2 = f"usage today: {today_pct:.1f}%"
     c4 = f"{remaining_days:.1f}d left"
 
     if too_early:
-        c3 = f"{DIM}daily ave --{RST}"
+        c3 = f"{DIM}daily ave: --{RST}"
         c5 = f"{DIM}too early{RST}"
     else:
         daily_avg_pct = rate_7d / elapsed_days
         projected = daily_avg_pct * 7.0
 
-        c3 = f"daily ave {daily_avg_pct:.1f}%"
+        c3 = f"daily ave: {daily_avg_pct:.1f}%"
 
         if projected > 100.0:
             c5 = f"{RED}{projected:.1f}%{RST} projected"
