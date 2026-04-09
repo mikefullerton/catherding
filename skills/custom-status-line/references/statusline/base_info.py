@@ -188,7 +188,17 @@ def run(claude_data: dict, lines: list) -> list:
         else:
             l1c2 = f"git:({YELLOW}{branch}{RST})"
 
-        stats = [f"{added} added, {deleted} deleted, {changed} changed"]
+        UP = "\u2191"
+        DN = "\u2193"
+
+        def _c(n, sym):
+            s = f"{sym}{n}"
+            return f"{YELLOW}{s}{RST}" if n > 0 else s
+
+        file_part = f"{_c(changed, '~')} {_c(added, '+')} {_c(deleted, '-')}"
+
+        osep = f" {ORANGE}|{RST} "
+        parts = [file_part]
 
         if branch not in ("main", "master"):
             commits = git_cmd("rev-list", "--count", "main..HEAD")
@@ -196,9 +206,9 @@ def run(claude_data: dict, lines: list) -> list:
             behind_main = git_cmd("rev-list", "--count", "HEAD..main")
             behind_main = int(behind_main) if behind_main else 0
             if commits == 0 and behind_main == 0:
-                stats.append("in sync with main")
+                parts.append(f"main: {DIM}in sync{RST}")
             else:
-                stats.append(f"{commits} ahead, {behind_main} behind main")
+                parts.append(f"main: {_c(commits, UP)}{_c(behind_main, DN)}")
 
         has_remote = bool(git_cmd("rev-parse", "--verify", f"origin/{branch}"))
         if has_remote:
@@ -207,13 +217,13 @@ def run(claude_data: dict, lines: list) -> list:
             behind_remote = git_cmd("rev-list", "--count", f"HEAD..origin/{branch}")
             behind_remote = int(behind_remote) if behind_remote else 0
             if ahead_remote == 0 and behind_remote == 0:
-                stats.append("in sync with remote")
+                parts.append(f"remote: {DIM}in sync{RST}")
             else:
-                stats.append(f"{ahead_remote} ahead, {behind_remote} behind remote")
+                parts.append(f"remote: {_c(ahead_remote, UP)}{_c(behind_remote, DN)}")
         else:
-            stats.append("no remote")
+            parts.append(f"remote: {DIM}none{RST}")
 
-        l1c3 = f"[{', '.join(stats)}]"
+        l1c3 = f"[{osep.join(parts)}]"
 
     # LINE 2
     settings_path = os.path.expanduser("~/.claude/settings.json")
