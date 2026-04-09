@@ -305,6 +305,34 @@ def cmd_show(config_name: str | None) -> None:
     show_config(chosen)
 
 
+def cmd_delete(config_name: str | None) -> None:
+    configs = list_configs()
+    if not configs:
+        print("No configurations found.")
+        return
+
+    if config_name and config_name not in configs:
+        print(f"Configuration '{config_name}' not found.")
+        return
+
+    if not config_name:
+        try:
+            config_name = ask_choice(None, "Which configuration do you want to delete?", configs)
+        except UserQuit:
+            return
+
+    try:
+        confirm = ask_choice(None, f"Delete '{config_name}'? This cannot be undone.", ["no", "yes"], default="no")
+    except UserQuit:
+        return
+
+    if confirm == "yes":
+        delete_config(config_name)
+        print(f"Configuration '{config_name}' deleted.")
+    else:
+        print("Cancelled.")
+
+
 def cmd_configure() -> None:
     configs = list_configs()
     menu = configs + ["New configuration"]
@@ -373,6 +401,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Interactive project configurator")
     parser.add_argument("--configure", action="store_true", default=True, help="Configure a project (default)")
     parser.add_argument("--show", nargs="?", const="", metavar="NAME", help="Show a configuration")
+    parser.add_argument("--delete", nargs="?", const="", metavar="NAME", help="Delete a configuration")
     parser.add_argument("--version", action="store_true", help="Show version")
     args = parser.parse_args()
 
@@ -383,6 +412,10 @@ def main() -> None:
 
     if args.show is not None:
         cmd_show(args.show or None)
+        return
+
+    if args.delete is not None:
+        cmd_delete(args.delete or None)
         return
 
     cmd_configure()
