@@ -18,7 +18,6 @@ export const users = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     email: varchar("email", { length: 255 }).notNull().unique(),
-    passwordHash: varchar("password_hash", { length: 255 }).notNull(),
     role: varchar("role", { length: 50 }).notNull().default("user"),
     displayName: varchar("display_name", { length: 255 }),
     avatarUrl: varchar("avatar_url", { length: 500 }),
@@ -29,26 +28,43 @@ export const users = pgTable(
   (table) => [index("users_email_idx").on(table.email)],
 );
 
-// ── OAuth Accounts ───────────────────────────────────────────────────────
+// ── User Auth Methods ───────────────────────────────────────────────────
+// Unified table for all auth providers: password, github, google, apple
 
-export const oauthAccounts = pgTable(
-  "oauth_accounts",
+export const userAuthMethods = pgTable(
+  "user_auth_methods",
   {
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
-    provider: varchar("provider", { length: 50 }).notNull(),
-    providerAccountId: varchar("provider_account_id", { length: 255 }).notNull(),
-    accessToken: text("access_token"),
-    refreshToken: text("refresh_token"),
-    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    provider: varchar("provider", { length: 50 }).notNull(), // "password", "github", "google", "apple"
+    providerId: varchar("provider_id", { length: 255 }),      // OAuth subject ID (null for password)
+    credential: varchar("credential", { length: 255 }),       // password hash (null for OAuth)
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("oauth_provider_account_idx").on(table.provider, table.providerAccountId),
-    index("oauth_user_idx").on(table.userId),
+    uniqueIndex("auth_user_provider_idx").on(table.userId, table.provider),
+    uniqueIndex("auth_provider_id_idx").on(table.provider, table.providerId),
   ],
+);
+
+// ── User Capabilities ───────────────────────────────────────────────────
+// Per-user permissions: "admin:users", "messaging:send", "api:write", etc.
+
+export const userCapabilities = pgTable(
+  "user_capabilities",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    capability: varchar("capability", { length: 100 }).notNull(),
+    grantedAt: timestamp("granted_at", { withTimezone: true }).notNull().defaultNow(),
+    grantedBy: uuid("granted_by").references(() => users.id, { onDelete: "set null" }),
+  },
+  (table) => [uniqueIndex("capabilities_user_cap_idx").on(table.userId, table.capability)],
 );
 
 // ── Refresh Tokens ───────────────────────────────────────────────────────
@@ -61,6 +77,7 @@ export const refreshTokens = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     tokenHash: varchar("token_hash", { length: 255 }).notNull(),
+    rememberMe: boolean("remember_me").notNull().default(false),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     replacedByTokenId: uuid("replaced_by_token_id"),
@@ -86,7 +103,7 @@ export const apiTokens = pgTable(
     name: varchar("name", { length: 255 }).notNull(),
     keyId: varchar("key_id", { length: 50 }).notNull().unique(),
     secretHash: varchar("secret_hash", { length: 255 }).notNull(),
-    scopes: jsonb("scopes").$type<string[]>().default([]),
+    capabilities: jsonb("capabilities").$type<string[]>().default([]), // "messaging:send", "users:read", etc.
     createdBy: uuid("created_by")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
@@ -100,6 +117,62 @@ export const apiTokens = pgTable(
     index("api_tokens_created_by_idx").on(table.createdBy),
   ],
 );
+
+// ── Notification Preferences ────────────────────────────────────────────
+
+export const notificationPreferences = pgTable(
+  "notification_preferences",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    category: varchar("category", { length: 50 }).notNull(), // "marketing", "security", "updates"
+    email: boolean("email").notNull().default(true),
+    sms: boolean("sms").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("notification_prefs_user_cat_idx").on(table.userId, table.category)],
+);
+
+// ── Integration Connections ─────────────────────────────────────────────
+// Third-party OAuth connections (Google Calendar, etc.) with sync state
+
+export const integrationConnections = pgTable(
+  "integration_connections",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: varchar("provider", { length: 50 }).notNull(),  // "google", "microsoft", "slack"
+    serviceType: varchar("service_type", { length: 50 }).notNull(), // "calendar", "email", "tasks"
+    accessToken: text("access_token"),   // should be encrypted at rest
+    refreshToken: text("refresh_token"), // should be encrypted at rest
+    tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }),
+    scopes: text("scopes").default(""),
+    externalAccountId: varchar("external_account_id", { length: 255 }).default(""),
+    status: varchar("status", { length: 20 }).notNull().default("active"), // active, expired, revoked, error
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    syncCursor: text("sync_cursor"), // provider-specific sync token
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("integration_user_idx").on(table.userId),
+    uniqueIndex("integration_user_provider_service_idx").on(table.userId, table.provider, table.serviceType),
+  ],
+);
+
+// ── Schema Versions ─────────────────────────────────────────────────────
+
+export const schemaVersions = pgTable("schema_versions", {
+  version: integer("version").primaryKey(),
+  description: varchar("description", { length: 255 }).notNull(),
+  appliedAt: timestamp("applied_at", { withTimezone: true }).notNull().defaultNow(),
+});
 
 // ── Feature Flags ────────────────────────────────────────────────────────
 

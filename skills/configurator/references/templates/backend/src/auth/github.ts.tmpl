@@ -1,9 +1,9 @@
 {{#IF_GITHUB_OAUTH}}
 import { Hono } from "hono";
 import { db } from "../db/client.js";
-import { users, oauthAccounts } from "../db/schema.js";
+import { users, userAuthMethods } from "../db/schema.js";
 import { eq, and } from "drizzle-orm";
-import { createAccessToken, createRefreshToken } from "./session.js";
+import { createAccessToken, createRefreshToken, refreshTokenCookie } from "./session.js";
 import { env } from "../config/env.js";
 import type { AppEnv } from "../app.js";
 
@@ -58,20 +58,16 @@ githubAuth.get("/callback", async (c) => {
 
   const providerId = String(ghUser.id);
 
-  // Check for existing OAuth link
-  const [existingOauth] = await db
+  // Check for existing auth method
+  const [existingAuth] = await db
     .select()
-    .from(oauthAccounts)
-    .where(and(eq(oauthAccounts.provider, "github"), eq(oauthAccounts.providerAccountId, providerId)));
+    .from(userAuthMethods)
+    .where(and(eq(userAuthMethods.provider, "github"), eq(userAuthMethods.providerId, providerId)));
 
   let userId: string;
 
-  if (existingOauth) {
-    userId = existingOauth.userId;
-    await db
-      .update(oauthAccounts)
-      .set({ accessToken: tokenData.access_token })
-      .where(eq(oauthAccounts.id, existingOauth.id));
+  if (existingAuth) {
+    userId = existingAuth.userId;
   } else {
     // Check if user exists by email
     const [existingUser] = await db.select().from(users).where(eq(users.email, email));
@@ -83,7 +79,6 @@ githubAuth.get("/callback", async (c) => {
         .insert(users)
         .values({
           email,
-          passwordHash: "",
           displayName: ghUser.login,
           avatarUrl: ghUser.avatar_url,
           emailVerified: true,
@@ -93,21 +88,21 @@ githubAuth.get("/callback", async (c) => {
       userId = newUser.id;
     }
 
-    await db.insert(oauthAccounts).values({
+    await db.insert(userAuthMethods).values({
       userId,
       provider: "github",
-      providerAccountId: providerId,
-      accessToken: tokenData.access_token,
+      providerId,
     });
   }
 
   const [user] = await db.select().from(users).where(eq(users.id, userId));
   if (!user) throw new Error("User not found after OAuth link");
   const accessToken = await createAccessToken({ sub: user.id, email: user.email, role: user.role });
-  const refreshToken = await createRefreshToken(user.id);
+  const refresh = await createRefreshToken(user.id, true);
 
+  c.header("Set-Cookie", refreshTokenCookie(refresh.raw, refresh.expiresAt));
   return c.redirect(
-    `${env.CLIENT_URL}/auth/callback?access_token=${accessToken}&refresh_token=${refreshToken}`,
+    `${env.CLIENT_URL}/auth/callback?access_token=${accessToken}`,
   );
 });
 {{/IF_GITHUB_OAUTH}}

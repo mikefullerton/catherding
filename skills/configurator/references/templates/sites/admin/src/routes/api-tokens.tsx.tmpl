@@ -1,21 +1,37 @@
 import { useState } from "react";
 import { useApiTokens, useCreateApiToken, useDeleteApiToken } from "../api/admin";
 
+const AVAILABLE_CAPABILITIES = [
+  { value: "api:read", label: "API Read" },
+  { value: "api:write", label: "API Write" },
+  { value: "messaging:send", label: "Send Messages" },
+  { value: "users:read", label: "Read Users" },
+  { value: "users:write", label: "Write Users" },
+];
+
 export function ApiTokensPage() {
   const { data, isLoading } = useApiTokens();
   const createToken = useCreateApiToken();
   const deleteToken = useDeleteApiToken();
 
   const [newName, setNewName] = useState("");
+  const [selectedCaps, setSelectedCaps] = useState<string[]>([]);
   const [revealedSecret, setRevealedSecret] = useState<{ name: string; keyId: string; secret: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
   async function handleCreate() {
     if (!newName) return;
-    const result = await createToken.mutateAsync({ name: newName });
+    const result = await createToken.mutateAsync({ name: newName, capabilities: selectedCaps });
     setRevealedSecret({ name: result.name, keyId: result.keyId, secret: result.secret });
     setNewName("");
+    setSelectedCaps([]);
     setCopied(false);
+  }
+
+  function toggleCapability(cap: string) {
+    setSelectedCaps((prev) =>
+      prev.includes(cap) ? prev.filter((c) => c !== cap) : [...prev, cap],
+    );
   }
 
   function handleCopy() {
@@ -67,22 +83,40 @@ export function ApiTokensPage() {
       )}
 
       {/* Create new token */}
-      <div className="flex gap-2 mb-6">
-        <input
-          type="text"
-          placeholder="Token name (e.g. CI/CD, mobile-app)"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
-          className="px-3 py-2 border rounded-lg flex-1"
-        />
-        <button
-          onClick={handleCreate}
-          disabled={createToken.isPending || !newName}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-        >
-          Create Token
-        </button>
+      <div className="mb-6 p-4 border rounded-lg bg-gray-50">
+        <div className="flex gap-2 mb-3">
+          <input
+            type="text"
+            placeholder="Token name (e.g. CI/CD, mobile-app)"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
+            className="px-3 py-2 border rounded-lg flex-1"
+          />
+          <button
+            onClick={handleCreate}
+            disabled={createToken.isPending || !newName}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            Create Token
+          </button>
+        </div>
+        <div>
+          <p className="text-sm font-medium text-gray-700 mb-2">Capabilities</p>
+          <div className="flex flex-wrap gap-2">
+            {AVAILABLE_CAPABILITIES.map((cap) => (
+              <label key={cap.value} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedCaps.includes(cap.value)}
+                  onChange={() => toggleCapability(cap.value)}
+                  className="rounded"
+                />
+                {cap.label}
+              </label>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Token list */}
@@ -96,6 +130,7 @@ export function ApiTokensPage() {
             <tr className="border-b text-left">
               <th className="py-2 px-3">Name</th>
               <th className="py-2 px-3">Key ID</th>
+              <th className="py-2 px-3">Capabilities</th>
               <th className="py-2 px-3">Created</th>
               <th className="py-2 px-3">Last Used</th>
               <th className="py-2 px-3">Actions</th>
@@ -106,6 +141,11 @@ export function ApiTokensPage() {
               <tr key={token.id} className="border-b hover:bg-gray-50">
                 <td className="py-2 px-3 text-sm font-medium">{token.name}</td>
                 <td className="py-2 px-3 font-mono text-sm text-gray-500">{token.keyId}</td>
+                <td className="py-2 px-3 text-sm text-gray-500">
+                  {token.capabilities?.length
+                    ? token.capabilities.join(", ")
+                    : <span className="italic">none</span>}
+                </td>
                 <td className="py-2 px-3 text-sm text-gray-500">
                   {new Date(token.createdAt).toLocaleDateString()}
                 </td>

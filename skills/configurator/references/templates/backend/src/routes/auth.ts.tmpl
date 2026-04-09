@@ -1,14 +1,16 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { db } from "../db/client.js";
-import { users, settings } from "../db/schema.js";
-import { eq } from "drizzle-orm";
+import { users, userAuthMethods, settings } from "../db/schema.js";
+import { eq, and } from "drizzle-orm";
 import { hashPassword, verifyPassword } from "../auth/password.js";
 import {
   createAccessToken,
   createRefreshToken,
   rotateRefreshToken,
   revokeRefreshToken,
+  refreshTokenCookie,
+  clearRefreshTokenCookie,
 } from "../auth/session.js";
 import { requireAuth } from "../auth/middleware.js";
 import type { AppEnv } from "../app.js";
@@ -19,16 +21,20 @@ const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   displayName: z.string().min(1).max(255).optional(),
+  rememberMe: z.boolean().optional().default(false),
 });
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string(),
+  rememberMe: z.boolean().optional().default(false),
 });
 
-const refreshSchema = z.object({
-  refreshToken: z.string(),
-});
+function getCookie(header: string | undefined, name: string): string | undefined {
+  if (!header) return undefined;
+  const match = header.match(new RegExp(`(?:^|;)\\s*${name}=([^;]+)`));
+  return match?.[1];
+}
 
 // POST /api/auth/register
 auth.post("/register", async (c) => {
@@ -46,7 +52,7 @@ auth.post("/register", async (c) => {
     );
   }
 
-  const { email, password, displayName } = body.data;
+  const { email, password, displayName, rememberMe } = body.data;
 
   const [existing] = await db.select().from(users).where(eq(users.email, email));
   if (existing) {
@@ -56,14 +62,22 @@ auth.post("/register", async (c) => {
   const passwordHash = await hashPassword(password);
   const [user] = await db
     .insert(users)
-    .values({ email, passwordHash, displayName })
+    .values({ email, displayName })
     .returning();
   if (!user) throw new Error("Failed to create user");
 
-  const accessToken = await createAccessToken({ sub: user.id, email: user.email, role: user.role });
-  const refreshToken = await createRefreshToken(user.id);
+  // Create password auth method
+  await db.insert(userAuthMethods).values({
+    userId: user.id,
+    provider: "password",
+    credential: passwordHash,
+  });
 
-  return c.json({ accessToken, refreshToken, user: { id: user.id, email: user.email, role: user.role } }, 201);
+  const accessToken = await createAccessToken({ sub: user.id, email: user.email, role: user.role });
+  const refresh = await createRefreshToken(user.id, rememberMe);
+
+  c.header("Set-Cookie", refreshTokenCookie(refresh.raw, refresh.expiresAt));
+  return c.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } }, 201);
 });
 
 // POST /api/auth/login
@@ -76,56 +90,63 @@ auth.post("/login", async (c) => {
     );
   }
 
-  const { email, password } = body.data;
+  const { email, password, rememberMe } = body.data;
 
   const [user] = await db.select().from(users).where(eq(users.email, email));
-  if (!user || !user.passwordHash) {
+  if (!user) {
     return c.json({ type: "about:blank", title: "Invalid credentials", status: 401 }, 401);
   }
 
-  const valid = await verifyPassword(password, user.passwordHash);
+  // Look up password auth method
+  const [authMethod] = await db
+    .select()
+    .from(userAuthMethods)
+    .where(and(eq(userAuthMethods.userId, user.id), eq(userAuthMethods.provider, "password")));
+
+  if (!authMethod?.credential) {
+    return c.json({ type: "about:blank", title: "Invalid credentials", status: 401 }, 401);
+  }
+
+  const valid = await verifyPassword(password, authMethod.credential);
   if (!valid) {
     return c.json({ type: "about:blank", title: "Invalid credentials", status: 401 }, 401);
   }
 
   const accessToken = await createAccessToken({ sub: user.id, email: user.email, role: user.role });
-  const refreshToken = await createRefreshToken(user.id);
+  const refresh = await createRefreshToken(user.id, rememberMe);
 
-  return c.json({ accessToken, refreshToken, user: { id: user.id, email: user.email, role: user.role } });
+  c.header("Set-Cookie", refreshTokenCookie(refresh.raw, refresh.expiresAt));
+  return c.json({ accessToken, user: { id: user.id, email: user.email, role: user.role } });
 });
 
 // POST /api/auth/refresh
 auth.post("/refresh", async (c) => {
-  const body = refreshSchema.safeParse(await c.req.json());
-  if (!body.success) {
-    return c.json({ type: "about:blank", title: "Missing refresh token", status: 400 }, 400);
+  // Read refresh token from httpOnly cookie
+  const cookieHeader = c.req.header("Cookie");
+  const oldToken = getCookie(cookieHeader, "refresh_token");
+  if (!oldToken) {
+    return c.json({ type: "about:blank", title: "No refresh token", status: 401 }, 401);
   }
 
-  const { refreshToken: oldToken } = body.data;
-
-  // We need the userId to rotate — decode from old access token or require it
-  // For simplicity, require an Authorization header with the expired access token
+  // Decode userId from the (possibly expired) access token
   const authHeader = c.req.header("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return c.json({ type: "about:blank", title: "Authorization header required", status: 401 }, 401);
   }
 
-  // Decode without verifying expiration to get the userId
-  const tokenParts = authHeader.slice(7).split(".");
-  if (tokenParts.length !== 3) {
-    return c.json({ type: "about:blank", title: "Invalid token format", status: 401 }, 401);
-  }
-
   let userId: string;
   try {
+    const tokenParts = authHeader.slice(7).split(".");
+    if (tokenParts.length !== 3) throw new Error("Invalid format");
     const payload = JSON.parse(atob(tokenParts[1] ?? ""));
     userId = payload.sub;
   } catch {
     return c.json({ type: "about:blank", title: "Invalid token", status: 401 }, 401);
   }
 
-  const newRefreshToken = await rotateRefreshToken(oldToken, userId);
-  if (!newRefreshToken) {
+  const result = await rotateRefreshToken(oldToken, userId);
+  if (!result) {
+    c.header("Set-Cookie", clearRefreshTokenCookie());
     return c.json({ type: "about:blank", title: "Invalid or expired refresh token", status: 401 }, 401);
   }
 
@@ -135,17 +156,19 @@ auth.post("/refresh", async (c) => {
   }
 
   const accessToken = await createAccessToken({ sub: user.id, email: user.email, role: user.role });
+  c.header("Set-Cookie", refreshTokenCookie(result.raw, result.expiresAt));
 
-  return c.json({ accessToken, refreshToken: newRefreshToken });
+  return c.json({ accessToken });
 });
 
 // POST /api/auth/logout
 auth.post("/logout", async (c) => {
-  const body = await c.req.json().catch(() => ({}));
-  const refreshToken = (body as { refreshToken?: string }).refreshToken;
-  if (refreshToken) {
-    await revokeRefreshToken(refreshToken);
+  const cookieHeader = c.req.header("Cookie");
+  const token = getCookie(cookieHeader, "refresh_token");
+  if (token) {
+    await revokeRefreshToken(token);
   }
+  c.header("Set-Cookie", clearRefreshTokenCookie());
   return c.json({ ok: true });
 });
 

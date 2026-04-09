@@ -1,5 +1,5 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
-import type { User, AuthTokens } from "{{PROJECT_NAME}}-shared";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import type { User } from "{{PROJECT_NAME}}-shared";
 
 interface AuthContextValue {
   user: User | null;
@@ -8,74 +8,113 @@ interface AuthContextValue {
   isAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  apiFetch: (input: RequestInfo, init?: RequestInit) => Promise<Response>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const TOKEN_KEY = "admin_auth_tokens";
+// Access token lives in memory only — never in localStorage
+let accessToken: string | null = null;
 
-function getStoredTokens(): AuthTokens | null {
-  const raw = localStorage.getItem(TOKEN_KEY);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as AuthTokens;
-  } catch {
-    return null;
+/** Fetch wrapper that auto-refreshes on 401 */
+async function authedFetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
+  const headers = new Headers(init?.headers);
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
   }
+
+  let res = await fetch(input, { ...init, headers, credentials: "include" });
+
+  if (res.status === 401 && accessToken) {
+    const refreshed = await tryRefresh();
+    if (refreshed) {
+      headers.set("Authorization", `Bearer ${accessToken}`);
+      res = await fetch(input, { ...init, headers, credentials: "include" });
+    }
+  }
+
+  return res;
 }
 
-function storeTokens(tokens: AuthTokens): void {
-  localStorage.setItem(TOKEN_KEY, JSON.stringify(tokens));
-}
-
-function clearStoredTokens(): void {
-  localStorage.removeItem(TOKEN_KEY);
+async function tryRefresh(): Promise<boolean> {
+  try {
+    const res = await fetch("/api/auth/refresh", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      credentials: "include",
+    });
+    if (!res.ok) {
+      accessToken = null;
+      return false;
+    }
+    const data = await res.json();
+    accessToken = data.accessToken;
+    return true;
+  } catch {
+    accessToken = null;
+    return false;
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const scheduleRefresh = useCallback(() => {
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    refreshTimer.current = setTimeout(async () => {
+      const ok = await tryRefresh();
+      if (ok) scheduleRefresh();
+    }, 13 * 60 * 1000);
+  }, []);
 
   const fetchMe = useCallback(async () => {
-    const tokens = getStoredTokens();
-    if (!tokens) {
+    const refreshed = await tryRefresh();
+    if (!refreshed) {
       setIsLoading(false);
       return;
     }
 
     try {
-      const res = await fetch("/api/auth/me", {
-        headers: { Authorization: `Bearer ${tokens.accessToken}` },
-      });
+      const res = await authedFetch("/api/auth/me");
       if (res.ok) {
         const userData = (await res.json()) as User;
         if (userData.role !== "admin") {
-          clearStoredTokens();
+          accessToken = null;
           setUser(null);
         } else {
           setUser(userData);
+          scheduleRefresh();
         }
       } else {
-        clearStoredTokens();
+        accessToken = null;
         setUser(null);
       }
     } catch {
-      clearStoredTokens();
+      accessToken = null;
       setUser(null);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [scheduleRefresh]);
 
   useEffect(() => {
     fetchMe();
+    return () => {
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    };
   }, [fetchMe]);
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      credentials: "include",
+      body: JSON.stringify({ email, password, rememberMe: true }),
     });
     if (!res.ok) {
       const err = await res.json();
@@ -87,21 +126,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Admin access required");
     }
 
-    storeTokens({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+    accessToken = data.accessToken;
     setUser(data.user);
-  }, []);
+    scheduleRefresh();
+  }, [scheduleRefresh]);
 
   const logout = useCallback(async () => {
-    const tokens = getStoredTokens();
-    if (tokens?.refreshToken) {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken: tokens.refreshToken }),
-      }).catch(() => {});
-    }
-    clearStoredTokens();
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+    }).catch(() => {});
+    accessToken = null;
     setUser(null);
+    if (refreshTimer.current) clearTimeout(refreshTimer.current);
   }, []);
 
   return (
@@ -113,6 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin: user?.role === "admin",
         login,
         logout,
+        apiFetch: authedFetch,
       }}
     >
       {children}

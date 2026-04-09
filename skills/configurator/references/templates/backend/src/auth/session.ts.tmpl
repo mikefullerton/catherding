@@ -7,7 +7,8 @@ import { env } from "../config/env.js";
 
 const secret = new TextEncoder().encode(env.JWT_SECRET);
 const ACCESS_TOKEN_TTL = "15m";
-const REFRESH_TOKEN_DAYS = 30;
+const REFRESH_TOKEN_DAYS_SHORT = 1;  // no "remember me"
+const REFRESH_TOKEN_DAYS_LONG = 30;  // with "remember me"
 
 export interface TokenPayload {
   sub: string;
@@ -37,20 +38,24 @@ function hashToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
-export async function createRefreshToken(userId: string): Promise<string> {
+export async function createRefreshToken(
+  userId: string,
+  rememberMe = false,
+): Promise<{ raw: string; expiresAt: Date }> {
   const raw = randomBytes(32).toString("hex");
   const tokenHash = hashToken(raw);
-  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000);
+  const days = rememberMe ? REFRESH_TOKEN_DAYS_LONG : REFRESH_TOKEN_DAYS_SHORT;
+  const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
-  await db.insert(refreshTokens).values({ userId, tokenHash, expiresAt });
+  await db.insert(refreshTokens).values({ userId, tokenHash, rememberMe, expiresAt });
 
-  return raw;
+  return { raw, expiresAt };
 }
 
 export async function rotateRefreshToken(
   oldRaw: string,
   userId: string,
-): Promise<string | null> {
+): Promise<{ raw: string; expiresAt: Date } | null> {
   const oldHash = hashToken(oldRaw);
 
   const [existing] = await db
@@ -68,13 +73,15 @@ export async function rotateRefreshToken(
     return null;
   }
 
+  // Preserve the remember-me setting from the original token
+  const days = existing.rememberMe ? REFRESH_TOKEN_DAYS_LONG : REFRESH_TOKEN_DAYS_SHORT;
   const newRaw = randomBytes(32).toString("hex");
   const newHash = hashToken(newRaw);
-  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000);
+  const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
   const [newToken] = await db
     .insert(refreshTokens)
-    .values({ userId, tokenHash: newHash, expiresAt })
+    .values({ userId, tokenHash: newHash, rememberMe: existing.rememberMe, expiresAt })
     .returning();
   if (!newToken) throw new Error("Failed to create refresh token");
 
@@ -83,7 +90,7 @@ export async function rotateRefreshToken(
     .set({ revokedAt: new Date(), replacedByTokenId: newToken.id })
     .where(eq(refreshTokens.id, existing.id));
 
-  return newRaw;
+  return { raw: newRaw, expiresAt };
 }
 
 export async function revokeRefreshToken(raw: string): Promise<void> {
@@ -92,4 +99,28 @@ export async function revokeRefreshToken(raw: string): Promise<void> {
     .update(refreshTokens)
     .set({ revokedAt: new Date() })
     .where(eq(refreshTokens.tokenHash, tokenHash));
+}
+
+/** Build Set-Cookie header for the refresh token */
+export function refreshTokenCookie(raw: string, expiresAt: Date): string {
+  return [
+    `refresh_token=${raw}`,
+    `HttpOnly`,
+    `Secure`,
+    `SameSite=Strict`,
+    `Path=/api/auth`,
+    `Expires=${expiresAt.toUTCString()}`,
+  ].join("; ");
+}
+
+/** Build Set-Cookie header to clear the refresh token */
+export function clearRefreshTokenCookie(): string {
+  return [
+    `refresh_token=`,
+    `HttpOnly`,
+    `Secure`,
+    `SameSite=Strict`,
+    `Path=/api/auth`,
+    `Max-Age=0`,
+  ].join("; ");
 }

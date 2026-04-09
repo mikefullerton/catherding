@@ -1,8 +1,8 @@
 import type { Context, Next } from "hono";
 import { verifyAccessToken } from "./session.js";
 import { db } from "../db/client.js";
-import { apiTokens } from "../db/schema.js";
-import { eq, isNull, and, gt } from "drizzle-orm";
+import { apiTokens, userCapabilities } from "../db/schema.js";
+import { eq, isNull, and } from "drizzle-orm";
 import type { AppEnv } from "../app.js";
 
 async function hashSecret(secret: string): Promise<string> {
@@ -42,6 +42,7 @@ async function tryApiTokenAuth(c: Context<AppEnv>, bearer: string): Promise<bool
   c.set("userId", token.createdBy);
   c.set("userEmail", `api-token:${token.keyId}`);
   c.set("userRole", "user");
+  c.set("capabilities", token.capabilities ?? []);
   return true;
 }
 
@@ -113,4 +114,41 @@ export async function requireAdmin(c: Context<AppEnv>, next: Next) {
   }
 
   await next();
+}
+
+/** Middleware that requires a specific capability on the authenticated principal. */
+export function requireCapability(capability: string) {
+  return async (c: Context<AppEnv>, next: Next) => {
+    // Must be authenticated first
+    if (!c.get("userId")) {
+      return c.json({ type: "about:blank", title: "Unauthorized", status: 401 }, 401);
+    }
+
+    // Admins have all capabilities
+    if (c.get("userRole") === "admin") {
+      await next();
+      return;
+    }
+
+    // Check API token capabilities
+    const tokenCaps = c.get("capabilities") as string[] | undefined;
+    if (tokenCaps?.includes(capability)) {
+      await next();
+      return;
+    }
+
+    // Check user capabilities from DB
+    const userId = c.get("userId");
+    const caps = await db
+      .select({ capability: userCapabilities.capability })
+      .from(userCapabilities)
+      .where(eq(userCapabilities.userId, userId));
+
+    if (caps.some((cap) => cap.capability === capability)) {
+      await next();
+      return;
+    }
+
+    return c.json({ type: "about:blank", title: "Forbidden — missing capability: " + capability, status: 403 }, 403);
+  };
 }

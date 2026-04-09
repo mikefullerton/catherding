@@ -37,7 +37,7 @@ async function hashSecret(secret: string): Promise<string> {
 
 const createSchema = z.object({
   name: z.string().min(1).max(255),
-  scopes: z.array(z.string()).optional(),
+  capabilities: z.array(z.string()).optional(),
   expiresAt: z.string().datetime().optional(),
 });
 
@@ -48,7 +48,7 @@ adminApiTokens.get("/", async (c) => {
       id: apiTokens.id,
       name: apiTokens.name,
       keyId: apiTokens.keyId,
-      scopes: apiTokens.scopes,
+      capabilities: apiTokens.capabilities,
       createdBy: apiTokens.createdBy,
       lastUsedAt: apiTokens.lastUsedAt,
       expiresAt: apiTokens.expiresAt,
@@ -89,7 +89,7 @@ adminApiTokens.post("/", async (c) => {
       name: body.data.name,
       keyId,
       secretHash,
-      scopes: body.data.scopes ?? [],
+      capabilities: body.data.capabilities ?? [],
       createdBy: c.get("userId"),
       expiresAt: body.data.expiresAt ? new Date(body.data.expiresAt) : null,
     })
@@ -104,7 +104,7 @@ adminApiTokens.post("/", async (c) => {
       name: token.name,
       keyId,
       secret,
-      scopes: token.scopes,
+      capabilities: token.capabilities,
       createdAt: token.createdAt.toISOString(),
       expiresAt: token.expiresAt?.toISOString() ?? null,
     },

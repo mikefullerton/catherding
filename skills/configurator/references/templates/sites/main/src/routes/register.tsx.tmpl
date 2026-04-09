@@ -6,6 +6,7 @@ export function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -15,7 +16,7 @@ export function RegisterPage() {
     setIsSubmitting(true);
 
     try {
-      await register(email, password, displayName || undefined);
+      await register(email, password, displayName || undefined, rememberMe);
       window.location.href = "/";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
@@ -85,6 +86,16 @@ export function RegisterPage() {
               style={{ background: "#1c1c24", border: "1px solid #2a2a36", color: "#e8e6e3" }}
             />
           </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="rounded"
+              style={{ accentColor: "#c4a35a" }}
+            />
+            <span className="text-sm" style={{ color: "#8a8a9a" }}>Remember me</span>
+          </label>
           <button
             type="submit"
             disabled={isSubmitting}

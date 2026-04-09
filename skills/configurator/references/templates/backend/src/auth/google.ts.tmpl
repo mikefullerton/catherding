@@ -1,9 +1,9 @@
 {{#IF_GOOGLE_OAUTH}}
 import { Hono } from "hono";
 import { db } from "../db/client.js";
-import { users, oauthAccounts } from "../db/schema.js";
+import { users, userAuthMethods } from "../db/schema.js";
 import { eq, and } from "drizzle-orm";
-import { createAccessToken, createRefreshToken } from "./session.js";
+import { createAccessToken, createRefreshToken, refreshTokenCookie } from "./session.js";
 import { env } from "../config/env.js";
 import type { AppEnv } from "../app.js";
 
@@ -56,27 +56,16 @@ googleAuth.get("/callback", async (c) => {
   });
   const gUser = (await userRes.json()) as { id: string; email: string; name: string; picture: string };
 
-  // Check for existing OAuth link
-  const [existingOauth] = await db
+  // Check for existing auth method
+  const [existingAuth] = await db
     .select()
-    .from(oauthAccounts)
-    .where(and(eq(oauthAccounts.provider, "google"), eq(oauthAccounts.providerAccountId, gUser.id)));
+    .from(userAuthMethods)
+    .where(and(eq(userAuthMethods.provider, "google"), eq(userAuthMethods.providerId, gUser.id)));
 
   let userId: string;
 
-  if (existingOauth) {
-    userId = existingOauth.userId;
-    const expiresAt = tokenData.expires_in
-      ? new Date(Date.now() + tokenData.expires_in * 1000)
-      : null;
-    await db
-      .update(oauthAccounts)
-      .set({
-        accessToken: tokenData.access_token,
-        refreshToken: tokenData.refresh_token ?? existingOauth.refreshToken,
-        expiresAt,
-      })
-      .where(eq(oauthAccounts.id, existingOauth.id));
+  if (existingAuth) {
+    userId = existingAuth.userId;
   } else {
     const [existingUser] = await db.select().from(users).where(eq(users.email, gUser.email));
 
@@ -87,7 +76,6 @@ googleAuth.get("/callback", async (c) => {
         .insert(users)
         .values({
           email: gUser.email,
-          passwordHash: "",
           displayName: gUser.name,
           avatarUrl: gUser.picture,
           emailVerified: true,
@@ -97,26 +85,21 @@ googleAuth.get("/callback", async (c) => {
       userId = newUser.id;
     }
 
-    const expiresAt = tokenData.expires_in
-      ? new Date(Date.now() + tokenData.expires_in * 1000)
-      : null;
-    await db.insert(oauthAccounts).values({
+    await db.insert(userAuthMethods).values({
       userId,
       provider: "google",
-      providerAccountId: gUser.id,
-      accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token,
-      expiresAt,
+      providerId: gUser.id,
     });
   }
 
   const [user] = await db.select().from(users).where(eq(users.id, userId));
   if (!user) throw new Error("User not found after OAuth link");
   const accessToken = await createAccessToken({ sub: user.id, email: user.email, role: user.role });
-  const refreshToken = await createRefreshToken(user.id);
+  const refresh = await createRefreshToken(user.id, true);
 
+  c.header("Set-Cookie", refreshTokenCookie(refresh.raw, refresh.expiresAt));
   return c.redirect(
-    `${env.CLIENT_URL}/auth/callback?access_token=${accessToken}&refresh_token=${refreshToken}`,
+    `${env.CLIENT_URL}/auth/callback?access_token=${accessToken}`,
   );
 });
 {{/IF_GOOGLE_OAUTH}}

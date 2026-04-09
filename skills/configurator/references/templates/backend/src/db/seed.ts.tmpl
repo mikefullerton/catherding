@@ -1,5 +1,5 @@
 import { db } from "./client.js";
-import { users } from "./schema.js";
+import { users, userAuthMethods } from "./schema.js";
 import { hashPassword } from "../auth/password.js";
 import { eq } from "drizzle-orm";
 
@@ -12,8 +12,8 @@ async function seed() {
     process.exit(1);
   }
 
-  if (password.length < 12) {
-    console.error("ADMIN_PASSWORD must be at least 12 characters");
+  if (password.length < 8) {
+    console.error("ADMIN_PASSWORD must be at least 8 characters");
     process.exit(1);
   }
 
@@ -26,12 +26,19 @@ async function seed() {
 
   const passwordHash = await hashPassword(password);
 
-  await db.insert(users).values({
+  const [user] = await db.insert(users).values({
     email,
-    passwordHash,
     role: "admin",
     displayName: "Admin",
     emailVerified: true,
+  }).returning();
+
+  if (!user) throw new Error("Failed to create admin user");
+
+  await db.insert(userAuthMethods).values({
+    userId: user.id,
+    provider: "password",
+    credential: passwordHash,
   });
 
   console.log(`Admin account created: ${email}`);
