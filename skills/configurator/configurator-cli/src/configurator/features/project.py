@@ -1,10 +1,10 @@
-"""Project feature — repo, org, domain, port, local_path."""
+"""Project feature — repo, org, domain, local_path."""
 
 from __future__ import annotations
 
 from configurator.features.base import Feature, FeatureMeta, RenderContext
 
-_VERSION = "1.1.0"
+_VERSION = "1.2.0"
 
 
 class ProjectFeature(Feature):
@@ -42,10 +42,6 @@ class ProjectFeature(Feature):
     <label for="domain">Domain</label>
     <input type="text" id="domain" data-key="domain">
 </div>
-<div class="field">
-    <label for="port">Editor port</label>
-    <input type="text" id="port" data-key="port" inputmode="numeric" pattern="[0-9]*">
-</div>
 <div class="field" id="local-path-field" style="display:none">
     <label>Local path</label>
     <div class="readonly" id="local-path"></div>
@@ -72,9 +68,6 @@ class ProjectFeature(Feature):
     const domain = $("#domain").value.trim();
     if (domain) cfg.domain = domain;
 
-    const port = parseInt($("#port").value, 10);
-    if (port && port > 0) cfg.port = port;
-
     // Local path (read-only, pass through)
     if (CONFIG.local_path) cfg.local_path = CONFIG.local_path;
     if (CONFIG.create_repo) cfg.create_repo = CONFIG.create_repo;"""
@@ -95,7 +88,6 @@ class ProjectFeature(Feature):
         orgSelect.value = org;
     }
     $("#domain").value = CONFIG.domain || "";
-    $("#port").value = CONFIG.port || 4040;
     if (CONFIG.local_path) {
         $("#local-path").textContent = CONFIG.local_path;
         $("#local-path-field").style.display = "";
