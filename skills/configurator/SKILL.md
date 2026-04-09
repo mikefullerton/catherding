@@ -3,11 +3,11 @@ name: configurator
 description: "Configure or deploy a project. /configurator --configure opens the web editor, /configurator --deploy runs deployment. If neither is passed, asks which mode."
 version: "1.22.0"
 argument-hint: "[--configure|--deploy|<config-name>|add|deploy|update|verify|repair|status|manifest|seed-admin|go-live|--help|--version]"
-allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), AskUserQuestion
+allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), Bash(configurator *), Bash(uv tool install *), AskUserQuestion
 model: sonnet
 ---
 
-# Configurator v1.20.0
+# Configurator v1.22.0
 
 Deploy and manage a suite of up to 4 websites as a unified platform. Configuration is gathered by the `configurator` CLI (run interactively in the terminal) and saved as a deployment spec at `~/.configurator/<name>.json`. This skill reads the spec and executes the deployment.
 
@@ -19,16 +19,13 @@ Deploy and manage a suite of up to 4 websites as a unified platform. Configurati
 
 ## Startup
 
-**Step 0 — Ensure permissions**: Run `python3 ${CLAUDE_SKILL_DIR}/references/ensure-permissions.py ${CLAUDE_SKILL_DIR}/SKILL.md` to whitelist this skill's tools in `~/.claude/settings.json`. This is silent and idempotent.
+**Step 0a — Ensure permissions**: Run `python3 ${CLAUDE_SKILL_DIR}/references/ensure-permissions.py ${CLAUDE_SKILL_DIR}/SKILL.md` to whitelist this skill's tools in `~/.claude/settings.json`. This is silent and idempotent.
 
-**CRITICAL**: The very first thing you output MUST be the version line:
+**Step 0b — Ensure CLI is installed**: Run `uv tool install -e ${CLAUDE_SKILL_DIR}/configurator-cli` to ensure the global `configurator` command is up to date. This is fast and idempotent — it only reinstalls if the package changed.
 
-configurator v1.20.0
+**CRITICAL**: The very first thing you output MUST be the version line. Get it by running `configurator --version`.
 
-If `$ARGUMENTS` is `--version`, respond with exactly:
-> configurator v1.20.0
-
-Then stop.
+If `$ARGUMENTS` is `--version`, output the version line and stop.
 
 ## Route by argument
 
@@ -72,7 +69,7 @@ All references to "manifest" in this skill mean `.site/manifest.json`.
 
 **Open the web editor to create or edit a project configuration. Does not deploy.**
 
-Run `uv run --project ${CLAUDE_SKILL_DIR}/configurator-cli configurator` in cwd to open the web editor. The user edits the config in the browser and clicks **Deploy** or **Cancel**.
+Run `configurator` in cwd to open the web editor. The user edits the config in the browser and clicks **Deploy** or **Cancel**.
 
 - If the output contains `ACTION:deploy`, tell the user the config was saved and they can run `/configurator --deploy` to deploy it.
 - If the output contains `ACTION:cancel`, tell the user the configuration was cancelled.
@@ -93,14 +90,14 @@ Configs are stored at `~/.configurator/<config-name>.json`. The `configurator` C
 
 **If `$ARGUMENTS` is a config name** (not a subcommand like `deploy`, `verify`, etc.):
 - Check if `~/.configurator/$ARGUMENTS.json` exists
-- If it doesn't exist, run `uv run --project ${CLAUDE_SKILL_DIR}/configurator-cli configurator` in cwd to create it. Parse the output for `ACTION:deploy` or `ACTION:cancel`. If cancel, stop. If deploy, continue.
-- If it does exist, run `uv run --project ${CLAUDE_SKILL_DIR}/configurator-cli configurator` in cwd to open the web editor. Parse the output for `ACTION:deploy` or `ACTION:cancel`. If cancel, stop. If deploy, continue.
+- If it doesn't exist, run `configurator` in cwd to create it. Parse the output for `ACTION:deploy` or `ACTION:cancel`. If cancel, stop. If deploy, continue.
+- If it does exist, run `configurator` in cwd to open the web editor. Parse the output for `ACTION:deploy` or `ACTION:cancel`. If cancel, stop. If deploy, continue.
 - Read `~/.configurator/$ARGUMENTS.json`
 
 **If `$ARGUMENTS` is empty:**
 - List all `.json` files in `~/.configurator/` (excluding `configurator-config.json`)
-- If none found: run `uv run --project ${CLAUDE_SKILL_DIR}/configurator-cli configurator` in cwd. Parse for `ACTION:deploy` or `ACTION:cancel`. If cancel, stop. If deploy, find the newly created config and continue.
-- If exactly one: load it automatically and tell the user which config you're using. Then run `uv run --project ${CLAUDE_SKILL_DIR}/configurator-cli configurator` in cwd so the user can review in the web editor. Parse for `ACTION:deploy` or `ACTION:cancel`. If cancel, stop.
+- If none found: run `configurator` in cwd. Parse for `ACTION:deploy` or `ACTION:cancel`. If cancel, stop. If deploy, find the newly created config and continue.
+- If exactly one: load it automatically and tell the user which config you're using. Then run `configurator` in cwd so the user can review in the web editor. Parse for `ACTION:deploy` or `ACTION:cancel`. If cancel, stop.
 - If multiple: use AskUserQuestion to ask the user which config to deploy. Then open the web editor as above.
 
 #### Step 1b — Parse config and set variables
@@ -206,7 +203,7 @@ Adapt the confirmation for the project type (full/api/worker/auth-service/existi
 
 If `CREATE_REPO` is `true`, include the GitHub repo creation step and Cloudflare secret setup.
 
-If the user says "change something" → re-run `uv run --project ${CLAUDE_SKILL_DIR}/configurator-cli configurator` to reopen the web editor. Parse for `ACTION:deploy` or `ACTION:cancel`.
+If the user says "change something" → re-run `configurator` to reopen the web editor. Parse for `ACTION:deploy` or `ACTION:cancel`.
 
 **STOP. Wait for the user to confirm.**
 
