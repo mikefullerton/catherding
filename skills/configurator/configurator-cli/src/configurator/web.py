@@ -121,6 +121,10 @@ input[type="text"]:disabled, select:disabled {{
     <label for="domain">Domain</label>
     <input type="text" id="domain" data-key="domain">
 </div>
+<div class="field">
+    <label for="port">Editor port</label>
+    <input type="text" id="port" data-key="port" inputmode="numeric" pattern="[0-9]*">
+</div>
 <div class="field" id="local-path-field" style="display:none">
     <label>Local path</label>
     <div class="readonly" id="local-path"></div>
@@ -287,6 +291,9 @@ function readForm() {{
     const domain = $("#domain").value.trim();
     if (domain) cfg.domain = domain;
 
+    const port = parseInt($("#port").value, 10);
+    if (port && port > 0) cfg.port = port;
+
     // Local path (read-only, pass through)
     if (CONFIG.local_path) cfg.local_path = CONFIG.local_path;
     if (CONFIG.create_repo) cfg.create_repo = CONFIG.create_repo;
@@ -376,6 +383,7 @@ function populateForm() {{
         orgSelect.value = org;
     }}
     $("#domain").value = CONFIG.domain || "";
+    $("#port").value = CONFIG.port || 4040;
     if (CONFIG.local_path) {{
         $("#local-path").textContent = CONFIG.local_path;
         $("#local-path-field").style.display = "";
@@ -553,9 +561,10 @@ def start_server(
     deployed_keys: set[str],
     urls: dict[str, str] | None = None,
     live_domains: set[str] | None = None,
+    port: int = 4040,
 ) -> tuple[HTTPServer, int]:
     """Create and bind the server. Returns (httpd, port)."""
-    httpd = HTTPServer(("127.0.0.1", 4040), _Handler)
+    httpd = HTTPServer(("127.0.0.1", port), _Handler)
     httpd.config_name = name
     httpd.cfg = cfg
     httpd.deployed_keys = deployed_keys
@@ -572,15 +581,19 @@ def serve_editor(
     deployed_keys: set[str] | None = None,
     urls: dict[str, str] | None = None,
     live_domains: set[str] | None = None,
+    port: int | None = None,
 ) -> None:
     """Open the web editor and block until Ctrl+C."""
     if deployed_keys is None:
         deployed_keys = set()
+    if port is None:
+        port = cfg.get("port", 4040)
     httpd, port = start_server(
         name, cfg,
         deployed_keys=deployed_keys,
         urls=urls,
         live_domains=live_domains,
+        port=port,
     )
     url = f"http://localhost:{port}/"
     print(f"  Editing at {url} — press Ctrl+C when done")
