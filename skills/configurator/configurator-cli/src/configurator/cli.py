@@ -132,13 +132,15 @@ def _manifest_to_config(manifest: dict) -> dict:
     else:
         cfg["website"] = {"type": "none"}
 
-    # Backend
-    if "backend" in services:
+    # Backend — any backend-related service means backend is enabled
+    has_backend = "backend" in services or "api" in services or "api-docs" in services
+    if has_backend:
         be: dict = {"enabled": True, "type": "full"}
-        if services["backend"].get("domain"):
-            be["domain"] = services["backend"]["domain"]
-        if services["backend"].get("endpoint_url"):
-            be["endpoint_url"] = services["backend"]["endpoint_url"]
+        be_svc = services.get("backend", services.get("api", {}))
+        if be_svc.get("domain"):
+            be["domain"] = be_svc["domain"]
+        if be_svc.get("endpoint_url") or be_svc.get("url"):
+            be["endpoint_url"] = be_svc.get("endpoint_url") or be_svc.get("url")
         if services.get("api-docs", {}).get("domain"):
             be["docs_domain"] = services["api-docs"]["domain"]
         cfg["backend"] = be
