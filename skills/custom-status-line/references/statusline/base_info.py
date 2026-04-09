@@ -201,18 +201,6 @@ def run(claude_data: dict, lines: list) -> list:
         gs1 = "git"
         gs2 = f"files: {_c(changed, '~')} {_c(added, '+')} {_c(deleted, '-')}"
 
-        if branch not in ("main", "master"):
-            commits = git_cmd("rev-list", "--count", "main..HEAD")
-            commits = int(commits) if commits else 0
-            behind_main = git_cmd("rev-list", "--count", "HEAD..main")
-            behind_main = int(behind_main) if behind_main else 0
-            if commits == 0 and behind_main == 0:
-                gs3 = f"main: {DIM}in sync{RST}"
-            else:
-                gs3 = f"main: {_c(commits, UP)}{_c(behind_main, DN)}"
-        else:
-            gs3 = ""
-
         has_remote = bool(git_cmd("rev-parse", "--verify", f"origin/{branch}"))
         if has_remote:
             ahead_remote = git_cmd("rev-list", "--count", f"origin/{branch}..HEAD")
@@ -220,11 +208,23 @@ def run(claude_data: dict, lines: list) -> list:
             behind_remote = git_cmd("rev-list", "--count", f"HEAD..origin/{branch}")
             behind_remote = int(behind_remote) if behind_remote else 0
             if ahead_remote == 0 and behind_remote == 0:
-                gs4 = f"remote: {DIM}in sync{RST}"
+                gs3 = f"remote: {DIM}in sync{RST}"
             else:
-                gs4 = f"remote: {_c(ahead_remote, UP)}{_c(behind_remote, DN)}"
+                gs3 = f"remote: {_c(ahead_remote, UP)}{_c(behind_remote, DN)}"
         else:
-            gs4 = f"remote: {DIM}none{RST}"
+            gs3 = f"remote: {DIM}none{RST}"
+
+        if branch not in ("main", "master"):
+            commits = git_cmd("rev-list", "--count", "main..HEAD")
+            commits = int(commits) if commits else 0
+            behind_main = git_cmd("rev-list", "--count", "HEAD..main")
+            behind_main = int(behind_main) if behind_main else 0
+            if commits == 0 and behind_main == 0:
+                gs4 = f"main: {DIM}in sync{RST}"
+            else:
+                gs4 = f"main: {_c(commits, UP)}{_c(behind_main, DN)}"
+        else:
+            gs4 = ""
 
     # LINE 2
     ctx_size = int((claude.get("context_window") or {}).get("context_window_size") or 200000)
@@ -303,10 +303,9 @@ def run(claude_data: dict, lines: list) -> list:
     result = [line1]
 
     if branch:
-        git_line = f"{lbor}{pad_left(gs1, col1_w)}{sep}{pad_right(gs2, col2_w)}"
-        if gs3:
-            git_line += f"{sep}{pad_right(gs3, col3_w)}"
-        git_line += f"{sep}{gs4}"
+        git_line = f"{lbor}{pad_left(gs1, col1_w)}{sep}{pad_right(gs2, col2_w)}{sep}{pad_right(gs3, col3_w)}"
+        if gs4:
+            git_line += f"{sep}{gs4}"
         result.append(git_line)
 
     line2 = f"{lbor}{pad_left(l2c1, col1_w)}{sep}{pad_right(l2c2, col2_w)}{sep}{l2c3}"
