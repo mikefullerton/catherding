@@ -11,7 +11,7 @@ class DashboardFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="dashboard", label="Dashboard", version=_VERSION,
-            order=31, dependencies=["backend"], group="admin_sites",
+            order=31, dependencies=["backend"], group="admin_sites", category="backend",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

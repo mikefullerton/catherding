@@ -13,7 +13,7 @@ class AuthFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="auth", label="Authentication", version=_VERSION,
-            order=40, dependencies=["backend"],
+            order=40, dependencies=["backend"], category="auth",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

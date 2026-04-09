@@ -18,7 +18,7 @@ class EmailFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="email", label="Email", version=_VERSION,
-            order=50, dependencies=["backend"], column="right",
+            order=50, dependencies=["backend"], category="comms",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

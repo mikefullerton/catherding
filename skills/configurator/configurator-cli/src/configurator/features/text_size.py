@@ -19,7 +19,7 @@ class TextSizeFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="text_size", label="Text Size", version=_VERSION,
-            order=12, dependencies=["website"], column="right",
+            order=12, dependencies=["website"], category="ux",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

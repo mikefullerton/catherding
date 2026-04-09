@@ -11,7 +11,7 @@ class FeatureFlagsFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="feature_flags", label="Feature Flags", version=_VERSION,
-            order=62, dependencies=["website"], column="right",
+            order=62, dependencies=["website"], category="analytics",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

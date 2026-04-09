@@ -11,7 +11,7 @@ class AdminFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="admin", label="Admin Site", version=_VERSION,
-            order=30, dependencies=["backend"], group="admin_sites",
+            order=30, dependencies=["backend"], group="admin_sites", category="backend",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

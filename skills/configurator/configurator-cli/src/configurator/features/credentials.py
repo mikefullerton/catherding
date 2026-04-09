@@ -19,7 +19,7 @@ class CredentialsFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="credentials", label="Credentials", version=_VERSION,
-            order=80, dependencies=["project"],
+            order=80, dependencies=["project"], category="ops",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

@@ -11,6 +11,17 @@ from configurator import __version__
 from configurator.features import discover_features
 from configurator.features.base import Feature, RenderContext
 
+# Category definitions: (id, label) in display order
+CATEGORIES = [
+    ("project", "Project"),
+    ("backend", "Backend"),
+    ("auth", "Auth & Access"),
+    ("ux", "User Experience"),
+    ("comms", "Communications"),
+    ("analytics", "Analytics & Flags"),
+    ("ops", "Operations"),
+]
+
 
 def _inject_version_badge(html: str, version: str) -> str:
     """Inject a version badge after the <legend> tag in a feature's fieldset."""
@@ -22,13 +33,13 @@ def _inject_version_badge(html: str, version: str) -> str:
     return html[:insert_at] + badge + html[insert_at:]
 
 
-def _compose_column(features: list[Feature], ctx: RenderContext, column: str) -> str:
-    """Compose feature HTML for a single column, grouping features that share a group."""
-    col_features = [f for f in features if f.meta().column == column]
+def _compose_category(features: list[Feature], ctx: RenderContext, category: str) -> str:
+    """Compose feature HTML for a single category, grouping features that share a group."""
+    cat_features = [f for f in features if f.meta().category == category]
     parts: list[str] = []
     current_group: str | None = None
 
-    for f in col_features:
+    for f in cat_features:
         meta = f.meta()
         feature_html = _inject_version_badge(f.config_html(ctx), meta.version)
 
@@ -69,8 +80,24 @@ def build_page(
         config=cfg,
     )
 
-    left_html = _compose_column(features, ctx, "left")
-    right_html = _compose_column(features, ctx, "right")
+    # Build panels per category
+    panels_html = ""
+    for cat_id, cat_label in CATEGORIES:
+        cat_html = _compose_category(features, ctx, cat_id)
+        if not cat_html:
+            continue
+        hidden = "" if cat_id == "project" else ' style="display:none"'
+        panels_html += f'<div class="panel" id="cat-{cat_id}"{hidden}>\n{cat_html}\n</div>\n\n'
+
+    # Build nav links
+    nav_html = ""
+    for cat_id, cat_label in CATEGORIES:
+        cat_features = [f for f in features if f.meta().category == cat_id]
+        if not cat_features:
+            continue
+        active = ' class="active"' if cat_id == "project" else ""
+        nav_html += f'    <a href="#" data-cat="{cat_id}"{active}>{cat_label}</a>\n'
+
     js_read = "\n".join(f.config_js_read() for f in features)
     js_populate = "\n".join(f.config_js_populate() for f in features)
     js_update = "\n".join(
@@ -105,6 +132,7 @@ def build_page(
     --badge-live-bg: rgba(90, 143, 212, 0.12); --badge-live-fg: #5a8fd4;
     --green: #5cb270; --red: #d45454;
     --mono: 'DM Mono', monospace; --serif: 'Instrument Serif', serif; --sans: 'Manrope', sans-serif;
+    --nav-w: 200px; --header-h: 80px;
 }}
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}
 body {{
@@ -118,36 +146,57 @@ body {{
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     z-index: 9999;
 }}
+
+/* Header */
 header {{
-    padding: 40px 0 32px; text-align: center;
-    border-bottom: 1px solid var(--border);
+    height: var(--header-h); display: flex; align-items: center;
+    padding: 0 32px; border-bottom: 1px solid var(--border);
     background: linear-gradient(180deg, rgba(196,163,90,0.04) 0%, var(--bg) 100%);
 }}
 header h1 {{
-    font-family: var(--serif); font-size: 2.4rem; font-weight: 400;
+    font-family: var(--serif); font-size: 1.6rem; font-weight: 400;
     color: var(--accent); font-style: italic; letter-spacing: -0.02em;
-    line-height: 1.1; margin-bottom: 4px;
 }}
 header .version {{
-    font-family: var(--mono); font-size: 0.75rem; color: var(--fg-dim);
-    letter-spacing: 0.05em;
+    font-family: var(--mono); font-size: 0.7rem; color: var(--fg-dim);
+    letter-spacing: 0.05em; margin-left: 12px;
 }}
-.container {{
-    max-width: 72rem; margin: 0 auto; padding: 2rem 2rem 1rem;
+
+/* Sidebar nav */
+nav {{
+    position: fixed; top: var(--header-h); left: 0; z-index: 200;
+    width: var(--nav-w);
+    height: calc(100vh - var(--header-h));
+    background: rgba(12, 12, 15, 0.96);
+    backdrop-filter: blur(12px);
+    border-right: 1px solid var(--border);
+    padding: 24px 0; overflow-y: auto;
+    display: flex; flex-direction: column;
 }}
-.columns {{
-    display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;
-    align-items: start;
+nav a {{
+    display: block; padding: 10px 24px;
+    font-family: var(--mono); font-size: 0.75rem;
+    color: var(--fg-muted); text-decoration: none;
+    letter-spacing: 0.04em;
+    border-left: 2px solid transparent;
+    transition: all 0.15s;
 }}
-@media (max-width: 768px) {{
-    .columns {{ grid-template-columns: 1fr; }}
+nav a:hover {{ color: var(--fg); border-left-color: var(--accent); }}
+nav a.active {{
+    color: var(--accent); border-left-color: var(--accent);
+    background: var(--accent-dim);
 }}
-.col-header {{
-    font-family: var(--mono); font-size: 0.7rem; font-weight: 500;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--fg-muted); margin-bottom: 1rem;
-    padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+
+/* Main content */
+main {{
+    margin-left: var(--nav-w);
+    padding: 2rem 2.5rem 1rem;
+    max-width: 48rem;
 }}
+.panel {{ animation: fadeIn 0.15s ease; }}
+@keyframes fadeIn {{ from {{ opacity: 0; }} to {{ opacity: 1; }} }}
+
+/* Form elements */
 fieldset {{
     border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem;
     margin-bottom: 1rem; background: var(--surface); position: relative;
@@ -181,9 +230,7 @@ input[type="text"]:focus, select:focus {{
 input[type="text"]:disabled, select:disabled {{
     background: var(--disabled-bg); color: var(--disabled-fg);
 }}
-input[type="checkbox"] {{
-    accent-color: var(--accent);
-}}
+input[type="checkbox"] {{ accent-color: var(--accent); }}
 .checkbox-group {{ display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.3rem; }}
 .checkbox-group label {{
     display: flex; align-items: center; gap: 0.3rem;
@@ -218,10 +265,12 @@ input[type="checkbox"] {{
     font-family: var(--mono); font-size: 0.85rem;
     color: var(--fg-dim); padding: 0.4rem 0;
 }}
+
+/* Actions bar */
 .actions {{
     display: flex; justify-content: flex-end; gap: 0.8rem;
-    margin-top: 0.5rem; margin-bottom: 2rem;
-    padding-top: 1.5rem; border-top: 1px solid var(--border);
+    margin-top: 1.5rem; padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
 }}
 .btn {{
     padding: 0.5rem 1.6rem; border: 1px solid var(--border);
@@ -246,6 +295,13 @@ input[type="checkbox"] {{
     letter-spacing: 0.05em;
 }}
 .saved-indicator.visible {{ opacity: 1; }}
+
+/* Mobile */
+@media (max-width: 640px) {{
+    nav {{ display: none; }}
+    main {{ margin-left: 0; padding: 1.5rem; }}
+    .panel {{ display: block !important; }}
+}}
 </style>
 </head>
 <body>
@@ -253,30 +309,20 @@ input[type="checkbox"] {{
 
 <header>
 <h1>Configurator</h1>
-<div class="version">v{version}</div>
+<span class="version">v{version}</span>
 </header>
 
-<div class="container">
-<div class="columns">
+<nav>
+{nav_html}
+</nav>
 
-<div class="col-left">
-<div class="col-header">Infrastructure &amp; Deployments</div>
-{left_html}
-</div>
-
-<div class="col-right">
-<div class="col-header">Settings &amp; Features</div>
-{right_html}
-</div>
-
-</div>
-
+<main>
+{panels_html}
 <div class="actions">
     <button type="button" id="btn-cancel" class="btn btn-cancel">Cancel</button>
     <button type="button" id="btn-deploy" class="btn btn-deploy">Deploy</button>
 </div>
-
-</div>
+</main>
 
 <div class="saved-indicator" id="saved">Saved</div>
 
@@ -341,7 +387,15 @@ function updateDisabledState() {{
 {js_update}
 }}
 
-// Wire up all inputs
+// Nav switching
+function switchPanel(cat) {{
+    for (const p of $$(".panel")) p.style.display = "none";
+    const target = $(`#cat-${{cat}}`);
+    if (target) target.style.display = "";
+    for (const a of $$("nav a")) a.classList.toggle("active", a.dataset.cat === cat);
+}}
+
+// Wire up
 document.addEventListener("DOMContentLoaded", () => {{
     populateForm();
 
@@ -353,7 +407,15 @@ document.addEventListener("DOMContentLoaded", () => {{
         }});
     }}
 
-    // Cancel/Deploy buttons
+    // Nav
+    for (const a of $$("nav a")) {{
+        a.addEventListener("click", (e) => {{
+            e.preventDefault();
+            switchPanel(a.dataset.cat);
+        }});
+    }}
+
+    // Cancel/Deploy
     $("#btn-cancel").addEventListener("click", () => {{
         const cfg = readForm();
         fetch("/api/config", {{

@@ -11,7 +11,7 @@ class ProjectFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="project", label="Project", version=_VERSION,
-            order=0, dependencies=[],
+            order=0, dependencies=[], category="project",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

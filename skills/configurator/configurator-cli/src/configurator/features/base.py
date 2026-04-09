@@ -16,7 +16,7 @@ class FeatureMeta:
     order: int
     dependencies: list[str] = field(default_factory=list)
     group: str | None = None
-    column: str = "left"  # "left" = infrastructure, "right" = user-facing
+    category: str = "project"  # nav category for the web editor
 
 
 class Feature(abc.ABC):

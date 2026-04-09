@@ -18,7 +18,7 @@ class ThemeFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="theme", label="Theme", version=_VERSION,
-            order=11, dependencies=["website"], column="right",
+            order=11, dependencies=["website"], category="ux",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

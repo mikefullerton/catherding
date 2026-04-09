@@ -11,7 +11,7 @@ class BackendFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="backend", label="Backend", version=_VERSION,
-            order=20, dependencies=["project"],
+            order=20, dependencies=["project"], category="backend",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

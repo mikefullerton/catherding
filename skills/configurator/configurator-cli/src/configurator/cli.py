@@ -655,8 +655,8 @@ def cmd_configure(*, tui: bool = False) -> None:
         if manifest_version:
             print(f"  Deployed with configurator v{manifest_version}")
 
-        # Show new options if the manifest is behind current version
-        if not manifest_version or _parse_version(manifest_version) < _parse_version(__version__):
+        # Show new options only if the manifest is behind current version
+        if manifest_version and _parse_version(manifest_version) < _parse_version(__version__):
             _show_new_options(manifest_version)
 
         # Build config from manifest, merging in saved preferences
