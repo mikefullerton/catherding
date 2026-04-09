@@ -12,7 +12,7 @@ import questionary
 from questionary import Choice
 
 CONFIG_DIR = Path.home() / ".configurator"
-TOTAL_QUESTIONS = 8
+TOTAL_QUESTIONS = 7
 
 ORGS = ["mikefullerton", "agentic-cookbook"]
 
@@ -102,15 +102,6 @@ def show_config(name: str) -> None:
         print(f"  Auth:           {', '.join(providers)}")
     else:
         print("  Auth:           —")
-
-    # Frontend auth
-    fa = cfg.get("frontend_auth", {})
-    features = fa.get("features", [])
-    if features:
-        print(f"  Frontend auth:  {', '.join(features)}")
-        strategy = fa.get("sqlite_strategy")
-        if strategy:
-            print(f"  SQLite:         {strategy}")
 
     print()
 
@@ -285,31 +276,6 @@ def run_questions(name: str | None, cfg: dict) -> str:
     auth_defaults = cfg.get("auth_providers", ["email/password"])
     providers = ask_list(7, f"What types of authentication should we configure for {domain}?", auth_choices, defaults=auth_defaults)
     cfg["auth_providers"] = providers
-    save_config(name, cfg)
-
-    # Q8: frontend auth (conditional on Q4 — always true for now since Q4 is required)
-    fa = cfg.get("frontend_auth", {})
-    fa_choices = ["login / register button"]
-    fa_defaults = fa.get("features", [])
-    features = ask_list(8, f"What authentication should the front-end website for {domain} have?", fa_choices, defaults=fa_defaults)
-    fa["features"] = features
-
-    # Follow-up: if auth features selected but no backend and no sqlite addon
-    has_backend = cfg.get("backend", {}).get("enabled", False)
-    has_sqlite = "sqlite database" in cfg.get("website", {}).get("addons", [])
-    if features and not has_backend and not has_sqlite:
-        strategy_choices = ["this is already available", "deploy this", "claude should follow up during deployment"]
-        strategy_default = fa.get("sqlite_strategy")
-        strategy = ask_clarifying_choice(
-            "Authentication requires a SQLite database on the front end.",
-            strategy_choices,
-            default=strategy_default,
-        )
-        fa["sqlite_strategy"] = strategy
-    else:
-        fa.pop("sqlite_strategy", None)
-
-    cfg["frontend_auth"] = fa
     save_config(name, cfg)
 
     return name
