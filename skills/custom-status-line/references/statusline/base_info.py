@@ -133,7 +133,6 @@ def run(claude_data: dict, lines: list) -> list:
     lines_added = int((claude.get("cost") or {}).get("total_lines_added") or 0)
     lines_removed = int((claude.get("cost") or {}).get("total_lines_removed") or 0)
     session_name = claude.get("session_name") or ""
-    total_changes = lines_added + lines_removed
     rate_5h = float(((claude.get("rate_limits") or {}).get("five_hour") or {}).get("used_percentage") or 0)
     rate_7d = float(((claude.get("rate_limits") or {}).get("seven_day") or {}).get("used_percentage") or 0)
     session_id = claude.get("session_id") or ""
@@ -235,16 +234,15 @@ def run(claude_data: dict, lines: list) -> list:
                 yolo_col = f"{RED}\U0001f525 YOLO{RST}"
 
     l2c2 = duration
-    l2c3 = f"{total_changes} lines changed"
 
     used_pct = 100 - rem_pct
 
     if exceeds_200k:
-        context_col = f"{RED}context: {used_pct}% of {ctx_label} (extended){RST}"
+        l2c3 = f"{RED}{used_pct}% of {ctx_label} context (extended){RST}"
     elif ctx_size > 200000 and used_pct > 20:
-        context_col = f"{YELLOW}context: {used_pct}% of {ctx_label}{RST}"
+        l2c3 = f"{YELLOW}{used_pct}% of {ctx_label} context{RST}"
     else:
-        context_col = f"context: {used_pct}% of {ctx_label}"
+        l2c3 = f"{used_pct}% of {ctx_label} context"
 
     # LINE 3
     elapsed_hours, wed_10am = get_wed_10am_elapsed_hours()
@@ -265,7 +263,7 @@ def run(claude_data: dict, lines: list) -> list:
     l3c1 = f"Weekly usage {rate_7d:.1f}%"
     l3c2 = f"day: {proj['elapsed_day']:.2f}"
 
-    l2c4 = context_col
+    l2c4 = ""
 
     # SESSION LINE
     sessions_dir = os.path.expanduser("~/.claude-status-line/sessions")
