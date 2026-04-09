@@ -43,4 +43,4 @@ rules/                 # 6 distributable rules + 1 script
 
 ## Git Workflow
 
-Commit changes in sensible batches after each change and push.
+All work must be done in worktree branches and merged back into main via PR. Use EnterWorktree to create feature branches. Never commit directly to main.
