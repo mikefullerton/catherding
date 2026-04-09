@@ -243,11 +243,11 @@ def run(claude_data: dict, lines: list) -> list:
                     yolo_data = json.load(f)
                 needs_restart = yolo_data.get("needs_restart", False)
                 if needs_restart:
-                    yolo_col = f"{RED}\U0001f525 YOLO{RST} {DIM}(needs restart){RST}"
+                    yolo_col = f"{RED}YOLO \U0001f525{RST} {DIM}(needs restart){RST}"
                 else:
-                    yolo_col = f"{RED}\U0001f525 YOLO{RST}"
+                    yolo_col = f"{RED}YOLO \U0001f525{RST}"
             except (OSError, json.JSONDecodeError):
-                yolo_col = f"{RED}\U0001f525 YOLO{RST}"
+                yolo_col = f"{RED}YOLO \U0001f525{RST}"
 
     l2c2 = duration
 
@@ -331,7 +331,7 @@ def run(claude_data: dict, lines: list) -> list:
 
     line2 = f"{lbor}{pad_left(l2c1, col1_w)}{sep}{pad_right(l2c2, col2_w)}{sep}{l2c3}"
     if yolo_col:
-        line2 += f"  {yolo_col}"
+        line2 += f"{sep}{yolo_col}"
 
     session_line = f"{lbor}{pad_left(sc1, col1_w)}{sep}{pad_right(sc2, col2_w)}{sep}{pad_right(sc3, col3_w)}{sep}{pad_right(sc4, col4_w)}"
 
