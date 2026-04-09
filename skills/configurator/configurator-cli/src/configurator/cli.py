@@ -12,6 +12,7 @@ import questionary
 from questionary import Choice
 
 CONFIG_DIR = Path.home() / ".configurator"
+GLOBAL_CONFIG = CONFIG_DIR / "configurator-config.json"
 TOTAL_QUESTIONS = 7
 
 ORGS = ["mikefullerton", "agentic-cookbook"]
@@ -31,7 +32,7 @@ def config_path(name: str) -> Path:
 def list_configs() -> list[str]:
     if not CONFIG_DIR.exists():
         return []
-    return sorted(p.stem for p in CONFIG_DIR.glob("*.json"))
+    return sorted(p.stem for p in CONFIG_DIR.glob("*.json") if p != GLOBAL_CONFIG)
 
 
 def load_config(name: str) -> dict:
@@ -52,6 +53,33 @@ def delete_config(name: str) -> None:
         path.unlink()
 
 
+def load_global_config() -> dict:
+    if GLOBAL_CONFIG.exists():
+        return json.loads(GLOBAL_CONFIG.read_text())
+    return {}
+
+
+def save_global_config(gcfg: dict) -> None:
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    GLOBAL_CONFIG.write_text(json.dumps(gcfg, indent=2) + "\n")
+
+
+def _find_repo(projects_path: str, repo_name: str) -> Path | None:
+    """Search for a repo directory under projects_path (up to 2 levels deep)."""
+    base = Path(projects_path)
+    # Direct child
+    candidate = base / repo_name
+    if candidate.is_dir():
+        return candidate.resolve()
+    # One level deeper (e.g., projects/active/repo-name)
+    for sub in base.iterdir():
+        if sub.is_dir() and not sub.name.startswith("."):
+            candidate = sub / repo_name
+            if candidate.is_dir():
+                return candidate.resolve()
+    return None
+
+
 # ── Display ─────────────────────────────────────────────────────────────────
 
 
@@ -65,6 +93,9 @@ def show_config(name: str) -> None:
     print()
     print(f"  Project:        {cfg.get('repo', '—')}")
     print(f"  Organization:   {cfg.get('org', '—')}")
+    local_path = cfg.get("local_path")
+    if local_path:
+        print(f"  Local path:     {local_path}")
     print(f"  Domain:         {domain}")
     print()
 
@@ -196,17 +227,97 @@ def run_questions(name: str | None, cfg: dict) -> str:
         name = repo
     save_config(name, cfg)
 
-    # Q2: organization
-    default_org = cfg.get("org")
-    org_choices = ORGS + ["other"]
-    org_default = default_org if default_org in org_choices else None
-    org = ask_choice(2, "What is the organization for this GitHub repo?", org_choices, default=org_default, required=True)
-    if org == "other":
-        org = ask_clarifying_text("What is the name of the organization?", default=default_org if default_org not in ORGS else "")
-        if not org:
-            org = "other"
-    cfg["org"] = org
-    save_config(name, cfg)
+    # ── Resolve projects path and locate repo ──
+    gcfg = load_global_config()
+    projects_path = gcfg.get("projects_path")
+
+    # Ensure projects_path is set and valid
+    if projects_path:
+        if not Path(projects_path).is_dir():
+            print(f"  Projects folder not found: {projects_path}")
+            try:
+                retry = ask_clarifying_choice("Enter a different path?", ["yes", "no"], default="yes")
+            except UserQuit:
+                raise
+            if retry == "yes":
+                projects_path = None  # fall through to prompt below
+            else:
+                gcfg.pop("projects_path", None)
+                save_global_config(gcfg)
+                projects_path = None
+
+    if not projects_path:
+        entered = ask_clarifying_text("What is the path to your projects folder?")
+        if entered and Path(entered).expanduser().is_dir():
+            projects_path = str(Path(entered).expanduser().resolve())
+            gcfg["projects_path"] = projects_path
+            save_global_config(gcfg)
+        elif entered:
+            print(f"  Path does not exist: {entered}")
+            try:
+                retry = ask_clarifying_choice("Try again?", ["yes", "no"], default="yes")
+            except UserQuit:
+                raise
+            if retry == "yes":
+                entered = ask_clarifying_text("What is the path to your projects folder?")
+                if entered and Path(entered).expanduser().is_dir():
+                    projects_path = str(Path(entered).expanduser().resolve())
+                    gcfg["projects_path"] = projects_path
+                    save_global_config(gcfg)
+                else:
+                    print("  Skipping projects folder.")
+
+    # Search for repo in projects folder
+    if projects_path:
+        found = _find_repo(projects_path, repo)
+        if found:
+            cfg["local_path"] = str(found)
+            print(f"  Found repo at {found}")
+            save_config(name, cfg)
+        else:
+            print(f"  Repo '{repo}' not found in {projects_path}")
+            try:
+                create = ask_clarifying_choice("Create it?", ["yes", "no"], default="yes")
+            except UserQuit:
+                raise
+            if create == "yes":
+                # Ask for org first — needed for Q2 anyway, save it early
+                default_org = cfg.get("org")
+                org_choices = ORGS + ["other"]
+                org_default = default_org if default_org in org_choices else None
+                org = ask_choice(2, "What is the organization for this GitHub repo?", org_choices, default=org_default, required=True)
+                if org == "other":
+                    org = ask_clarifying_text("What is the name of the organization?", default=default_org if default_org not in ORGS else "")
+                    if not org:
+                        org = "other"
+                cfg["org"] = org
+                save_config(name, cfg)
+
+                default_create_path = str(Path.cwd() / repo)
+                create_path = ask_clarifying_text(f"Path to create the project at? (default: {default_create_path})", default=default_create_path)
+                create_path = create_path or default_create_path
+                cfg["local_path"] = create_path
+                cfg["create_repo"] = True
+                save_config(name, cfg)
+                # Skip Q2 below since we already asked it
+                skip_org = True
+            else:
+                skip_org = False
+    else:
+        skip_org = False
+
+    # Q2: organization (skip if already asked during repo creation flow)
+    if not skip_org:
+        default_org = cfg.get("org")
+        org_choices = ORGS + ["other"]
+        org_default = default_org if default_org in org_choices else None
+        org = ask_choice(2, "What is the organization for this GitHub repo?", org_choices, default=org_default, required=True)
+        if org == "other":
+            org = ask_clarifying_text("What is the name of the organization?", default=default_org if default_org not in ORGS else "")
+            if not org:
+                org = "other"
+        cfg["org"] = org
+        save_config(name, cfg)
 
     # Q3: domain
     default_domain = cfg.get("domain", "")
