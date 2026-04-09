@@ -5,12 +5,5 @@
   "owner": {
     "name": "Mike Fullerton"
   },
-  "plugins": [
-    {
-      "name": "custom-status-line",
-      "description": "Composable status line pipeline with project info, git stats, worktree detection, and repo cleanup status",
-      "source": "./plugins/custom-status-line",
-      "category": "development"
-    }
-  ]
+  "plugins": []
 }
