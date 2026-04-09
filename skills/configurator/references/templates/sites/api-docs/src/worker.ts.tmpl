@@ -1,0 +1,81 @@
+interface Env {
+  API_BACKEND_URL: string;
+  PROJECT_NAME: string;
+  DISPLAY_NAME: string;
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+
+    // ── .well-known/ai-plugin.json ──────────────────────────────────
+    if (url.pathname === "/.well-known/ai-plugin.json") {
+      const plugin = {
+        schema_version: "v1",
+        name_for_human: `${env.DISPLAY_NAME} API`,
+        name_for_model: env.PROJECT_NAME.replace(/-/g, "_"),
+        description_for_human: `API for ${env.DISPLAY_NAME}`,
+        description_for_model: `REST API for ${env.DISPLAY_NAME}. Use the OpenAPI spec to understand available endpoints, parameters, and authentication requirements.`,
+        api: {
+          type: "openapi",
+          url: `${env.API_BACKEND_URL}/api/openapi.json`,
+        },
+        auth: {
+          type: "http",
+          authorization_type: "bearer",
+        },
+      };
+      return new Response(JSON.stringify(plugin, null, 2), {
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      });
+    }
+
+    // ── /openapi.json — proxy from backend ──────────────────────────
+    if (url.pathname === "/openapi.json") {
+      const res = await fetch(`${env.API_BACKEND_URL}/api/openapi.json`);
+      return new Response(res.body, {
+        status: res.status,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+          "Cache-Control": "public, max-age=300",
+        },
+      });
+    }
+
+    // ── / — API docs rendered by Scalar ─────────────────────────────
+    if (url.pathname === "/" || url.pathname === "/index.html") {
+      const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>API Documentation — ${env.DISPLAY_NAME}</title>
+  <style>
+    body { margin: 0; }
+  </style>
+</head>
+<body>
+  <script
+    id="api-reference"
+    data-url="/openapi.json"
+    data-configuration='${JSON.stringify({
+      theme: "kepler",
+      metaData: { title: `${env.DISPLAY_NAME} API` },
+      hideDownloadButton: false,
+    })}'
+  ></script>
+  <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+</body>
+</html>`;
+      return new Response(html, {
+        headers: { "Content-Type": "text/html; charset=utf-8" },
+      });
+    }
+
+    return new Response("Not Found", { status: 404 });
+  },
+};

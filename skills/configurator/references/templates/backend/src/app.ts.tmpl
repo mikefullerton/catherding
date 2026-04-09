@@ -6,6 +6,7 @@ import { requestLogger } from "./middleware/logger.js";
 import { health } from "./routes/health.js";
 import { auth } from "./routes/auth.js";
 import { publicRoutes } from "./routes/public.js";
+import { openapi } from "./routes/openapi.js";
 import { adminUsers } from "./routes/admin/users.js";
 import { adminFlags } from "./routes/admin/flags.js";
 import { adminMessaging } from "./routes/admin/messaging.js";
@@ -37,6 +38,7 @@ app.notFound((c) => {
 // Public routes (no auth)
 app.route("/api/health", health);
 app.route("/api/auth", auth);
+app.route("/api/openapi.json", openapi);
 app.route("/api/public", publicRoutes);
 
 // Admin routes (auth + admin role required)
