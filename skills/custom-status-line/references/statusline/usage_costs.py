@@ -180,13 +180,30 @@ def run(claude_data: dict, lines: list) -> list:
         else:
             c5 = f"{projected:.1f}% projected"
 
-    # Match column widths from existing lines
+    # Match column widths from existing lines, widen if usage content is wider
     col_widths = _extract_col_widths(lines)
     if col_widths and len(col_widths) >= 4:
-        c1 = pad_left(c1, col_widths[0])
-        c2 = pad_right(c2, col_widths[1])
-        c3 = pad_right(c3, col_widths[2])
-        c4 = pad_right(c4, col_widths[3])
+        uc_widths = [visible_len(c1), visible_len(c2), visible_len(c3), visible_len(c4)]
+        new_widths = [max(col_widths[i], uc_widths[i]) for i in range(4)]
+
+        # Reformat existing aligned lines if any column got wider
+        if new_widths != col_widths[:4]:
+            for i, line in enumerate(lines):
+                if not line.startswith(lbor):
+                    continue
+                parts = line.split(sep)
+                if len(parts) < 3:
+                    continue
+                rebuilt = lbor + pad_left(parts[0][len(lbor):], new_widths[0])
+                for j in range(1, len(parts)):
+                    col = pad_right(parts[j], new_widths[j]) if j < len(new_widths) else parts[j]
+                    rebuilt += sep + col
+                lines[i] = rebuilt
+
+        c1 = pad_left(c1, new_widths[0])
+        c2 = pad_right(c2, new_widths[1])
+        c3 = pad_right(c3, new_widths[2])
+        c4 = pad_right(c4, new_widths[3])
 
     lines.append(f"{lbor}{c1}{sep}{c2}{sep}{c3}{sep}{c4}{sep}{c5}")
     return lines
