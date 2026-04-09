@@ -166,14 +166,21 @@ def run(claude_data: dict, lines: list) -> list:
     c2 = f"today's usage: {today_pct:.1f}%"
     c4 = f"{remaining_days:.1f}d left"
 
+    num_data_days = len(daily_costs)
+
     if too_early:
         c3 = f"{DIM}daily usage ave: --{RST}"
         c5 = f"{DIM}too early{RST}"
+        c6 = f"{DIM}daily usage ave 2: --{RST}"
     else:
         daily_avg_pct = rate_7d / elapsed_days
         projected = daily_avg_pct * 7.0
 
         c3 = f"daily usage ave: {daily_avg_pct:.1f}%"
+
+        # Token-based: rate_7d / number of calendar days with transcript data
+        daily_avg_pct_2 = rate_7d / num_data_days if num_data_days > 0 else 0
+        c6 = f"daily usage ave 2: {daily_avg_pct_2:.1f}%"
 
         if projected > 100.0:
             c5 = f"{RED}{projected:.1f}%{RST} projected"
@@ -205,7 +212,7 @@ def run(claude_data: dict, lines: list) -> list:
         c3 = pad_right(c3, new_widths[2])
         c4 = pad_right(c4, new_widths[3])
 
-    lines.append(f"{lbor}{c1}{sep}{c2}{sep}{c3}{sep}{c4}{sep}{c5}")
+    lines.append(f"{lbor}{c1}{sep}{c2}{sep}{c3}{sep}{c4}{sep}{c5}{sep}{c6}")
     return lines
 
 
