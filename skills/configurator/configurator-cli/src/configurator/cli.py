@@ -277,47 +277,27 @@ def run_questions(name: str | None, cfg: dict) -> str:
         else:
             print(f"  Repo '{repo}' not found in {projects_path}")
             try:
-                create = ask_clarifying_choice("Create it?", ["yes", "no"], default="yes")
+                create = ask_clarifying_choice("Should Claude create it during the deployment phase?", ["yes", "no"], default="yes")
             except UserQuit:
                 raise
             if create == "yes":
-                # Ask for org first — needed for Q2 anyway, save it early
-                default_org = cfg.get("org")
-                org_choices = ORGS + ["other"]
-                org_default = default_org if default_org in org_choices else None
-                org = ask_choice(2, "What is the organization for this GitHub repo?", org_choices, default=org_default, required=True)
-                if org == "other":
-                    org = ask_clarifying_text("What is the name of the organization?", default=default_org if default_org not in ORGS else "")
-                    if not org:
-                        org = "other"
-                cfg["org"] = org
-                save_config(name, cfg)
-
                 default_create_path = str(Path.cwd() / repo)
                 create_path = ask_clarifying_text(f"Path to create the project at? (default: {default_create_path})", default=default_create_path)
-                create_path = create_path or default_create_path
-                cfg["local_path"] = create_path
+                cfg["local_path"] = create_path or default_create_path
                 cfg["create_repo"] = True
                 save_config(name, cfg)
-                # Skip Q2 below since we already asked it
-                skip_org = True
-            else:
-                skip_org = False
     else:
-        skip_org = False
-
-    # Q2: organization (skip if already asked during repo creation flow)
-    if not skip_org:
-        default_org = cfg.get("org")
-        org_choices = ORGS + ["other"]
-        org_default = default_org if default_org in org_choices else None
-        org = ask_choice(2, "What is the organization for this GitHub repo?", org_choices, default=org_default, required=True)
-        if org == "other":
-            org = ask_clarifying_text("What is the name of the organization?", default=default_org if default_org not in ORGS else "")
-            if not org:
-                org = "other"
-        cfg["org"] = org
-        save_config(name, cfg)
+    # Q2: organization
+    default_org = cfg.get("org")
+    org_choices = ORGS + ["other"]
+    org_default = default_org if default_org in org_choices else None
+    org = ask_choice(2, "What is the organization for this GitHub repo?", org_choices, default=org_default, required=True)
+    if org == "other":
+        org = ask_clarifying_text("What is the name of the organization?", default=default_org if default_org not in ORGS else "")
+        if not org:
+            org = "other"
+    cfg["org"] = org
+    save_config(name, cfg)
 
     # Q3: domain
     default_domain = cfg.get("domain", "")
