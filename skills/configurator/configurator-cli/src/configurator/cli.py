@@ -268,12 +268,14 @@ def run_questions(name: str | None, cfg: dict) -> str:
                     print("  Skipping projects folder.")
 
     # Search for repo in projects folder
+    repo_found = False
     if projects_path:
         found = _find_repo(projects_path, repo)
         if found:
             cfg["local_path"] = str(found)
             print(f"  Found repo at {found}")
             save_config(name, cfg)
+            repo_found = True
         else:
             print(f"  Repo '{repo}' not found in {projects_path}")
             try:
@@ -286,18 +288,19 @@ def run_questions(name: str | None, cfg: dict) -> str:
                 cfg["local_path"] = create_path or default_create_path
                 cfg["create_repo"] = True
                 save_config(name, cfg)
-    else:
-    # Q2: organization
-    default_org = cfg.get("org")
-    org_choices = ORGS + ["other"]
-    org_default = default_org if default_org in org_choices else None
-    org = ask_choice(2, "What is the organization for this GitHub repo?", org_choices, default=org_default, required=True)
-    if org == "other":
-        org = ask_clarifying_text("What is the name of the organization?", default=default_org if default_org not in ORGS else "")
-        if not org:
-            org = "other"
-    cfg["org"] = org
-    save_config(name, cfg)
+
+    # Q2: organization (skip if repo already exists locally)
+    if not repo_found:
+        default_org = cfg.get("org")
+        org_choices = ORGS + ["other"]
+        org_default = default_org if default_org in org_choices else None
+        org = ask_choice(2, "What is the organization for this GitHub repo?", org_choices, default=org_default, required=True)
+        if org == "other":
+            org = ask_clarifying_text("What is the name of the organization?", default=default_org if default_org not in ORGS else "")
+            if not org:
+                org = "other"
+        cfg["org"] = org
+        save_config(name, cfg)
 
     # Q3: domain
     default_domain = cfg.get("domain", "")
