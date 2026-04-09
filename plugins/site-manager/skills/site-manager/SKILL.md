@@ -1,13 +1,13 @@
 ---
 name: site-manager
 description: "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform. /site-manager init, /site-manager add, /site-manager deploy, /site-manager status, /site-manager manifest, /site-manager seed-admin, /site-manager --help"
-version: "1.15.0"
+version: "1.16.0"
 argument-hint: "[init|add|deploy|update|verify|repair|status|manifest|seed-admin|--help|--version]"
 allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), AskUserQuestion
 model: sonnet
 ---
 
-# Site Manager v1.15.0
+# Site Manager v1.16.0
 
 Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
@@ -23,10 +23,10 @@ Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
 **CRITICAL**: The very first thing you output MUST be the version line:
 
-site-manager v1.15.0
+site-manager v1.16.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> site-manager v1.15.0
+> site-manager v1.16.0
 
 Then stop.
 
@@ -47,7 +47,7 @@ Then stop.
 | `manifest` or `manifest show` | Go to **Manifest Show** |
 | `manifest validate` | Go to **Manifest Validate** |
 | `seed-admin` | Go to **Seed Admin** |
-| `update` | Go to **Update** |
+| `update` | Go to **Init** (alias — init detects existing projects) |
 | `verify` | Go to **Verify** |
 | `repair` | Go to **Repair** |
 | `--help` | Go to **Help** |
@@ -105,7 +105,7 @@ ls .site/manifest.json wrangler.jsonc wrangler.toml 2>/dev/null
 ```
 
 Check for existing config first:
-- If `.site/manifest.json` exists → print "This is already a site-manager project. Use `/site-manager add` to add services." Then **stop**.
+- If `.site/manifest.json` exists → this is an **existing site-manager project**. Set `FLOW=update`. Read the manifest, print a summary of what's configured, and skip to **Step 1-update** (re-scaffold + redeploy). Do NOT run steps 1b-1k.
 - If `wrangler.jsonc` or `wrangler.toml` exists at root → note it (already configured for Workers).
 
 **Check the root directory first, then scan immediate subdirectories.** Websites often live in a subdirectory like `site/`, `web/`, `frontend/`, `app/`, or `www/`. Run the detection checklist against the root AND each immediate subdirectory that contains a `package.json` or `index.html`:
@@ -353,6 +353,59 @@ This won't be connected yet — run /site-manager go-live when you're ready.
 ```
 
 **STOP. Wait for the user's answer.**
+
+#### Step 1-update — Re-scaffold and redeploy *(only if FLOW=update)*
+
+**This step runs instead of steps 1b-1k when `.site/manifest.json` already exists.**
+
+Read the manifest and print a summary:
+
+```
+=== Existing site-manager project ===
+
+  Project:     <name>
+  Display:     <displayName>
+  Domain:      <domain>
+  Type:        <type>
+  Services:    <list of services and their status>
+```
+
+Then show what will happen:
+
+```
+=== Re-scaffold and redeploy ===
+
+  Template files to update:
+    <list of .tmpl-generated files that will be overwritten>
+
+  Files that will NOT be touched:
+    .env, .env.example
+    .site/manifest.json
+    backend/src/db/migrations/
+    backend/src/db/seed.ts
+    Any file you wrote or customized
+
+  Actions:
+    npm install
+    Rebuild all services
+    Redeploy all services
+    Run verify + repair
+
+Proceed?
+```
+
+**STOP. Wait for the user to confirm.**
+
+If confirmed:
+1. Re-scaffold templates — for each `.tmpl` file in `${CLAUDE_SKILL_DIR}/references/templates/`, perform placeholder substitution and overwrite the output file. **Never overwrite** preserved files listed above.
+2. Rebuild — `npm install`, then build each service.
+3. Redeploy — follow the same deploy steps as Init (Steps 9/9E for CF Workers, Railway for backend).
+4. Verify — run `site-manager verify` and fix any issues.
+5. Report what was updated.
+
+After completion, skip all remaining Init steps. Done.
+
+---
 
 #### Step 1 — Confirm
 
@@ -943,7 +996,7 @@ After Step 3E, proceed to Step 4 (commit and push), then Step 5 (install depende
 ### Step 4: Commit and push
 
 ```bash
-git add -A && git commit -m "feat: initial scaffold from site-manager v1.15.0"
+git add -A && git commit -m "feat: initial scaffold from site-manager v1.16.0"
 ```
 
 If a GitHub repo was created in Step 2, push the initial commit:
@@ -1931,86 +1984,9 @@ Confirm the new deployment works at the workers.dev URL. The existing site (GH P
 
 ## Update
 
-**Re-scaffold an existing project with the latest templates, rebuild, and redeploy.**
+**Absorbed into Init.** Running `/site-manager init` on an existing project (one with `.site/manifest.json`) automatically re-scaffolds templates, rebuilds, and redeploys. See **Step 1-update** in the Init flow.
 
-### Step 1: Read manifest
-
-Read `.site/manifest.json` from the current directory. If not found:
-> No .site/manifest.json found. Run `/site-manager init` to create a project.
-
-Then stop.
-
-Extract project info: `project.name`, `project.domain`, `project.displayName`, and all service URLs/statuses.
-
-### Step 2: Re-scaffold templates
-
-For each template in `${CLAUDE_SKILL_DIR}/references/templates/`, read the `.tmpl` file, perform placeholder substitution (same table as Init Step 3), and **overwrite** the output file.
-
-**Preserve these files** (do not overwrite):
-- `.env` and `.env.example` — user may have customized
-- `.site/manifest.json` — contains deployment state
-- `backend/src/db/migrations/` — user's migration history
-- `backend/src/db/seed.ts` — user may have customized
-- Any file not generated from a template
-
-For all other files, overwrite with the latest template output.
-
-### Step 3: Rebuild
-
-```bash
-npm install
-npm run build:shared
-npm run build:backend
-```
-
-### Step 4: Redeploy all services
-
-Follow the same deploy steps as Init Steps 9 (CF Workers) — build and deploy each site.
-
-For the backend, commit and push first (Railway auto-deploys from the repo, or use `railway up`).
-
-```bash
-git add -A && git commit -m "chore: update templates to site-manager v1.3.0"
-git push
-```
-
-Deploy each CF Worker site:
-
-```bash
-cd sites/main && npx vite build && npx wrangler deploy
-cd sites/admin && npx vite build && npx wrangler deploy
-cd sites/dashboard && npx vite build && npx wrangler deploy
-```
-
-### Step 5: Verify and repair loop
-
-Run the full verification suite:
-
-```bash
-site-manager verify
-```
-
-This writes any issues to `.site/issues.json`. If there are failures:
-
-1. Read `.site/issues.json`
-2. For each issue, apply the fix (see Init Step 13 for the fix list)
-3. Re-run `site-manager verify`
-4. Repeat until all blocking checks pass or only warnings remain
-
-### Step 6: Report
-
-Print what was updated. Do **not** auto-open sites in the browser (only Init opens sites).
-
-```
-=== UPDATE COMPLETE ===
-
-  Templates updated to site-manager v1.3.0
-  Verification: <N>/<N> passed (<W> warnings)
-
-  Main site:     <main-url>
-  Admin site:    <admin-url>
-  Dashboard:     <dashboard-url>
-```
+The `site-manager update` CLI command is kept as an alias that runs the same init flow.
 
 ---
 
@@ -2054,7 +2030,7 @@ If the issues file doesn't exist or has no issues, print:
 Print:
 
 ```
-Site Manager v1.15.0 — Scaffold, deploy, and manage website suites
+Site Manager v1.16.0 — Scaffold, deploy, and manage website suites
 
 Commands (Claude session):
   /site-manager init [domain]       Scaffold a new project
