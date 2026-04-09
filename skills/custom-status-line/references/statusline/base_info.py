@@ -167,7 +167,10 @@ def run(claude_data: dict, lines: list) -> list:
         l1c1 += f" {DIM}({session_name}){RST}"
 
     l1c2 = ""
-    l1c3 = ""
+    gs1 = ""
+    gs2 = ""
+    gs3 = ""
+    gs4 = ""
     if branch:
         porcelain = git_cmd("status", "--porcelain")
         added = 0
@@ -195,10 +198,8 @@ def run(claude_data: dict, lines: list) -> list:
             s = f"{sym}{n}"
             return f"{YELLOW}{s}{RST}" if n > 0 else s
 
-        file_part = f"{_c(changed, '~')} {_c(added, '+')} {_c(deleted, '-')}"
-
-        osep = f" {ORANGE}|{RST} "
-        parts = [file_part]
+        gs1 = "git status"
+        gs2 = f"files: {_c(changed, '~')} {_c(added, '+')} {_c(deleted, '-')}"
 
         if branch not in ("main", "master"):
             commits = git_cmd("rev-list", "--count", "main..HEAD")
@@ -206,9 +207,11 @@ def run(claude_data: dict, lines: list) -> list:
             behind_main = git_cmd("rev-list", "--count", "HEAD..main")
             behind_main = int(behind_main) if behind_main else 0
             if commits == 0 and behind_main == 0:
-                parts.append(f"main: {DIM}in sync{RST}")
+                gs3 = f"main: {DIM}in sync{RST}"
             else:
-                parts.append(f"main: {_c(commits, UP)}{_c(behind_main, DN)}")
+                gs3 = f"main: {_c(commits, UP)}{_c(behind_main, DN)}"
+        else:
+            gs3 = ""
 
         has_remote = bool(git_cmd("rev-parse", "--verify", f"origin/{branch}"))
         if has_remote:
@@ -217,13 +220,11 @@ def run(claude_data: dict, lines: list) -> list:
             behind_remote = git_cmd("rev-list", "--count", f"HEAD..origin/{branch}")
             behind_remote = int(behind_remote) if behind_remote else 0
             if ahead_remote == 0 and behind_remote == 0:
-                parts.append(f"remote: {DIM}in sync{RST}")
+                gs4 = f"remote: {DIM}in sync{RST}"
             else:
-                parts.append(f"remote: {_c(ahead_remote, UP)}{_c(behind_remote, DN)}")
+                gs4 = f"remote: {_c(ahead_remote, UP)}{_c(behind_remote, DN)}"
         else:
-            parts.append(f"remote: {DIM}none{RST}")
-
-        l1c3 = f"[{osep.join(parts)}]"
+            gs4 = f"remote: {DIM}none{RST}"
 
     # LINE 2
     ctx_size = int((claude.get("context_window") or {}).get("context_window_size") or 200000)
@@ -308,16 +309,25 @@ def run(claude_data: dict, lines: list) -> list:
     sc4 = f"{s_waiting} waiting"
 
     # Column alignment — line 1 is free-form, align lines 2+ only
-    col1_w = max(visible_len(l2c1), visible_len(sc1), visible_len(l3c1))
-    col2_w = max(visible_len(l2c2), visible_len(sc2), visible_len(l3c2))
-    col3_w = max(visible_len(l2c3), visible_len(sc3), visible_len(l3c3))
-    col4_w = max(visible_len(sc4), visible_len(l3c4))
+    col1_w = max(visible_len(gs1), visible_len(l2c1), visible_len(sc1), visible_len(l3c1))
+    col2_w = max(visible_len(gs2), visible_len(l2c2), visible_len(sc2), visible_len(l3c2))
+    col3_w = max(visible_len(gs3), visible_len(l2c3), visible_len(sc3), visible_len(l3c3))
+    col4_w = max(visible_len(gs4), visible_len(sc4), visible_len(l3c4))
 
     lbor = f"{ORANGE}|{RST} "
 
     line1 = f"{lbor}{l1c1}"
     if branch:
-        line1 += f"{sep}{l1c2} {l1c3}"
+        line1 += f"{sep}{l1c2}"
+
+    result = [line1]
+
+    if branch:
+        git_line = f"{lbor}{pad_right(gs1, col1_w)}{sep}{pad_right(gs2, col2_w)}"
+        if gs3:
+            git_line += f"{sep}{pad_right(gs3, col3_w)}"
+        git_line += f"{sep}{gs4}"
+        result.append(git_line)
 
     line2 = f"{lbor}{pad_right(l2c1, col1_w)}{sep}{pad_right(l2c2, col2_w)}{sep}{l2c3}"
     if yolo_col:
@@ -327,7 +337,7 @@ def run(claude_data: dict, lines: list) -> list:
 
     line3 = f"{lbor}{pad_left(l3c1, col1_w)}{sep}{pad_right(l3c2, col2_w)}{sep}{pad_right(l3c3, col3_w)}{sep}{l3c4}"
 
-    result = [line1, line2, session_line, line3]
+    result.extend([line2, session_line, line3])
 
     # Log to SQLite (non-blocking)
     log_to_db(claude, session_id, used_pct, proj, rate_5h, rate_7d, wed_10am, elapsed_hours)
