@@ -71,13 +71,14 @@ input[type="text"]:disabled, select:disabled {{
 .live-badge {{
     background: #e3f2fd; color: #1565c0;
 }}
-.link {{
-    font-size: 0.8rem; margin-left: 0.5rem;
+.live-url {{
+    font-size: 0.8rem; color: #666; margin-bottom: 0.8rem;
+    display: none;
 }}
-.link a {{
+.live-url a {{
     color: #1976d2; text-decoration: none;
 }}
-.link a:hover {{ text-decoration: underline; }}
+.live-url a:hover {{ text-decoration: underline; }}
 .radio-group {{ display: flex; gap: 1rem; margin-top: 0.3rem; }}
 .radio-group label {{
     display: flex; align-items: center; gap: 0.3rem;
@@ -131,8 +132,8 @@ input[type="text"]:disabled, select:disabled {{
 <legend>Website
     <span class="badge deployed-badge" id="ws-deployed" style="display:none">deployed</span>
     <span class="badge live-badge" id="ws-live" style="display:none">live</span>
-    <span class="link" id="ws-link" style="display:none"><a href="#" target="_blank">open</a></span>
 </legend>
+<div class="live-url" id="ws-link"><a href="#" target="_blank"></a></div>
 <div class="field">
     <label>Type</label>
     <div class="radio-group">
@@ -162,8 +163,8 @@ input[type="text"]:disabled, select:disabled {{
 <legend>Backend
     <span class="badge deployed-badge" id="be-deployed" style="display:none">deployed</span>
     <span class="badge live-badge" id="be-live" style="display:none">live</span>
-    <span class="link" id="be-link" style="display:none"><a href="#" target="_blank">open</a></span>
 </legend>
+<div class="live-url" id="be-link"><a href="#" target="_blank"></a></div>
 <div class="toggle-row">
     <input type="checkbox" id="be-enabled">
     <label for="be-enabled">Enable backend</label>
@@ -201,8 +202,8 @@ input[type="text"]:disabled, select:disabled {{
     <label for="admin-enabled">Admin site</label>
     <span class="badge deployed-badge" id="admin-deployed" style="display:none">deployed</span>
     <span class="badge live-badge" id="admin-live" style="display:none">live</span>
-    <span class="link" id="admin-link" style="display:none"><a href="#" target="_blank">open</a></span>
 </div>
+<div class="live-url" id="admin-link"><a href="#" target="_blank"></a></div>
 <div class="sub-field" id="admin-domain-field">
     <label for="admin-domain">Admin domain</label>
     <input type="text" id="admin-domain">
@@ -213,8 +214,8 @@ input[type="text"]:disabled, select:disabled {{
     <label for="dash-enabled">Dashboard</label>
     <span class="badge deployed-badge" id="dash-deployed" style="display:none">deployed</span>
     <span class="badge live-badge" id="dash-live" style="display:none">live</span>
-    <span class="link" id="dash-link" style="display:none"><a href="#" target="_blank">open</a></span>
 </div>
+<div class="live-url" id="dash-link"><a href="#" target="_blank"></a></div>
 <div class="sub-field" id="dash-domain-field">
     <label for="dash-domain">Dashboard domain</label>
     <input type="text" id="dash-domain">
@@ -355,7 +356,9 @@ function setLink(id, svcKey) {{
     if (url) {{
         const el = $(`#${{id}}`);
         el.style.display = "";
-        el.querySelector("a").href = url;
+        const a = el.querySelector("a");
+        a.href = url;
+        a.textContent = url;
     }}
 }}
 
