@@ -1085,7 +1085,7 @@ If any tests fail, report the failures but continue.
 Update these fields:
 - `project.type` — set to the project type (`full`, `api`, or `worker`)
 - `configurator_version` — set to `CONFIG_VERSION` (the CLI version that wrote the config)
-- `_site_manager_version` — set to the current skill version (v1.19.0)
+- `_site_manager_version` — set to the current skill version (v1.20.0)
 - All service URLs and statuses set to `"deployed"` (only services that exist for this project type)
 - `lastDeployed` timestamps
 - `features.auth.adminSeeded` set to `true` (full projects only)

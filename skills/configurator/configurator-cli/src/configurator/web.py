@@ -12,6 +12,16 @@ from configurator.features import discover_features
 from configurator.features.base import Feature, RenderContext
 
 
+def _inject_version_badge(html: str, version: str) -> str:
+    """Inject a version badge after the <legend> tag in a feature's fieldset."""
+    legend_end = html.find("</legend>")
+    if legend_end == -1:
+        return html
+    insert_at = legend_end + len("</legend>")
+    badge = f'\n<span class="feature-version">v{version}</span>'
+    return html[:insert_at] + badge + html[insert_at:]
+
+
 def _compose_html_sections(features: list[Feature], ctx: RenderContext) -> str:
     """Compose feature HTML, grouping features that share a group into a single fieldset."""
     parts: list[str] = []
@@ -19,8 +29,10 @@ def _compose_html_sections(features: list[Feature], ctx: RenderContext) -> str:
 
     for f in features:
         meta = f.meta()
+        feature_html = _inject_version_badge(f.config_html(ctx), meta.version)
+
         if meta.group and meta.group == current_group:
-            parts.append(f.config_html(ctx))
+            parts.append(feature_html)
         else:
             if current_group is not None:
                 parts.append("</fieldset>")
@@ -32,7 +44,7 @@ def _compose_html_sections(features: list[Feature], ctx: RenderContext) -> str:
             else:
                 current_group = None
 
-            parts.append(f.config_html(ctx))
+            parts.append(feature_html)
 
     if current_group is not None:
         parts.append("</fieldset>")
@@ -106,9 +118,13 @@ h1 {{ font-size: 1.4rem; margin-bottom: 1.5rem; font-weight: 600; }}
 h1 span {{ font-size: 0.8rem; font-weight: 400; color: var(--fg-dim); margin-left: 0.4rem; }}
 fieldset {{
     border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem;
-    margin-bottom: 1rem; background: var(--card);
+    margin-bottom: 1rem; background: var(--card); position: relative;
 }}
 legend {{ font-weight: 600; font-size: 0.95rem; padding: 0 0.4rem; }}
+.feature-version {{
+    position: absolute; top: 0.5rem; right: 0.7rem;
+    font-size: 0.65rem; color: var(--fg-dim); font-weight: 400;
+}}
 .field {{ margin-bottom: 0.8rem; }}
 .field:last-child {{ margin-bottom: 0; }}
 label {{ display: block; font-size: 0.85rem; color: var(--fg-muted); margin-bottom: 0.2rem; }}
