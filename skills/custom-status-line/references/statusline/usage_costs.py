@@ -166,34 +166,19 @@ def run(claude_data: dict, lines: list) -> list:
     c2 = f"today's usage: {today_pct:.1f}%"
     c4 = f"{remaining_days:.1f}d left"
 
-    num_data_days = len(daily_costs)
-
     if too_early:
         c3 = f"{DIM}daily usage ave: --{RST}"
         c5 = f"{DIM}too early{RST}"
-        t3 = f"{DIM}daily usage ave: --{RST}"
-        t5 = f"{DIM}too early{RST}"
     else:
         daily_avg_pct = rate_7d / elapsed_days
         projected = daily_avg_pct * 7.0
         c3 = f"daily usage ave: {daily_avg_pct:.1f}%"
         c5 = f"{RED}{projected:.1f}%{RST} projected" if projected > 100.0 else f"{projected:.1f}% projected"
 
-        # Actual elapsed days (fractional)
-        daily_avg_pct_2 = rate_7d / max(1.0, elapsed_days)
-        projected_2 = daily_avg_pct_2 * 7.0
-        t3 = f"daily usage ave: {daily_avg_pct_2:.1f}%"
-        t5 = f"{RED}{projected_2:.1f}%{RST} projected" if projected_2 > 100.0 else f"{projected_2:.1f}% projected"
-
     # Match column widths from existing lines, widen if usage content is wider
     col_widths = _extract_col_widths(lines)
     if col_widths and len(col_widths) >= 4:
-        uc_widths = [
-            visible_len(c1),
-            visible_len(c2),
-            max(visible_len(c3), visible_len(t3)),
-            visible_len(c4),
-        ]
+        uc_widths = [visible_len(c1), visible_len(c2), visible_len(c3), visible_len(c4)]
         new_widths = [max(col_widths[i], uc_widths[i]) for i in range(4)]
 
         # Reformat existing aligned lines if any column got wider
@@ -213,11 +198,9 @@ def run(claude_data: dict, lines: list) -> list:
         c1 = pad_left(c1, new_widths[0])
         c2 = pad_right(c2, new_widths[1])
         c3 = pad_right(c3, new_widths[2])
-        t3 = pad_right(t3, new_widths[2])
         c4 = pad_right(c4, new_widths[3])
 
     lines.append(f"{lbor}{c1}{sep}{c2}{sep}{c3}{sep}{c4}{sep}{c5}")
-    lines.append(f"{lbor}{c1}{sep}{c2}{sep}{t3}{sep}{c4}{sep}{t5}")
     return lines
 
 
