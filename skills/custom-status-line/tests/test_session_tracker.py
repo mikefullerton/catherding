@@ -86,9 +86,8 @@ def test_session_line_at_position_2(mock_log, mock_git, sessions_dir):
     write_session(sessions_dir, "s1", "thinking")
 
     lines = run(make_claude_data(), [])
-    assert len(lines) == 4
+    assert len(lines) == 3
     assert "all sessions" in lines[2]
-    assert "Weekly usage" in lines[3]
 
 
 @patch("statusline.base_info.git_cmd", return_value="")

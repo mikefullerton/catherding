@@ -260,26 +260,6 @@ def run(claude_data: dict, lines: list) -> list:
     else:
         l2c3 = f"{used_pct}% of {ctx_label} context"
 
-    # LINE 3
-    elapsed_hours, wed_10am = get_wed_10am_elapsed_hours()
-    proj = compute_projection(rate_7d, elapsed_hours)
-
-    too_early = elapsed_hours < 6
-
-    if too_early:
-        l3c4 = f"{DIM}projected: too early{RST}"
-        l3c3 = f"{DIM}daily ave: --{RST}"
-    elif proj["projected"] > 100.0:
-        l3c4 = f"{RED}{proj['projected']}%{RST} projected (~${proj['overage_dollars']} overage)"
-        l3c3 = f"daily ave: {proj['daily_avg']:.1f}%"
-    else:
-        l3c4 = f"{proj['projected']}% projected"
-        l3c3 = f"daily ave: {proj['daily_avg']:.1f}%"
-
-    l3c1 = f"Weekly usage {rate_7d:.1f}%"
-    l3c2 = f"day: {proj['elapsed_day']:.2f}"
-
-
     # SESSION LINE
     sessions_dir = os.path.expanduser("~/.claude-status-line/sessions")
     s_thinking = 0
@@ -309,10 +289,10 @@ def run(claude_data: dict, lines: list) -> list:
     sc4 = f"{s_waiting} waiting"
 
     # Column alignment — line 1 is free-form, align lines 2+ only
-    col1_w = max(visible_len(gs1), visible_len(l2c1), visible_len(sc1), visible_len(l3c1))
-    col2_w = max(visible_len(gs2), visible_len(l2c2), visible_len(sc2), visible_len(l3c2))
-    col3_w = max(visible_len(gs3), visible_len(l2c3), visible_len(sc3), visible_len(l3c3))
-    col4_w = max(visible_len(gs4), visible_len(sc4), visible_len(l3c4))
+    col1_w = max(visible_len(gs1), visible_len(l2c1), visible_len(sc1))
+    col2_w = max(visible_len(gs2), visible_len(l2c2), visible_len(sc2))
+    col3_w = max(visible_len(gs3), visible_len(l2c3), visible_len(sc3))
+    col4_w = max(visible_len(gs4), visible_len(sc4))
 
     lbor = f"{ORANGE}|{RST} "
 
@@ -335,11 +315,11 @@ def run(claude_data: dict, lines: list) -> list:
 
     session_line = f"{lbor}{pad_left(sc1, col1_w)}{sep}{pad_right(sc2, col2_w)}{sep}{pad_right(sc3, col3_w)}{sep}{pad_right(sc4, col4_w)}"
 
-    line3 = f"{lbor}{pad_left(l3c1, col1_w)}{sep}{pad_right(l3c2, col2_w)}{sep}{pad_right(l3c3, col3_w)}{sep}{l3c4}"
-
-    result.extend([line2, session_line, line3])
+    result.extend([line2, session_line])
 
     # Log to SQLite (non-blocking)
+    elapsed_hours, wed_10am = get_wed_10am_elapsed_hours()
+    proj = compute_projection(rate_7d, elapsed_hours)
     log_to_db(claude, session_id, used_pct, proj, rate_5h, rate_7d, wed_10am, elapsed_hours)
 
     return result

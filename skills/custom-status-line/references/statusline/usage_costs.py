@@ -162,35 +162,36 @@ def run(claude_data: dict, lines: list) -> list:
     lbor = f"{ORANGE}|{RST} "
     sep = f" {ORANGE}|{RST} "
 
-    c1 = f"Today: {today_pct:.1f}%"
-    c2 = f"{remaining_days:.1f} days left"
+    c1 = f"Weekly usage {rate_7d:.1f}%"
+    c2 = f"Today: {today_pct:.1f}%"
+    c3 = f"{remaining_days:.1f} days left"
 
     if too_early:
-        c3 = f"{DIM}daily ave: --{RST}"
-        c4 = f"{DIM}projected: too early{RST}"
+        c4 = f"{DIM}daily ave: --{RST}"
+        c5 = f"{DIM}projected: too early{RST}"
     else:
         daily_avg_pct = rate_7d / elapsed_days
         projected = daily_avg_pct * 7.0
 
-        c3 = f"daily ave: {daily_avg_pct:.1f}%"
+        c4 = f"daily ave: {daily_avg_pct:.1f}%"
 
         if projected > 100.0:
             cost_per_pct = total_cost / rate_7d
             proj_overage_api = (projected - 100.0) * cost_per_pct
             proj_overage_actual = proj_overage_api * EXTENDED_USE_DISCOUNT
-            c4 = f"{RED}{projected:.1f}%{RST} projected (~${proj_overage_actual:.0f} extended use)"
+            c5 = f"{RED}{projected:.1f}%{RST} projected (~${proj_overage_actual:.0f} extended use)"
         else:
-            c4 = f"{projected:.1f}% projected"
+            c5 = f"{projected:.1f}% projected"
 
-    # Match column widths from existing lines (base_info uses 4-column layout)
-    # Parse column widths by splitting an existing line on the separator
+    # Match column widths from existing lines
     col_widths = _extract_col_widths(lines)
     if col_widths and len(col_widths) >= 4:
         c1 = pad_left(c1, col_widths[0])
         c2 = pad_right(c2, col_widths[1])
         c3 = pad_right(c3, col_widths[2])
+        c4 = pad_right(c4, col_widths[3])
 
-    lines.append(f"{lbor}{c1}{sep}{c2}{sep}{c3}{sep}{c4}")
+    lines.append(f"{lbor}{c1}{sep}{c2}{sep}{c3}{sep}{c4}{sep}{c5}")
     return lines
 
 
