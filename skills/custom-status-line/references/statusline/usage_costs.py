@@ -159,8 +159,8 @@ def run(claude_data: dict, lines: list) -> list:
     # Too early to project reliably
     too_early = elapsed_hours < 6
 
-    lbor = f"{ORANGE}|{RST} "
-    sep = f" {ORANGE}|{RST} "
+    lbor = "| "
+    sep = " | "
 
     c1 = f"Weekly usage {rate_7d:.1f}%"
     c2 = f"{remaining_days:.1f} days left"
@@ -198,14 +198,13 @@ def run(claude_data: dict, lines: list) -> list:
 def _extract_col_widths(lines):
     """Extract column visible widths from existing status lines.
 
-    Splits on the literal separator (' | ' with ANSI orange) used by
-    base_info.  The first part includes the leading '| ' border, so we
-    subtract 2 from its visible length to get the true column 1 width.
+    Splits on ' | ' separator used by base_info.  The first part includes
+    the '| ' border prefix (2 visible chars), so we subtract 2.
     """
-    sep = f" {ORANGE}|{RST} "
+    sep = " | "
 
-    # Prefer line index 3 (weekly usage) or 1 (model/stats) — both 4-col
-    for idx in (3, 1, 2):
+    # Prefer line index 2 (session) or 1 (git/model) — both have 4 cols
+    for idx in (2, 1):
         if idx >= len(lines):
             continue
         parts = lines[idx].split(sep)

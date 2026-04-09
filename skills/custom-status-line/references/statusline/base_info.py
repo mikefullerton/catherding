@@ -151,7 +151,7 @@ def run(claude_data: dict, lines: list) -> list:
     # Git info
     branch = git_cmd("rev-parse", "--abbrev-ref", "HEAD")
 
-    sep = f" {ORANGE}|{RST} "
+    sep = " | "
 
     # Detect worktree — prefer the field Claude provides, fall back to git
     wt_field = (claude.get("workspace") or {}).get("git_worktree")
@@ -294,9 +294,9 @@ def run(claude_data: dict, lines: list) -> list:
     col3_w = max(visible_len(gs3), visible_len(l2c3), visible_len(sc3))
     col4_w = max(visible_len(gs4), visible_len(sc4))
 
-    lbor = f"{ORANGE}|{RST} "
+    lbor = "| "
 
-    line1 = f"{lbor}{l1c1}"
+    line1 = f"{l1c1}"
     if branch:
         line1 += f"{sep}{l1c2}"
 
