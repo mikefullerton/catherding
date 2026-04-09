@@ -1,10 +1,10 @@
 # CLI Versioning
 
-When modifying any Python source file under `cli/site-manager/src/` or `cli/webinator/src/`, bump the patch version in that CLI's `__init__.py` before committing.
+When modifying any Python source file under `skills/configurator/cli/src/` or `skills/webinitor/cli/src/`, bump the patch version in that CLI's `__init__.py` before committing.
 
 The version is the single `__version__` string in:
-- `cli/site-manager/src/site_manager/__init__.py`
-- `cli/webinator/src/webinator/__init__.py`
+- `skills/configurator/cli/src/site_manager/__init__.py`
+- `skills/webinitor/cli/src/webinator/__init__.py`
 
 This is the sole source of truth — `pyproject.toml` and `cli.py` read from it dynamically.
 
