@@ -1,15 +1,15 @@
 ---
 name: configurator
-description: "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform. /configurator init, /configurator add, /configurator deploy, /configurator status, /configurator manifest, /configurator seed-admin, /configurator --help"
-version: "1.17.0"
-argument-hint: "[init|add|deploy|update|verify|repair|status|manifest|seed-admin|--help|--version]"
+description: "Deploy a project from a configurator spec, or manage an existing deployment. /configurator <config-name>, /configurator add, /configurator deploy, /configurator status, /configurator manifest, /configurator seed-admin, /configurator --help"
+version: "1.18.0"
+argument-hint: "[<config-name>|add|deploy|update|verify|repair|status|manifest|seed-admin|go-live|--help|--version]"
 allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), AskUserQuestion
 model: sonnet
 ---
 
-# Configurator v1.17.0
+# Configurator v1.18.0
 
-Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
+Deploy and manage a suite of up to 4 websites as a unified platform. Configuration is gathered by the `configurator` CLI (run interactively in the terminal) and saved as a deployment spec at `~/.configurator/<name>.json`. This skill reads the spec and executes the deployment.
 
 **Architecture per project:**
 - **Backend API** — Hono + Drizzle + PostgreSQL (Railway)
@@ -23,10 +23,10 @@ Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
 **CRITICAL**: The very first thing you output MUST be the version line:
 
-site-manager v1.17.0
+configurator v1.18.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> site-manager v1.17.0
+> configurator v1.18.0
 
 Then stop.
 
@@ -34,8 +34,8 @@ Then stop.
 
 | `$ARGUMENTS` | Action |
 |---|---|
-| `init` or `init <domain>` | Go to **Init** |
-| `migrate` or `migrate <domain>` | Go to **Migrate** |
+| `<config-name>` | Go to **Init** (load `~/.configurator/<config-name>.json`) |
+| (empty) | Go to **Init** (auto-detect single config or prompt) |
 | `go-live` | Go to **Go Live** |
 | `add` or `add <description>` | Go to **Add** |
 | `deploy` or `deploy all` | Go to **Deploy All** |
@@ -43,7 +43,7 @@ Then stop.
 | `deploy main` | Go to **Deploy Single** (service=main) |
 | `deploy admin` | Go to **Deploy Single** (service=admin) |
 | `deploy dashboard` | Go to **Deploy Single** (service=dashboard) |
-| `status` or empty | Go to **Status** |
+| `status` | Go to **Status** |
 | `manifest` or `manifest show` | Go to **Manifest Show** |
 | `manifest validate` | Go to **Manifest Validate** |
 | `seed-admin` | Go to **Seed Admin** |
@@ -52,7 +52,7 @@ Then stop.
 | `repair` | Go to **Repair** |
 | `--help` | Go to **Help** |
 | `--version` | Print version (handled in Startup) |
-| anything else | Print usage and stop |
+| anything else | Check if `~/.configurator/$ARGUMENTS.json` exists — if so, go to **Init**. Otherwise print usage and stop |
 
 ## Manifest location
 
@@ -68,295 +68,132 @@ All references to "manifest" in this skill mean `.site/manifest.json`.
 
 ## Init
 
-**Scaffold a new project.**
+**Deploy a project from a configurator spec.**
 
-### Step 1: Gather project info
+### Step 1: Load config
 
-> **CRITICAL: One question at a time. In order. No exceptions.**
->
-> You MUST ask exactly ONE question per turn. After asking, STOP and WAIT
-> for the user's answer. Do NOT continue to the next step until the user
-> responds. Do NOT combine multiple questions. Do NOT present a table of
-> fields. Each sub-step that says "Ask" means: ask that single question,
-> then STOP. Violating this rule ruins the user experience.
->
-> **The order is: 1a → 1b → 1c → 1d → 1e → 1g → 1h → 1i → 1j → 1k → confirm.**
-> Do NOT reorder steps. Do NOT ask domain before services. Do NOT ask
-> project name before services. Do NOT ask domain if no sites selected.
-> The order above is final. Skip steps whose conditions are not met,
-> but never change the sequence.
+The config is created by the user via the `configurator` CLI (run `configurator` in the terminal). Configs are stored at `~/.configurator/<config-name>.json`.
 
-Work through sub-steps 1a through 1k in the exact order listed above. Skip steps whose conditions are not met. Track two internal variables:
-- `FLOW` — `"existing"` or `"new"` (set in 1a/1b)
-- `SERVICES` — set of selected services (set in 1c)
+#### Step 1a — Resolve config
 
-If `$ARGUMENTS` contains a domain (e.g., `init foo.com`), store it and skip the domain question in step 1k.
+**If `$ARGUMENTS` is a config name** (not a subcommand like `deploy`, `verify`, etc.):
+- Read `~/.configurator/$ARGUMENTS.json`
+- If it doesn't exist, print: "Configuration '$ARGUMENTS' not found. Run `configurator` in the terminal to create one." and stop.
 
-#### Step 1a — Silent detection
+**If `$ARGUMENTS` is empty:**
+- List all `.json` files in `~/.configurator/` (excluding `configurator-config.json`)
+- If none found: print "No configurations found. Run `configurator` in the terminal to create one." and stop.
+- If exactly one: load it automatically and tell the user which config you're using.
+- If multiple: use AskUserQuestion to ask the user which config to deploy.
 
-Run these checks silently before asking any questions:
+#### Step 1b — Parse config and set variables
 
-```bash
-ls -la
-cat package.json 2>/dev/null
-git remote -v 2>/dev/null
-git branch --show-current 2>/dev/null
-ls .site/manifest.json wrangler.jsonc wrangler.toml 2>/dev/null
-```
+Read the config JSON and set these internal variables:
 
-Check for existing config first:
-- If `.site/manifest.json` exists → this is an **existing configurator project**. Set `FLOW=update`. Read the manifest, print a summary of what's configured, and skip to **Step 1-update** (re-scaffold + redeploy). Do NOT run steps 1b-1k.
-- If `wrangler.jsonc` or `wrangler.toml` exists at root → note it (already configured for Workers).
+| Config key | Variable | Notes |
+|---|---|---|
+| `repo` | `REPO_NAME` | GitHub repo name |
+| `org` | `ORG` | GitHub organization (may be absent if repo exists locally) |
+| `local_path` | `TARGET_DIR` | Path to local project directory |
+| `create_repo` | `CREATE_REPO` | If `true`, create the repo + directory during Step 2 |
+| `domain` | `DOMAIN` | Domain name for the project |
+| `website.type` | `FLOW` | `"new"` or `"existing"` |
+| `website.domain` | `SITE_DOMAIN` | Domain for the main site (defaults to `DOMAIN`) |
+| `website.addons` | `ADDONS` | List: `authentication`, `sqlite database`, `key-value storage`, `file storage` |
+| `backend.enabled` | — | If `true`, include backend in `SERVICES` |
+| `backend.domain` | `BACKEND_DOMAIN` | Domain for the backend (defaults to `backend.DOMAIN`) |
+| `admin_sites.admin.enabled` | — | If `true`, include admin in `SERVICES` |
+| `admin_sites.admin.domain` | `ADMIN_DOMAIN` | Domain for admin site |
+| `admin_sites.dashboard.enabled` | — | If `true`, include dashboard in `SERVICES` |
+| `admin_sites.dashboard.domain` | `DASHBOARD_DOMAIN` | Domain for dashboard site |
+| `auth_providers` | `AUTH_PROVIDERS` | List: `email/password`, `github`, `google`, `apple` |
 
-**Check the root directory first, then scan immediate subdirectories.** Websites often live in a subdirectory like `site/`, `web/`, `frontend/`, `app/`, or `www/`. Run the detection checklist against the root AND each immediate subdirectory that contains a `package.json` or `index.html`:
+Build the `SERVICES` set from the config:
+- Always includes `main` (every config has a website)
+- Add `backend` if `backend.enabled` is `true`
+- Add `admin` if `admin_sites.admin.enabled` is `true`
+- Add `dashboard` if `admin_sites.dashboard.enabled` is `true`
 
-```bash
-# Check root
-ls package.json vite.config.* next.config.* index.html 2>/dev/null
-# Scan subdirectories
-for dir in */; do
-  ls "$dir"package.json "$dir"vite.config.* "$dir"index.html 2>/dev/null
-done
-```
-
-If a website is found in a subdirectory, record the **site directory** (e.g., `site/`) — this is where the site lives and where wrangler/build commands will run. The `.site/manifest.json` goes at the project root.
-
-**Detection checklist** (run against root AND each candidate subdirectory):
-- **Git repo**: `.git/` exists, or `git remote -v` succeeds
-- **package.json**: file exists
-- **Web framework**: dependencies contain `react`, `vue`, `svelte`, `next`, `nuxt`, `astro`, `solid-js`, `preact`, `angular`, `lit`, `qwik`
-- **Build tool**: `vite.config.*`, `next.config.*`, `webpack.config.*`, `astro.config.*`, `svelte.config.*`, `nuxt.config.*`, `rollup.config.*`
-- **Entry HTML**: `index.html` at root or in `public/`
-- **Source files**: `src/` contains `.tsx`, `.jsx`, `.vue`, `.svelte`, or `.astro` files
-- **Static assets**: `public/` or `static/` directory exists
-- **TypeScript**: `tsconfig.json` exists
-- **Build output**: `dist/`, `build/`, `out/`, or `.next/` directory exists
-- **Already configured**: `wrangler.jsonc` or `wrangler.toml` exists (site is already set up for Cloudflare Workers — skip scaffolding, just create manifest and deploy)
-
-Classify the directory:
-- **Already configured** — wrangler config exists with a deploy script. Skip scaffolding entirely — just create `.site/manifest.json` and deploy.
-- **Existing website** — web framework detected in package.json, OR build tool config exists, OR index.html exists with source files
-- **Existing code** — package.json or source files exist but no web framework indicators
-- **Empty** — no significant files
-
-Store all detection results internally, including the site directory if found in a subdirectory. Do NOT print anything yet — proceed to step 1b or 1c.
-
-#### Step 1b — Deploy or scaffold? *(only if existing website detected)*
-
-**Skip this step if:** the directory is empty or existing-code (not a website). Set `FLOW=new` and print: "I'll scaffold a new project here." Proceed to step 1c.
-
-Print the detection report, then ask ONE question:
-
-```
-I found an existing website in this directory:
-
-  Directory:  /path/to/project
-  Git repo:   owner/repo (branch: main)
-  Framework:  React 19 (from package.json)
-  Build tool: Vite 6.x (vite.config.ts)
-  Entry:      index.html
-  Source:     src/ (14 .tsx files)
-  Build cmd:  npm run build (vite build)
-  Output dir: dist/
-
-Deploy this existing site to Cloudflare, or scaffold a brand new project?
-
-  1. Deploy this site — configure Cloudflare Workers around your existing code
-  2. Start fresh — scaffold a new project from templates
-```
-
-**STOP. Wait for the user's answer.**
-
-- If **1**: set `FLOW=existing`
-- If **2**: set `FLOW=new`
-
-#### Step 1c — What do you want?
-
-Use AskUserQuestion to present interactive checkboxes. Group into up to 4 questions with `multiSelect: true`, max 4 options each:
-
-**Question 1** — "Which sites do you want to deploy?"
-| Label | Description |
-|-------|-------------|
-| Main site | Your website deployed on Cloudflare Workers |
-| Admin site | Administration panel at admin.\<domain\> on Cloudflare Workers |
-| Dashboard site | User dashboard at dashboard.\<domain\> on Cloudflare Workers |
-
-**Question 2** — "Which backend services do you need?"
-| Label | Description |
-|-------|-------------|
-| Backend API | Server-side API using Hono with PostgreSQL on Railway |
-| New auth service | Scaffold a brand new shared JWT auth service on Railway (use this if you don't have one yet) |
-| Staging environment | Separate staging backend on Railway for pre-production testing |
-
-**Question 3** — "What extras do you want?"
-| Label | Description |
-|-------|-------------|
-| Hello world starter | Basic index page with styles to get you started |
-| GitHub repository | Create a new private GitHub repository for this project |
-
-**Question 4** — "Do you need frontend storage? (for the Worker, not the backend)"
-| Label | Description |
-|-------|-------------|
-| SQL database | A database for structured data like users, posts, and settings |
-| Key-value storage | Fast storage for simple data like config, cache, and session state |
-| File storage | Storage for uploading and serving files and images |
-
-Present all 4 questions in a single AskUserQuestion call. The user clicks checkboxes to select. With multiSelect, leaving all unchecked means "none" — no explicit None option needed.
-
-**STOP. Wait for the user's selections.**
-
-Store selections in `SERVICES`. Auto-include dependencies:
-- **Admin site** requires **Backend API** — auto-include if not selected, tell user
-- **Dashboard site** requires **Backend API** — auto-include if not selected, tell user
-- **Staging environment** requires **Backend API** — auto-include if not selected, tell user
-- **Hello world starter** only applies if FLOW=new (skip silently for existing sites)
-- **GitHub repository** only applies if no git remote was detected in step 1a (skip silently if already in a repo)
-- **SQL database / Key-value / File storage** are recorded as storage selections — implemented as Cloudflare D1, KV, and R2 respectively (replaces step 1f)
-
-Derive the internal project type silently (never show to user):
+Derive the internal project type:
 - Main only → `existing` (if FLOW=existing) or `worker` (if FLOW=new)
 - Main + backend → `existing` or `api`
 - Main + backend + admin + dashboard → `existing` or `full`
-- Backend only → `api`
-- New auth service only → `auth-service`
 
-#### Step 1d — Rendering mode *(only if main site in SERVICES)*
+#### Step 1c — Check for existing project
 
-**Skip if:** main site was not selected in step 1c.
+`cd` into `TARGET_DIR` (or the current directory if no `local_path` in config).
 
-Auto-detect the rendering mode:
-- Next.js without `output: 'export'` → likely SSR
-- Nuxt without `ssr: false` → likely SSR
+If `.site/manifest.json` exists → this is an existing configurator project. Set `FLOW=update`. Read the manifest, print a summary of what's configured, and skip to **Step 1-update** (re-scaffold + redeploy).
+
+If FLOW=existing (deploying an existing site), auto-detect the rendering mode:
+- Next.js without `output: 'export'` → SSR
+- Nuxt without `ssr: false` → SSR
 - Astro with `output: 'server'` or `output: 'hybrid'` → SSR
 - SvelteKit with `adapter-cloudflare` → SSR
 - Plain Vite + React/Vue/Svelte with no SSR adapter → static
 - `index.html` at root with no framework → static
 
-If auto-detected, confirm instead of asking open-ended:
+Record as `RENDERING` (`"static"` or `"ssr"`).
+
+#### Step 1d — Confirm
+
+Show the full action plan derived from the config. Be specific — list every file to create, modify, and not touch. List every external action.
+
+**Example confirmation (existing site, static):**
 
 ```
-This looks like a static React + Vite site — pre-built HTML + JS served as
-static assets. Correct?
+=== Here's what I'm going to do ===
+
+  Project:     my-cool-site
+  Domain:      mycoolsite.com
+  Rendering:   static (pre-built assets)
+  Git repo:    mikefullerton/my-cool-site (already exists)
+  Build:       npm run build -> dist/
+
+  Services:
+    [x] Main site (your existing code) -> Cloudflare Worker
+    [ ] Backend API
+    [ ] Admin site
+    [ ] Dashboard
+
+  Auth providers: email/password, github
+
+  Files I'll CREATE:
+    .site/manifest.json          — project config and deployment state
+    wrangler.jsonc               — Cloudflare Worker configuration
+    src/worker.ts                — Worker entry point (serves your built assets)
+
+  Files I'll MODIFY:
+    package.json                 — add wrangler + @cloudflare/workers-types to devDependencies
+    .gitignore                   — add .site/ and .wrangler/
+
+  Files I will NOT touch:
+    All your existing source code, HTML, CSS, components, configs
+
+  External actions:
+    npm install                  — install new dependencies
+    npm run build                — build your site
+    npx wrangler deploy          — deploy to Cloudflare Workers
+
+  After deploy, your site will be live at:
+    <project-name>-main.<account>.workers.dev
+
+Proceed?
 ```
 
-If not auto-detected, ask:
+Adapt the confirmation for the project type (full/api/worker/auth-service/existing). For new projects, list template directories that will be created. For projects with backend, list Railway setup steps. For projects with admin/dashboard, list those services and their domains.
 
-```
-How does your site render?
+If `CREATE_REPO` is `true`, include the GitHub repo creation step and Cloudflare secret setup.
 
-  1. Static / SPA — pre-built HTML + JS, served as static assets
-  2. Server-side rendered (SSR) — pages rendered on each request
-```
+If the user says "change something" → tell them to re-run `configurator` in the terminal to update the config, then re-invoke `/configurator <config-name>`.
 
-**STOP. Wait for the user's answer.**
+**STOP. Wait for the user to confirm.**
 
-Record rendering mode (`"static"` or `"ssr"`).
-
-**Static** — Worker serves pre-built assets from `dist/` (or equivalent). The `worker.ts` entry uses the `ASSETS` binding and falls back to `index.html` for SPA routing.
-
-**SSR** — Worker runs the framework's server-side rendering. The `worker.ts` imports the framework's Cloudflare adapter. Wrangler config differences:
-- `main` points to framework's worker entry (e.g., `.output/server/index.mjs`)
-- `assets.directory` may differ (e.g., `.output/public`)
-- Build command may change (e.g., `nuxt build`, `next build`)
-
-#### Step 1e — Auth *(only if backend in SERVICES)*
-
-**Skip if:** backend was not selected in step 1c.
-
-Use AskUserQuestion with `multiSelect: false` to ask about auth, and optionally a second question for OAuth providers:
-
-**Question 1** — "How should authentication work?"
-| Label | Description |
-|-------|-------------|
-| Shared auth service | Validate JWTs from an existing auth service you already run |
-| Built-in auth | Email/password always included, plus optional OAuth providers |
-| No auth | Public API, no authentication required |
-
-**STOP. Wait for the user's answer.**
-
-- If **shared**: ask for the auth service URL (one more question, then STOP again).
-- If **built-in**: use AskUserQuestion with `multiSelect: true` — "Which OAuth providers? (email/password is always included)" with options: GitHub, Google, Apple, None (email/password only). Then STOP again.
-- If **no auth**: proceed.
-
-#### Step 1f — *(removed — storage is now covered in step 1c)*
-
-#### Step 1g — Project name
-
-Suggest from `package.json` `name` field, or from the directory name. Ask ONE question:
-
-```
-Project name: <suggested-name>?
-
-This is used as the Cloudflare Worker name (<name>-main) and in .site/manifest.json.
-Type a different name, or press Enter to confirm.
-```
-
-Validation: lowercase, `[a-z0-9-]+`.
-
-**STOP. Wait for the user's answer.**
-
-#### Step 1h — Display name
-
-Derive from project name (title case), or from `package.json` `description`. Ask ONE question:
-
-```
-Display name: <Suggested Name>?
-
-This is the human-readable name shown in status output and reports.
-Type a different name, or press Enter to confirm.
-```
-
-**STOP. Wait for the user's answer.**
-
-#### Step 1i — GitHub org *(only if GitHub repository selected in step 1c)*
-
-**Skip if:** GitHub repository was not selected in step 1c, or git remote already exists.
-
-Ask ONE question:
-
-```
-GitHub repository — personal account or organization?
-
-  1. Personal account
-  2. Organization — I'll ask which org next
-```
-
-**STOP. Wait for the user's answer.**
-
-If **org**: ask for the org name (one more question, then STOP again).
-
-#### Step 1j — Target directory *(only if FLOW=new)*
-
-**Skip if:** FLOW=existing (the project is already in the current directory).
-
-Suggest `./<project-name>/`. Ask ONE question:
-
-```
-Target directory: ./<project-name>/?
-
-This is where the project will be created.
-Type a different path, or press Enter to confirm.
-```
-
-**STOP. Wait for the user's answer.**
-
-#### Step 1k — Domain *(asked last, only if any site selected)*
-
-**Skip if:** domain was already provided in `$ARGUMENTS`, or no sites were selected in step 1c (no main site, admin site, or dashboard site). Backend-only and auth-service-only projects don't need a domain.
-
-Ask ONE question:
-
-```
-What's the domain for this project?
-
-This won't be connected yet — run /configurator go-live when you're ready.
-```
-
-**STOP. Wait for the user's answer.**
+Once confirmed, record the project type in `.site/manifest.json` as `project.type` (`auth-service`, `full`, `api`, `worker`, or `existing`). If FLOW=existing, go to **Step 3E**. Otherwise, continue to **Step 2**.
 
 #### Step 1-update — Re-scaffold and redeploy *(only if FLOW=update)*
 
-**This step runs instead of steps 1b-1k when `.site/manifest.json` already exists.**
+**This step runs instead of Steps 1b–1d when `.site/manifest.json` already exists.**
 
 Read the manifest and print a summary:
 
@@ -404,105 +241,6 @@ If confirmed:
 5. Report what was updated.
 
 After completion, skip all remaining Init steps. Done.
-
----
-
-#### Step 1 — Confirm
-
-Show the full action plan. Be specific — list every file to create, modify, and not touch. List every external action.
-
-**Existing site (static) example:**
-
-```
-=== Here's what I'm going to do ===
-
-  Project:     my-cool-site
-  Display:     My Cool Site
-  Domain:      mycoolsite.com
-  Rendering:   static (pre-built assets)
-  Git repo:    mikefullerton/my-cool-site (already exists)
-  Build:       npm run build -> dist/
-
-  Services:
-    [x] Main site (your existing code) -> Cloudflare Worker
-    [ ] Backend API
-    [ ] Admin dashboard
-    [ ] Dashboard
-
-  Files I'll CREATE:
-    .site/manifest.json          — project config and deployment state
-    wrangler.jsonc               — Cloudflare Worker configuration
-    src/worker.ts                — Worker entry point (serves your built assets)
-
-  Files I'll MODIFY:
-    package.json                 — add wrangler + @cloudflare/workers-types to devDependencies
-    .gitignore                   — add .site/ and .wrangler/
-
-  Files I will NOT touch:
-    All your existing source code, HTML, CSS, components, configs
-
-  External actions:
-    npm install                  — install new dependencies
-    npm run build                — build your site
-    npx wrangler deploy          — deploy to Cloudflare Workers
-
-  After deploy, your site will be live at:
-    <project-name>-main.<account>.workers.dev
-
-Proceed?
-```
-
-**Existing site (SSR) example:**
-
-```
-=== Here's what I'm going to do ===
-
-  Project:     my-next-site
-  Display:     My Next Site
-  Domain:      mynextsite.com
-  Rendering:   SSR (server-side rendered via Next.js)
-  Git repo:    mikefullerton/my-next-site (already exists)
-  Build:       npm run build (next build)
-
-  Services:
-    [x] Main site (your existing code) -> Cloudflare Worker (SSR)
-    [ ] Backend API
-    [ ] Admin dashboard
-    [ ] Dashboard
-
-  Files I'll CREATE:
-    .site/manifest.json          — project config and deployment state
-    wrangler.jsonc               — Cloudflare Worker configuration (SSR mode)
-
-  Files I'll MODIFY:
-    package.json                 — add wrangler, @cloudflare/workers-types, @opennextjs/cloudflare
-    .gitignore                   — add .site/ and .wrangler/
-
-  No worker.ts needed — Next.js provides its own Cloudflare entry point.
-
-  Files I will NOT touch:
-    All your existing source code, pages, components, configs
-
-  External actions:
-    npm install                  — install new dependencies
-    npm run build                — build your site
-    npx wrangler deploy          — deploy to Cloudflare Workers
-
-  After deploy, your site will be live at:
-    <project-name>-main.<account>.workers.dev
-
-Proceed?
-```
-
-**New project examples** — adapt the confirmation to show the project type and all scaffolded files. For full/api/worker/auth-service types, list the template directories that will be created, the backend setup steps, and all external actions.
-
-If backend/admin/dashboard were selected alongside an existing site, the confirmation also lists those additional services, the template directories (`backend/`, `sites/admin/`, `sites/dashboard/`), Railway setup steps, and all external actions.
-
-If the user says "change something" → ask what they want to change, loop back to that sub-step, then return here.
-
-**STOP. Wait for the user to confirm.**
-
-Once confirmed, record the project type in `.site/manifest.json` as `project.type` (`auth-service`, `full`, `api`, `worker`, or `existing`). If FLOW=existing, go to **Step 3E**. Otherwise, continue to **Step 2**.
 
 ### Step 2: Create GitHub repo and set up target directory
 
@@ -996,7 +734,7 @@ After Step 3E, proceed to Step 4 (commit and push), then Step 5 (install depende
 ### Step 4: Commit and push
 
 ```bash
-git add -A && git commit -m "feat: initial scaffold from configurator v1.17.0"
+git add -A && git commit -m "feat: initial scaffold from configurator v1.18.0"
 ```
 
 If a GitHub repo was created in Step 2, push the initial commit:
@@ -2030,11 +1768,16 @@ If the issues file doesn't exist or has no issues, print:
 Print:
 
 ```
-Configurator v1.17.0 — Scaffold, deploy, and manage website suites
+Configurator v1.18.0 — Deploy and manage website suites
 
-Commands (Claude session):
-  /configurator init [domain]       Scaffold a new project
-  /configurator migrate [domain]    Set up in an existing repo
+Setup (run in terminal first):
+  configurator                      Interactive config wizard — creates deployment spec
+  configurator --show [name]        Show a saved configuration
+  configurator --delete [name]      Delete a saved configuration
+
+Deploy (Claude session):
+  /configurator <config-name>       Deploy from a saved configuration
+  /configurator                     Deploy (auto-detect if only one config)
   /configurator go-live             Connect custom domain to deployed project
   /configurator add [description]   Add services, auth, features to existing project
   /configurator deploy [service]    Deploy all services (or: backend, main, admin, dashboard)
@@ -2047,7 +1790,6 @@ Commands (terminal or Claude):
   site-manager status               Check health of all services
   site-manager manifest             View .site/manifest.json
   site-manager manifest validate    Validate manifest schema
-  site-manager --developer-mode     Toggle tool developer mode (on/off)
   site-manager --help               Show this help
   site-manager --version            Show version
 
@@ -2061,11 +1803,12 @@ Project types:
 Project directory:
   .site/manifest.json               Project configuration and deployment state
   .site/issues.json                 Issues from last verify (consumed by repair)
+  ~/.configurator/<name>.json       Deployment specifications (created by configurator CLI)
 
 Tech Stack:
   Backend:    Hono + Drizzle + PostgreSQL (Railway)
   Frontends:  React 19 + Vite + Tailwind 4 + Tanstack Query/Router
   Edge:       Cloudflare Workers
   Dashboard:  Cloudflare Workers + D1 SQLite
-  Auth:       Email/password + optional GitHub/Google OAuth
+  Auth:       Email/password + optional GitHub/Google/Apple OAuth
 ```
