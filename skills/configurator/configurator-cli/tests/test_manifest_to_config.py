@@ -4,7 +4,7 @@ from copy import deepcopy
 
 import pytest
 
-from configurator.cli import _manifest_to_config
+from configurator.cli import _deployed_keys_from_manifest, _manifest_to_config
 
 
 # ── Full project (real-world manifest from agenticdeveloperhub) ──────────
@@ -342,3 +342,35 @@ class TestProjectFields:
         assert cfg["backend"]["domain"] == "backend.api.example.com"
         assert cfg["admin_sites"]["admin"]["enabled"] is False
         assert cfg["admin_sites"]["dashboard"]["enabled"] is False
+
+
+# ── Deployed keys ───────────────────────────────────────────────────────
+
+
+class TestDeployedKeys:
+    def test_backend_deployed(self):
+        manifest = {"services": {"backend": {"status": "deployed"}}}
+        assert "backend" in _deployed_keys_from_manifest(manifest)
+
+    def test_admin_deployed(self):
+        manifest = {"services": {"admin": {"status": "deployed"}}}
+        assert "admin" in _deployed_keys_from_manifest(manifest)
+
+    def test_dashboard_deployed(self):
+        manifest = {"services": {"dashboard": {"domain": "dash.example.com"}}}
+        assert "dashboard" in _deployed_keys_from_manifest(manifest)
+
+    def test_main_deployed(self):
+        manifest = {"services": {"main": {"domain": "example.com"}}}
+        assert "website" in _deployed_keys_from_manifest(manifest)
+
+    def test_nothing_deployed(self):
+        manifest = {"services": {}}
+        assert _deployed_keys_from_manifest(manifest) == set()
+
+    def test_empty_manifest(self):
+        assert _deployed_keys_from_manifest({}) == set()
+
+    def test_api_counts_as_backend(self):
+        manifest = {"services": {"api": {"status": "deployed"}}}
+        assert "backend" in _deployed_keys_from_manifest(manifest)

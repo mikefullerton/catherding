@@ -167,6 +167,21 @@ def _manifest_to_config(manifest: dict) -> dict:
     return cfg
 
 
+def _deployed_keys_from_manifest(manifest: dict) -> set[str]:
+    """Extract which features are deployed from a manifest."""
+    services = manifest.get("services", {})
+    keys: set[str] = set()
+    if "main" in services:
+        keys.add("website")
+    if "backend" in services or "api" in services or "api-docs" in services:
+        keys.add("backend")
+    if "admin" in services:
+        keys.add("admin")
+    if "dashboard" in services:
+        keys.add("dashboard")
+    return keys
+
+
 # ── Change history ─────────────────────────────────────────────────────────
 
 
