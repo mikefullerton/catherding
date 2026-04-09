@@ -328,12 +328,7 @@ def run(claude_data: dict, lines: list) -> list:
 
     line1 = f"{lbor}{pad_right(l1c1, col1_w)}"
     if branch:
-        line1 += f"{sep}{pad_right(l1c2, col2_w)}"
-
-    result = [line1]
-
-    if branch:
-        result.append(f"{lbor}{l1c3}")
+        line1 += f"{sep}{l1c2} {l1c3}"
 
     line2 = f"{lbor}{pad_right(l2c1, col1_w)}{sep}{pad_right(l2c2, col2_w)}{sep}{pad_right(l2c3, col3_w)}{sep}{pad_right(l2c4, col4_w)}"
     if yolo_col:
@@ -343,7 +338,7 @@ def run(claude_data: dict, lines: list) -> list:
 
     line3 = f"{lbor}{pad_left(l3c1, col1_w)}{sep}{pad_right(l3c2, col2_w)}{sep}{pad_right(l3c3, col3_w)}{sep}{l3c4}"
 
-    result.extend([line2, session_line, line3])
+    result = [line1, line2, session_line, line3]
 
     # Log to SQLite (non-blocking)
     log_to_db(claude, session_id, used_pct, proj, rate_5h, rate_7d, wed_10am, elapsed_hours)
