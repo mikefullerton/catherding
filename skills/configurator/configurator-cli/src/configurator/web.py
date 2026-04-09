@@ -7,6 +7,7 @@ import webbrowser
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 from configurator.cli import save_config
+from configurator import __version__
 
 
 def build_page(
@@ -21,6 +22,7 @@ def build_page(
     deployed_json = json.dumps(sorted(deployed_keys))
     urls_json = json.dumps(urls or {})
     live_json = json.dumps(sorted(live_domains or set()))
+    version = __version__
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -29,63 +31,79 @@ def build_page(
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Configurator</title>
 <style>
+:root {{
+    --bg: #f5f5f5; --fg: #333; --fg-muted: #555; --fg-dim: #888;
+    --card: #fff; --border: #ddd; --input-bg: #fff; --input-border: #ccc;
+    --disabled-bg: #f0f0f0; --disabled-fg: #999;
+    --link: #1976d2; --accent: #1976d2; --accent-hover: #1565c0;
+    --btn-secondary: #e0e0e0; --btn-secondary-fg: #555; --btn-secondary-hover: #d0d0d0;
+    --badge-deploy-bg: #e8f5e9; --badge-deploy-fg: #2e7d32;
+    --badge-live-bg: #e3f2fd; --badge-live-fg: #1565c0;
+}}
+@media (prefers-color-scheme: dark) {{
+    :root {{
+        --bg: #1a1a1a; --fg: #e0e0e0; --fg-muted: #aaa; --fg-dim: #777;
+        --card: #2a2a2a; --border: #444; --input-bg: #333; --input-border: #555;
+        --disabled-bg: #2a2a2a; --disabled-fg: #666;
+        --link: #64b5f6; --accent: #42a5f5; --accent-hover: #2196f3;
+        --btn-secondary: #444; --btn-secondary-fg: #ccc; --btn-secondary-hover: #555;
+        --badge-deploy-bg: #1b3a1e; --badge-deploy-fg: #66bb6a;
+        --badge-live-bg: #1a2e3d; --badge-live-fg: #64b5f6;
+    }}
+}}
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}
 body {{
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: #f5f5f5; color: #333; padding: 2rem;
+    background: var(--bg); color: var(--fg); padding: 2rem;
 }}
 .container {{ max-width: 40rem; margin: 0 auto; }}
 h1 {{ font-size: 1.4rem; margin-bottom: 1.5rem; font-weight: 600; }}
+h1 span {{ font-size: 0.8rem; font-weight: 400; color: var(--fg-dim); margin-left: 0.4rem; }}
 fieldset {{
-    border: 1px solid #ddd; border-radius: 8px; padding: 1.2rem;
-    margin-bottom: 1rem; background: #fff;
+    border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem;
+    margin-bottom: 1rem; background: var(--card);
 }}
 legend {{ font-weight: 600; font-size: 0.95rem; padding: 0 0.4rem; }}
 .field {{ margin-bottom: 0.8rem; }}
 .field:last-child {{ margin-bottom: 0; }}
-label {{ display: block; font-size: 0.85rem; color: #555; margin-bottom: 0.2rem; }}
+label {{ display: block; font-size: 0.85rem; color: var(--fg-muted); margin-bottom: 0.2rem; }}
 input[type="text"], select {{
-    width: 100%; padding: 0.4rem 0.6rem; border: 1px solid #ccc;
+    width: 100%; padding: 0.4rem 0.6rem; border: 1px solid var(--input-border);
     border-radius: 4px; font-size: 0.9rem; font-family: inherit;
+    background: var(--input-bg); color: var(--fg);
 }}
 input[type="text"]:disabled, select:disabled {{
-    background: #f0f0f0; color: #999;
+    background: var(--disabled-bg); color: var(--disabled-fg);
 }}
 .checkbox-group {{ display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.3rem; }}
 .checkbox-group label {{
     display: flex; align-items: center; gap: 0.3rem;
-    font-size: 0.9rem; color: #333; cursor: pointer;
+    font-size: 0.9rem; color: var(--fg); cursor: pointer;
 }}
-.checkbox-group input:disabled + span {{ color: #999; }}
+.checkbox-group input:disabled + span {{ color: var(--disabled-fg); }}
 .toggle-row {{
     display: flex; align-items: center; gap: 0.5rem;
     margin-bottom: 0.6rem;
 }}
-.toggle-row label {{ margin-bottom: 0; font-size: 0.9rem; color: #333; }}
+.toggle-row label {{ margin-bottom: 0; font-size: 0.9rem; color: var(--fg); }}
 .badge {{
     font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 3px; font-weight: 500;
 }}
-.deployed-badge {{
-    background: #e8f5e9; color: #2e7d32;
-}}
-.live-badge {{
-    background: #e3f2fd; color: #1565c0;
-}}
+.deployed-badge {{ background: var(--badge-deploy-bg); color: var(--badge-deploy-fg); }}
+.live-badge {{ background: var(--badge-live-bg); color: var(--badge-live-fg); }}
 .live-url {{
-    font-size: 0.8rem; color: #666; margin-bottom: 0.8rem;
+    font-size: 0.8rem; color: var(--fg-dim); margin-bottom: 0.8rem;
     display: none;
 }}
-.live-url a {{
-    color: #1976d2; text-decoration: none;
-}}
+.live-url a {{ color: var(--link); text-decoration: none; }}
 .live-url a:hover {{ text-decoration: underline; }}
 .radio-group {{ display: flex; gap: 1rem; margin-top: 0.3rem; }}
 .radio-group label {{
     display: flex; align-items: center; gap: 0.3rem;
-    font-size: 0.9rem; color: #333; cursor: pointer;
+    font-size: 0.9rem; color: var(--fg); cursor: pointer;
 }}
 .sub-field {{ margin-left: 1.4rem; margin-top: 0.4rem; }}
-.readonly {{ font-size: 0.9rem; color: #666; padding: 0.4rem 0; }}
+.readonly {{ font-size: 0.9rem; color: var(--fg-dim); padding: 0.4rem 0; }}
 .actions {{
     display: flex; justify-content: flex-end; gap: 0.8rem;
     margin-top: 0.5rem; margin-bottom: 2rem;
@@ -95,24 +113,20 @@ input[type="text"]:disabled, select:disabled {{
     font-size: 0.9rem; font-weight: 500; cursor: pointer;
     font-family: inherit;
 }}
-.btn-cancel {{
-    background: #e0e0e0; color: #555;
-}}
-.btn-cancel:hover {{ background: #d0d0d0; }}
-.btn-deploy {{
-    background: #1976d2; color: #fff;
-}}
-.btn-deploy:hover {{ background: #1565c0; }}
+.btn-cancel {{ background: var(--btn-secondary); color: var(--btn-secondary-fg); }}
+.btn-cancel:hover {{ background: var(--btn-secondary-hover); }}
+.btn-deploy {{ background: var(--accent); color: #fff; }}
+.btn-deploy:hover {{ background: var(--accent-hover); }}
 .saved-indicator {{
     position: fixed; top: 1rem; right: 1rem; font-size: 0.8rem;
-    color: #888; opacity: 0; transition: opacity 0.3s;
+    color: var(--fg-dim); opacity: 0; transition: opacity 0.3s;
 }}
 .saved-indicator.visible {{ opacity: 1; }}
 </style>
 </head>
 <body>
 <div class="container">
-<h1>Configurator</h1>
+<h1>Configurator <span>v{version}</span></h1>
 
 <!-- Project -->
 <fieldset>
@@ -163,18 +177,16 @@ input[type="text"]:disabled, select:disabled {{
         <label><input type="radio" name="ws-type" value="none"> <span>None</span></label>
     </div>
 </div>
-<div id="ws-options">
-    <div class="field">
-        <label for="ws-domain">Website domain</label>
-        <input type="text" id="ws-domain">
-    </div>
-    <div class="field">
-        <label>Addons</label>
-        <div class="checkbox-group">
-            <label><input type="checkbox" id="addon-d1" value="sqlite database"> <span>SQLite database</span></label>
-            <label><input type="checkbox" id="addon-kv" value="key-value storage"> <span>Key-value storage</span></label>
-            <label><input type="checkbox" id="addon-r2" value="file storage"> <span>File storage</span></label>
-        </div>
+<div class="field">
+    <label for="ws-domain">Website domain</label>
+    <input type="text" id="ws-domain">
+</div>
+<div class="field">
+    <label>Addons</label>
+    <div class="checkbox-group">
+        <label><input type="checkbox" id="addon-d1" value="sqlite database"> <span>SQLite database</span></label>
+        <label><input type="checkbox" id="addon-kv" value="key-value storage"> <span>Key-value storage</span></label>
+        <label><input type="checkbox" id="addon-r2" value="file storage"> <span>File storage</span></label>
     </div>
 </div>
 </fieldset>
@@ -190,27 +202,25 @@ input[type="text"]:disabled, select:disabled {{
     <input type="checkbox" id="be-enabled">
     <label for="be-enabled">Enable backend</label>
 </div>
-<div id="be-options">
-    <div class="field">
-        <label for="be-domain">Backend domain</label>
-        <input type="text" id="be-domain">
+<div class="field">
+    <label for="be-domain">Backend domain</label>
+    <input type="text" id="be-domain">
+</div>
+<div class="field">
+    <div class="toggle-row">
+        <input type="checkbox" id="be-docs-enabled">
+        <label for="be-docs-enabled">API docs site</label>
     </div>
-    <div class="field">
-        <div class="toggle-row">
-            <input type="checkbox" id="be-docs-enabled">
-            <label for="be-docs-enabled">API docs site</label>
-        </div>
-        <div class="sub-field" id="be-docs-domain-field">
-            <label for="be-docs-domain">Docs domain</label>
-            <input type="text" id="be-docs-domain">
-        </div>
+    <div class="sub-field">
+        <label for="be-docs-domain">Docs domain</label>
+        <input type="text" id="be-docs-domain">
     </div>
-    <div class="field">
-        <label>Additional environments</label>
-        <div class="checkbox-group">
-            <label><input type="checkbox" id="env-staging" value="staging"> <span>Staging</span></label>
-            <label><input type="checkbox" id="env-testing" value="testing"> <span>Testing</span></label>
-        </div>
+</div>
+<div class="field">
+    <label>Additional environments</label>
+    <div class="checkbox-group">
+        <label><input type="checkbox" id="env-staging" value="staging"> <span>Staging</span></label>
+        <label><input type="checkbox" id="env-testing" value="testing"> <span>Testing</span></label>
     </div>
 </div>
 </fieldset>
@@ -225,7 +235,7 @@ input[type="text"]:disabled, select:disabled {{
     <span class="badge live-badge" id="admin-live" style="display:none">live</span>
 </div>
 <div class="live-url" id="admin-link"><a href="#" target="_blank"></a></div>
-<div class="sub-field" id="admin-domain-field">
+<div class="sub-field">
     <label for="admin-domain">Admin domain</label>
     <input type="text" id="admin-domain">
 </div>
@@ -237,7 +247,7 @@ input[type="text"]:disabled, select:disabled {{
     <span class="badge live-badge" id="dash-live" style="display:none">live</span>
 </div>
 <div class="live-url" id="dash-link"><a href="#" target="_blank"></a></div>
-<div class="sub-field" id="dash-domain-field">
+<div class="sub-field">
     <label for="dash-domain">Dashboard domain</label>
     <input type="text" id="dash-domain">
 </div>
@@ -391,6 +401,11 @@ function setLink(id, svcKey) {{
     }}
 }}
 
+function defaultDomain(prefix) {{
+    const d = CONFIG.domain || "";
+    return d ? prefix + "." + d : "";
+}}
+
 function populateForm() {{
     // Project
     $("#repo").value = CONFIG.repo || "";
@@ -425,14 +440,13 @@ function populateForm() {{
     const wsRadio = document.querySelector(`input[name="ws-type"][value="${{wsType}}"]`);
     if (wsRadio) wsRadio.checked = true;
     $("#ws-domain").value = ws.domain || CONFIG.domain || "";
+
     const addons = ws.addons || [];
     $("#addon-d1").checked = addons.includes("sqlite database");
     $("#addon-kv").checked = addons.includes("key-value storage");
     $("#addon-r2").checked = addons.includes("file storage");
 
-    // Website deployed state
     if (DEPLOYED.has("website")) {{
-        // Lock website type radios
         for (const radio of $$('input[name="ws-type"]')) {{
             radio.disabled = true;
         }}
@@ -443,14 +457,13 @@ function populateForm() {{
         $("#ws-live").style.display = "";
     }}
 
-    // Backend
+    // Backend — populate defaults even if not enabled
     const be = CONFIG.backend || {{}};
     $("#be-enabled").checked = !!be.enabled;
-    $("#be-domain").value = be.domain || "";
-    if (be.docs_domain) {{
-        $("#be-docs-enabled").checked = true;
-        $("#be-docs-domain").value = be.docs_domain;
-    }}
+    $("#be-domain").value = be.domain || defaultDomain("backend");
+    $("#be-docs-enabled").checked = !!be.docs_domain;
+    $("#be-docs-domain").value = be.docs_domain || defaultDomain("api");
+
     const envs = be.environments || {{}};
     $("#env-staging").checked = !!envs.staging;
     $("#env-testing").checked = !!envs.testing;
@@ -464,14 +477,15 @@ function populateForm() {{
         $("#be-live").style.display = "";
     }}
 
-    // Admin sites
+    // Admin sites — populate defaults even if not enabled
     const adminSites = CONFIG.admin_sites || {{}};
     const admin = adminSites.admin || {{}};
     $("#admin-enabled").checked = !!admin.enabled;
-    $("#admin-domain").value = admin.domain || "";
+    $("#admin-domain").value = admin.domain || defaultDomain("admin");
+
     const dash = adminSites.dashboard || {{}};
     $("#dash-enabled").checked = !!dash.enabled;
-    $("#dash-domain").value = dash.domain || "";
+    $("#dash-domain").value = dash.domain || defaultDomain("dashboard");
 
     if (DEPLOYED.has("admin")) {{
         $("#admin-enabled").disabled = true;
@@ -497,40 +511,43 @@ function populateForm() {{
     $("#auth-google").checked = providers.includes("google");
     $("#auth-apple").checked = providers.includes("apple");
 
-    updateVisibility();
+    updateDisabledState();
 }}
 
-function updateVisibility() {{
-    // Website options
-    const wsType = document.querySelector('input[name="ws-type"]:checked');
-    const wsNone = !wsType || wsType.value === "none";
-    $("#ws-options").style.display = wsNone ? "none" : "";
-
-    // Backend options
-    const beEnabled = $("#be-enabled").checked;
-    $("#be-options").style.display = beEnabled ? "" : "none";
-
-    // Backend docs domain
-    const docsEnabled = $("#be-docs-enabled").checked;
-    $("#be-docs-domain-field").style.display = docsEnabled ? "" : "none";
-
-    // Org other
+function updateDisabledState() {{
+    // Org other (still hide/show since it's a conditional select value)
     $("#org-other-field").style.display = $("#org").value === "other" ? "" : "none";
 
-    // Admin domains
-    $("#admin-domain-field").style.display = $("#admin-enabled").checked ? "" : "none";
-    $("#dash-domain-field").style.display = $("#dash-enabled").checked ? "" : "none";
+    // Website fields — disable when type is "none"
+    const wsType = document.querySelector('input[name="ws-type"]:checked');
+    const wsNone = !wsType || wsType.value === "none";
+    $("#ws-domain").disabled = wsNone;
+    for (const el of [$("#addon-d1"), $("#addon-kv"), $("#addon-r2")]) {{
+        el.disabled = wsNone;
+    }}
+
+    // Backend fields — disable when not enabled
+    const beEnabled = $("#be-enabled").checked;
+    $("#be-domain").disabled = !beEnabled;
+    $("#be-docs-enabled").disabled = !beEnabled;
+    const docsEnabled = beEnabled && $("#be-docs-enabled").checked;
+    $("#be-docs-domain").disabled = !docsEnabled;
+    $("#env-staging").disabled = !beEnabled;
+    $("#env-testing").disabled = !beEnabled;
+
+    // Admin/Dashboard domains — disable when not enabled
+    $("#admin-domain").disabled = !$("#admin-enabled").checked;
+    $("#dash-domain").disabled = !$("#dash-enabled").checked;
 }}
 
 // Wire up all inputs
 document.addEventListener("DOMContentLoaded", () => {{
     populateForm();
 
-    // All inputs trigger save + visibility update
     for (const el of $$("input, select")) {{
         const event = el.type === "text" ? "input" : "change";
         el.addEventListener(event, () => {{
-            updateVisibility();
+            updateDisabledState();
             debounceSave();
         }});
     }}
