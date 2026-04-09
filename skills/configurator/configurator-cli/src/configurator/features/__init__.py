@@ -24,6 +24,7 @@ def discover_features() -> list[Feature]:
     from configurator.features.theme import ThemeFeature
     from configurator.features.text_size import TextSizeFeature
     from configurator.features.user_settings import UserSettingsFeature
+    from configurator.features.feedback import FeedbackFeature
 
     features = [
         ProjectFeature(),
@@ -31,6 +32,7 @@ def discover_features() -> list[Feature]:
         ThemeFeature(),
         TextSizeFeature(),
         UserSettingsFeature(),
+        FeedbackFeature(),
         BackendFeature(),
         AdminFeature(),
         DashboardFeature(),
