@@ -618,7 +618,7 @@ def cmd_delete(config_name: str | None) -> None:
         print("Cancelled.")
 
 
-def cmd_configure() -> None:
+def cmd_configure(*, tui: bool = False) -> None:
     # Check if we're in a deployed project directory
     cwd = Path.cwd()
     manifest = _load_manifest(cwd)
@@ -648,56 +648,62 @@ def cmd_configure() -> None:
         print("  Draft configuration from current deployment:")
         show_config(name)
 
-        try:
-            proceed = ask_choice(None, "Edit this configuration?", ["yes", "no"], default="yes")
-        except UserQuit:
-            delete_config(name)
-            return
-
-        if proceed == "no":
-            delete_config(name)
-            return
-
-        questions_started = False
-        try:
-            questions_started = True
-            name = run_questions(name, cfg)
-        except UserQuit:
-            if questions_started and name:
-                try:
-                    delete_it = ask_choice(None, f"Delete the draft configuration '{name}'?", ["yes", "no"], default="yes")
-                except UserQuit:
-                    delete_it = "yes"
-                if delete_it == "yes":
-                    delete_config(name)
-                    print(f"Draft configuration '{name}' deleted.")
-                else:
-                    print(f"Draft configuration '{name}' saved.")
-            return
-
-        # Show and confirm
-        show_config(name)
-        try:
-            ok = ask_choice(None, "Does that look ok?", ["yes", "no"], default="yes")
-        except UserQuit:
-            print(f"Configuration '{name}' saved.")
-            return
-
-        if ok == "no":
-            cfg = load_config(name)
+        if tui:
             try:
-                run_questions(name, cfg)
-                show_config(name)
+                proceed = ask_choice(None, "Edit this configuration?", ["yes", "no"], default="yes")
+            except UserQuit:
+                delete_config(name)
+                return
+
+            if proceed == "no":
+                delete_config(name)
+                return
+
+            questions_started = False
+            try:
+                questions_started = True
+                name = run_questions(name, cfg)
+            except UserQuit:
+                if questions_started and name:
+                    try:
+                        delete_it = ask_choice(None, f"Delete the draft configuration '{name}'?", ["yes", "no"], default="yes")
+                    except UserQuit:
+                        delete_it = "yes"
+                    if delete_it == "yes":
+                        delete_config(name)
+                        print(f"Draft configuration '{name}' deleted.")
+                    else:
+                        print(f"Draft configuration '{name}' saved.")
+                return
+
+            # Show and confirm
+            show_config(name)
+            try:
+                ok = ask_choice(None, "Does that look ok?", ["yes", "no"], default="yes")
             except UserQuit:
                 print(f"Configuration '{name}' saved.")
                 return
 
-        command = f"/configurator {name}"
-        try:
-            subprocess.run(["pbcopy"], input=command.encode(), check=True)
-            print(f"To deploy, run '{command}' in Claude (command copied to clipboard)")
-        except (FileNotFoundError, subprocess.CalledProcessError):
-            print(f"To deploy, run '{command}' in Claude")
+            if ok == "no":
+                cfg = load_config(name)
+                try:
+                    run_questions(name, cfg)
+                    show_config(name)
+                except UserQuit:
+                    print(f"Configuration '{name}' saved.")
+                    return
+
+            command = f"/configurator {name}"
+            try:
+                subprocess.run(["pbcopy"], input=command.encode(), check=True)
+                print(f"To deploy, run '{command}' in Claude (command copied to clipboard)")
+            except (FileNotFoundError, subprocess.CalledProcessError):
+                print(f"To deploy, run '{command}' in Claude")
+        else:
+            # Web editor
+            from configurator.web import serve_editor
+            deployed = _deployed_keys_from_manifest(manifest)
+            serve_editor(name, cfg, deployed_keys=deployed)
 
         return
 
@@ -717,49 +723,63 @@ def cmd_configure() -> None:
         name = chosen
         cfg = load_config(name)
 
-    questions_started = False
-    try:
-        questions_started = True
-        name = run_questions(name, cfg)
-    except UserQuit:
-        if questions_started and name:
-            try:
-                delete_it = ask_choice(None, f"Delete the configuration '{name}'?", ["no", "yes"], default="no")
-            except UserQuit:
-                delete_it = "no"
-            if delete_it == "yes":
-                delete_config(name)
-                print(f"Configuration '{name}' deleted.")
-            else:
-                print(f"Configuration '{name}' saved (partial).")
-        return
-
-    # Show the completed config
-    show_config(name)
-
-    # Confirm
-    try:
-        ok = ask_choice(None, "Does that look ok?", ["yes", "no"], default="yes")
-    except UserQuit:
-        print(f"Configuration '{name}' saved.")
-        return
-
-    if ok == "no":
-        # Restart with current answers pre-populated
-        cfg = load_config(name)
+    if tui:
+        questions_started = False
         try:
-            run_questions(name, cfg)
-            show_config(name)
+            questions_started = True
+            name = run_questions(name, cfg)
+        except UserQuit:
+            if questions_started and name:
+                try:
+                    delete_it = ask_choice(None, f"Delete the configuration '{name}'?", ["no", "yes"], default="no")
+                except UserQuit:
+                    delete_it = "no"
+                if delete_it == "yes":
+                    delete_config(name)
+                    print(f"Configuration '{name}' deleted.")
+                else:
+                    print(f"Configuration '{name}' saved (partial).")
+            return
+
+        # Show the completed config
+        show_config(name)
+
+        # Confirm
+        try:
+            ok = ask_choice(None, "Does that look ok?", ["yes", "no"], default="yes")
         except UserQuit:
             print(f"Configuration '{name}' saved.")
             return
 
-    command = f"/configurator {name}"
-    try:
-        subprocess.run(["pbcopy"], input=command.encode(), check=True)
-        print(f"To deploy, run '{command}' in Claude (command copied to clipboard)")
-    except (FileNotFoundError, subprocess.CalledProcessError):
-        print(f"To deploy, run '{command}' in Claude")
+        if ok == "no":
+            # Restart with current answers pre-populated
+            cfg = load_config(name)
+            try:
+                run_questions(name, cfg)
+                show_config(name)
+            except UserQuit:
+                print(f"Configuration '{name}' saved.")
+                return
+
+        command = f"/configurator {name}"
+        try:
+            subprocess.run(["pbcopy"], input=command.encode(), check=True)
+            print(f"To deploy, run '{command}' in Claude (command copied to clipboard)")
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            print(f"To deploy, run '{command}' in Claude")
+    else:
+        # For new configs without a manifest, we need a name first
+        if name is None:
+            try:
+                repo = ask_text(1, "What is the name of the GitHub repo for this project?", required=True)
+            except UserQuit:
+                return
+            name = repo
+            cfg["repo"] = repo
+            save_config(name, cfg)
+
+        from configurator.web import serve_editor
+        serve_editor(name, cfg, deployed_keys=set())
 
 
 # ── Entry point ─────────────────────────────────────────────────────────────
@@ -770,6 +790,7 @@ def main() -> None:
     parser.add_argument("--configure", action="store_true", default=True, help="Configure a project (default)")
     parser.add_argument("--show", nargs="?", const="", metavar="NAME", help="Show a configuration")
     parser.add_argument("--delete", nargs="?", const="", metavar="NAME", help="Delete a configuration")
+    parser.add_argument("--tui", action="store_true", help="Use terminal Q&A instead of web editor")
     parser.add_argument("--version", action="store_true", help="Show version")
     args = parser.parse_args()
 
@@ -785,4 +806,4 @@ def main() -> None:
         cmd_delete(args.delete or None)
         return
 
-    cmd_configure()
+    cmd_configure(tui=args.tui)
