@@ -139,8 +139,6 @@ def _manifest_to_config(manifest: dict) -> dict:
         be_svc = services.get("backend", services.get("api", {}))
         if be_svc.get("domain"):
             be["domain"] = be_svc["domain"]
-        if be_svc.get("endpoint_url") or be_svc.get("url"):
-            be["endpoint_url"] = be_svc.get("endpoint_url") or be_svc.get("url")
         if services.get("api-docs", {}).get("domain"):
             be["docs_domain"] = services["api-docs"]["domain"]
         cfg["backend"] = be
@@ -252,8 +250,6 @@ def show_config(name: str) -> None:
     be = cfg.get("backend", {})
     if be.get("enabled"):
         print(f"  Backend:        yes ({be.get('domain', f'backend.{domain}')})")
-        if be.get("endpoint_url"):
-            print(f"  API endpoint:   {be['endpoint_url']}")
         if be.get("docs_domain"):
             print(f"  API docs:       {be['docs_domain']}")
         envs = be.get("environments", {})
@@ -490,19 +486,6 @@ def run_questions(name: str | None, cfg: dict) -> str:
         be_domain_default = be.get("domain") or f"backend.{domain}"
         be_domain = ask_clarifying_text(f"What domain for the backend? (default: backend.{domain})", default=be_domain_default)
         be["domain"] = be_domain or f"backend.{domain}"
-
-        # API endpoint
-        api_url_default = be.get("endpoint_url", "")
-        api_answer = ask_clarifying_choice(
-            "Configure an API endpoint URL?",
-            ["yes", "no"],
-            default="yes" if api_url_default else "no",
-        )
-        if api_answer == "yes":
-            api_url = ask_clarifying_text("What is the API endpoint URL?", default=api_url_default)
-            be["endpoint_url"] = api_url
-        else:
-            be.pop("endpoint_url", None)
 
         # API docs site
         api_domain_default = be.get("docs_domain") or f"api.{domain}"

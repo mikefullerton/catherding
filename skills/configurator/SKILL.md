@@ -102,7 +102,6 @@ Read the config JSON and set these internal variables:
 | `website.addons` | `ADDONS` | List: `sqlite database`, `key-value storage`, `file storage` |
 | `backend.enabled` | — | If `true`, include backend in `SERVICES` |
 | `backend.domain` | `BACKEND_DOMAIN` | Domain for backend (defaults to `backend.DOMAIN`) |
-| `backend.endpoint_url` | `API_ENDPOINT` | API endpoint URL (optional) |
 | `backend.docs_domain` | `API_DOCS_DOMAIN` | Domain for API docs site, e.g. `api.DOMAIN` (optional) |
 | `admin_sites.admin.enabled` | — | If `true`, include admin in `SERVICES` |
 | `admin_sites.admin.domain` | `ADMIN_DOMAIN` | Domain for admin site |
