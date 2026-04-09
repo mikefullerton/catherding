@@ -139,14 +139,12 @@ def run(claude_data: dict, lines: list) -> list:
 
     duration = format_duration(duration_ms)
 
-    # Project path — strip worktree suffixes
+    # Project name — strip worktree suffixes, show only directory name
     cwd = claude.get("cwd", "")
     for suffix in ["/.claude/worktrees/", "/.worktrees/"]:
         if suffix in cwd:
             cwd = cwd[:cwd.index(suffix)]
-    home = os.path.expanduser("~")
-    if cwd.startswith(home):
-        cwd = "~" + cwd[len(home):]
+    cwd = os.path.basename(cwd) or cwd
 
     # Git info
     branch = git_cmd("rev-parse", "--abbrev-ref", "HEAD")
