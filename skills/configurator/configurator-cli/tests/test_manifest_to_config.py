@@ -215,6 +215,23 @@ class TestBackend:
         assert cfg["backend"]["enabled"] is True
         assert "domain" not in cfg["backend"]
 
+    def test_backend_staging_service(self):
+        manifest = {"services": {
+            "backend": {"status": "deployed"},
+            "backend-staging": {"status": "deployed"},
+        }}
+        cfg = _manifest_to_config(manifest)
+        assert cfg["backend"]["environments"]["staging"] is True
+
+    def test_backend_environments_from_features(self):
+        manifest = {
+            "services": {"backend": {}},
+            "features": {"backend": {"environments": {"staging": True, "testing": True}}},
+        }
+        cfg = _manifest_to_config(manifest)
+        assert cfg["backend"]["environments"]["staging"] is True
+        assert cfg["backend"]["environments"]["testing"] is True
+
 
 # ── Website (main service) ───────────────────────────────────────────────
 
@@ -343,6 +360,50 @@ class TestProjectFields:
         assert cfg["backend"]["domain"] == "backend.api.example.com"
         assert cfg["admin_sites"]["admin"]["enabled"] is False
         assert cfg["admin_sites"]["dashboard"]["enabled"] is False
+
+
+# ── Saved config merge ──────────────────────────────────────────────────
+
+
+class TestSavedConfigMerge:
+    def test_saved_environments_preserved(self):
+        """User-configured environments survive manifest rebuild."""
+        manifest = {"services": {"backend": {"domain": "backend.example.com"}}}
+        saved = {"backend": {"environments": {"staging": True, "testing": True}}}
+        cfg = _manifest_to_config(manifest, saved=saved)
+        assert cfg["backend"]["enabled"] is True
+        assert cfg["backend"]["environments"]["staging"] is True
+        assert cfg["backend"]["environments"]["testing"] is True
+
+    def test_manifest_takes_precedence(self):
+        """Manifest-derived values override saved config."""
+        manifest = {
+            "services": {"backend": {"domain": "new.example.com"}},
+        }
+        saved = {"backend": {"domain": "old.example.com", "environments": {"staging": True}}}
+        cfg = _manifest_to_config(manifest, saved=saved)
+        assert cfg["backend"]["domain"] == "new.example.com"
+        assert cfg["backend"]["environments"]["staging"] is True
+
+    def test_saved_user_preferences_preserved(self):
+        """Theme, text_size, etc. survive manifest rebuild."""
+        manifest = {"services": {"main": {"domain": "example.com"}}}
+        saved = {"theme": {"mode": "dark"}, "text_size": {"mode": "large"}}
+        cfg = _manifest_to_config(manifest, saved=saved)
+        assert cfg["theme"]["mode"] == "dark"
+        assert cfg["text_size"]["mode"] == "large"
+
+    def test_no_saved_config(self):
+        """Without saved config, just returns manifest-derived config."""
+        manifest = {"services": {"backend": {"domain": "backend.example.com"}}}
+        cfg = _manifest_to_config(manifest)
+        assert cfg["backend"]["enabled"] is True
+        assert "environments" not in cfg["backend"]
+
+    def test_saved_none_is_noop(self):
+        manifest = {"services": {"backend": {}}}
+        cfg = _manifest_to_config(manifest, saved=None)
+        assert cfg["backend"]["enabled"] is True
 
 
 # ── Deployed keys ───────────────────────────────────────────────────────

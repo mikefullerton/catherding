@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from configurator.features.base import Feature, FeatureMeta, RenderContext
 
-_VERSION = "1.0.0"
+_VERSION = "1.1.0"
 
 
 class BackendFeature(Feature):
@@ -116,6 +116,20 @@ class BackendFeature(Feature):
             be["domain"] = be_svc["domain"]
         if services.get("api-docs", {}).get("domain"):
             be["docs_domain"] = services["api-docs"]["domain"]
+
+        # Extract environments from services or features
+        envs: dict = {}
+        if "backend-staging" in services:
+            envs["staging"] = True
+        if "backend-testing" in services:
+            envs["testing"] = True
+        feat_envs = manifest.get("features", {}).get("backend", {}).get("environments", {})
+        if feat_envs.get("staging"):
+            envs["staging"] = True
+        if feat_envs.get("testing"):
+            envs["testing"] = True
+        if envs:
+            be["environments"] = envs
         return be
 
     def deployed_keys(self, manifest: dict) -> set[str]:

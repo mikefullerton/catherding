@@ -48,6 +48,37 @@ class TestManifestToConfig:
         assert cfg["enabled"] is True
         assert "domain" not in cfg
 
+    def test_staging_service(self):
+        f = BackendFeature()
+        cfg = f.manifest_to_config({"services": {
+            "backend": {"domain": "backend.example.com"},
+            "backend-staging": {"domain": "staging.example.com"},
+        }})
+        assert cfg["environments"]["staging"] is True
+        assert "testing" not in cfg["environments"]
+
+    def test_testing_service(self):
+        f = BackendFeature()
+        cfg = f.manifest_to_config({"services": {
+            "backend": {},
+            "backend-testing": {"domain": "test.example.com"},
+        }})
+        assert cfg["environments"]["testing"] is True
+
+    def test_environments_from_features(self):
+        f = BackendFeature()
+        cfg = f.manifest_to_config({
+            "services": {"backend": {}},
+            "features": {"backend": {"environments": {"staging": True, "testing": True}}},
+        })
+        assert cfg["environments"]["staging"] is True
+        assert cfg["environments"]["testing"] is True
+
+    def test_no_environments_when_none(self):
+        f = BackendFeature()
+        cfg = f.manifest_to_config({"services": {"backend": {}}})
+        assert "environments" not in cfg
+
 
 class TestDeployedKeys:
     def test_backend_deployed(self):

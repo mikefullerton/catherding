@@ -98,12 +98,36 @@ def _load_manifest(path: Path) -> dict | None:
         return None
 
 
-def _manifest_to_config(manifest: dict) -> dict:
-    """Map a .site/manifest.json to a configurator config structure."""
+def _deep_merge(base: dict, overlay: dict) -> dict:
+    """Merge overlay into base. Overlay values win at leaf level; base fills gaps."""
+    result = base.copy()
+    for key, value in overlay.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = _deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def _manifest_to_config(manifest: dict, *, saved: dict | None = None) -> dict:
+    """Map a .site/manifest.json to a configurator config structure.
+
+    If *saved* is provided, the saved config is used as a base and
+    manifest-derived values are deep-merged on top — but only for features
+    that actually had data in the manifest (not just defaults).  This
+    preserves user preferences (environments, theme, etc.) that were
+    configured but not yet deployed.
+    """
     from configurator.features import discover_features
     cfg: dict = {}
     for feature in discover_features():
-        _apply_feature_config(cfg, feature, feature.manifest_to_config(manifest))
+        from_manifest = feature.manifest_to_config(manifest)
+        if saved and from_manifest == feature.default_config():
+            # Manifest had no data for this feature — keep saved config
+            continue
+        _apply_feature_config(cfg, feature, from_manifest)
+    if saved:
+        cfg = _deep_merge(saved, cfg)
     return cfg
 
 
@@ -635,10 +659,11 @@ def cmd_configure(*, tui: bool = False) -> None:
         if not manifest_version or _parse_version(manifest_version) < _parse_version(__version__):
             _show_new_options(manifest_version)
 
-        # Always create a fresh draft config from the manifest
-        cfg = _manifest_to_config(manifest)
-        cfg["local_path"] = str(cwd.resolve())
+        # Build config from manifest, merging in saved preferences
         name = project_name
+        saved = load_config(name)
+        cfg = _manifest_to_config(manifest, saved=saved or None)
+        cfg["local_path"] = str(cwd.resolve())
 
         # Detect org from git remote if not in manifest
         if "org" not in cfg:
