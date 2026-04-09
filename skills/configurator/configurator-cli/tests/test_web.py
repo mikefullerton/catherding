@@ -33,6 +33,19 @@ class TestBuildPage:
         parsed = json.loads(html[start:end])
         assert parsed["repo"] == "test"
 
+    def test_embeds_urls(self):
+        cfg = {"repo": "test"}
+        urls = {"main": "https://example.com", "backend": "https://api.example.com"}
+        html = build_page(cfg, deployed_keys=set(), urls=urls)
+        assert "https://example.com" in html
+        assert "https://api.example.com" in html
+
+    def test_embeds_live_domains(self):
+        cfg = {"repo": "test"}
+        html = build_page(cfg, deployed_keys=set(), live_domains={"main", "backend"})
+        assert '"backend"' in html
+        assert '"main"' in html
+
 
 class TestServer:
     def test_serves_html_on_get(self, monkeypatch, tmp_path):

@@ -9,10 +9,18 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from configurator.cli import save_config
 
 
-def build_page(cfg: dict, *, deployed_keys: set[str]) -> str:
+def build_page(
+    cfg: dict,
+    *,
+    deployed_keys: set[str],
+    urls: dict[str, str] | None = None,
+    live_domains: set[str] | None = None,
+) -> str:
     """Build the HTML page with config embedded as JSON."""
     config_json = json.dumps(cfg, indent=2)
     deployed_json = json.dumps(sorted(deployed_keys))
+    urls_json = json.dumps(urls or {})
+    live_json = json.dumps(sorted(live_domains or set()))
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -54,10 +62,22 @@ input[type="text"]:disabled, select:disabled {{
     margin-bottom: 0.6rem;
 }}
 .toggle-row label {{ margin-bottom: 0; font-size: 0.9rem; color: #333; }}
-.deployed-badge {{
-    font-size: 0.7rem; background: #e8f5e9; color: #2e7d32;
-    padding: 0.1rem 0.4rem; border-radius: 3px; font-weight: 500;
+.badge {{
+    font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 3px; font-weight: 500;
 }}
+.deployed-badge {{
+    background: #e8f5e9; color: #2e7d32;
+}}
+.live-badge {{
+    background: #e3f2fd; color: #1565c0;
+}}
+.link {{
+    font-size: 0.8rem; margin-left: 0.5rem;
+}}
+.link a {{
+    color: #1976d2; text-decoration: none;
+}}
+.link a:hover {{ text-decoration: underline; }}
 .radio-group {{ display: flex; gap: 1rem; margin-top: 0.3rem; }}
 .radio-group label {{
     display: flex; align-items: center; gap: 0.3rem;
@@ -108,7 +128,11 @@ input[type="text"]:disabled, select:disabled {{
 
 <!-- Website -->
 <fieldset>
-<legend>Website</legend>
+<legend>Website
+    <span class="badge deployed-badge" id="ws-deployed" style="display:none">deployed</span>
+    <span class="badge live-badge" id="ws-live" style="display:none">live</span>
+    <span class="link" id="ws-link" style="display:none"><a href="#" target="_blank">open</a></span>
+</legend>
 <div class="field">
     <label>Type</label>
     <div class="radio-group">
@@ -135,11 +159,14 @@ input[type="text"]:disabled, select:disabled {{
 
 <!-- Backend -->
 <fieldset>
-<legend>Backend</legend>
+<legend>Backend
+    <span class="badge deployed-badge" id="be-deployed" style="display:none">deployed</span>
+    <span class="badge live-badge" id="be-live" style="display:none">live</span>
+    <span class="link" id="be-link" style="display:none"><a href="#" target="_blank">open</a></span>
+</legend>
 <div class="toggle-row">
     <input type="checkbox" id="be-enabled">
     <label for="be-enabled">Enable backend</label>
-    <span class="deployed-badge" id="be-deployed" style="display:none">deployed</span>
 </div>
 <div id="be-options">
     <div class="field">
@@ -172,7 +199,9 @@ input[type="text"]:disabled, select:disabled {{
 <div class="toggle-row">
     <input type="checkbox" id="admin-enabled">
     <label for="admin-enabled">Admin site</label>
-    <span class="deployed-badge" id="admin-deployed" style="display:none">deployed</span>
+    <span class="badge deployed-badge" id="admin-deployed" style="display:none">deployed</span>
+    <span class="badge live-badge" id="admin-live" style="display:none">live</span>
+    <span class="link" id="admin-link" style="display:none"><a href="#" target="_blank">open</a></span>
 </div>
 <div class="sub-field" id="admin-domain-field">
     <label for="admin-domain">Admin domain</label>
@@ -182,7 +211,9 @@ input[type="text"]:disabled, select:disabled {{
 <div class="toggle-row" style="margin-top: 0.8rem">
     <input type="checkbox" id="dash-enabled">
     <label for="dash-enabled">Dashboard</label>
-    <span class="deployed-badge" id="dash-deployed" style="display:none">deployed</span>
+    <span class="badge deployed-badge" id="dash-deployed" style="display:none">deployed</span>
+    <span class="badge live-badge" id="dash-live" style="display:none">live</span>
+    <span class="link" id="dash-link" style="display:none"><a href="#" target="_blank">open</a></span>
 </div>
 <div class="sub-field" id="dash-domain-field">
     <label for="dash-domain">Dashboard domain</label>
@@ -211,6 +242,8 @@ input[type="text"]:disabled, select:disabled {{
 <script>
 const CONFIG = {config_json};
 const DEPLOYED = new Set({deployed_json});
+const URLS = {urls_json};
+const LIVE = new Set({live_json});
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -317,6 +350,15 @@ function readForm() {{
     return cfg;
 }}
 
+function setLink(id, svcKey) {{
+    const url = URLS[svcKey];
+    if (url) {{
+        const el = $(`#${{id}}`);
+        el.style.display = "";
+        el.querySelector("a").href = url;
+    }}
+}}
+
 function populateForm() {{
     // Project
     $("#repo").value = CONFIG.repo || "";
@@ -336,6 +378,14 @@ function populateForm() {{
         $("#local-path-field").style.display = "";
     }}
 
+    // Lock repo and org when deployed
+    if (DEPLOYED.has("repo")) {{
+        $("#repo").disabled = true;
+    }}
+    if (DEPLOYED.has("org")) {{
+        $("#org").disabled = true;
+    }}
+
     // Website
     const ws = CONFIG.website || {{}};
     const wsType = ws.type || "none";
@@ -346,6 +396,19 @@ function populateForm() {{
     $("#addon-d1").checked = addons.includes("sqlite database");
     $("#addon-kv").checked = addons.includes("key-value storage");
     $("#addon-r2").checked = addons.includes("file storage");
+
+    // Website deployed state
+    if (DEPLOYED.has("website")) {{
+        // Lock website type radios
+        for (const radio of $$('input[name="ws-type"]')) {{
+            radio.disabled = true;
+        }}
+        $("#ws-deployed").style.display = "";
+        setLink("ws-link", "main");
+    }}
+    if (LIVE.has("main")) {{
+        $("#ws-live").style.display = "";
+    }}
 
     // Backend
     const be = CONFIG.backend || {{}};
@@ -359,6 +422,15 @@ function populateForm() {{
     $("#env-staging").checked = !!envs.staging;
     $("#env-testing").checked = !!envs.testing;
 
+    if (DEPLOYED.has("backend")) {{
+        $("#be-enabled").disabled = true;
+        $("#be-deployed").style.display = "";
+        setLink("be-link", "backend");
+    }}
+    if (LIVE.has("backend")) {{
+        $("#be-live").style.display = "";
+    }}
+
     // Admin sites
     const adminSites = CONFIG.admin_sites || {{}};
     const admin = adminSites.admin || {{}};
@@ -368,26 +440,29 @@ function populateForm() {{
     $("#dash-enabled").checked = !!dash.enabled;
     $("#dash-domain").value = dash.domain || "";
 
+    if (DEPLOYED.has("admin")) {{
+        $("#admin-enabled").disabled = true;
+        $("#admin-deployed").style.display = "";
+        setLink("admin-link", "admin");
+    }}
+    if (LIVE.has("admin")) {{
+        $("#admin-live").style.display = "";
+    }}
+    if (DEPLOYED.has("dashboard")) {{
+        $("#dash-enabled").disabled = true;
+        $("#dash-deployed").style.display = "";
+        setLink("dash-link", "dashboard");
+    }}
+    if (LIVE.has("dashboard")) {{
+        $("#dash-live").style.display = "";
+    }}
+
     // Auth
     const providers = CONFIG.auth_providers || [];
     $("#auth-email").checked = providers.includes("email/password");
     $("#auth-github").checked = providers.includes("github");
     $("#auth-google").checked = providers.includes("google");
     $("#auth-apple").checked = providers.includes("apple");
-
-    // Deployed badges and locks
-    if (DEPLOYED.has("backend")) {{
-        $("#be-enabled").disabled = true;
-        $("#be-deployed").style.display = "";
-    }}
-    if (DEPLOYED.has("admin")) {{
-        $("#admin-enabled").disabled = true;
-        $("#admin-deployed").style.display = "";
-    }}
-    if (DEPLOYED.has("dashboard")) {{
-        $("#dash-enabled").disabled = true;
-        $("#dash-deployed").style.display = "";
-    }}
 
     updateVisibility();
 }}
@@ -437,7 +512,12 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/":
-            html = build_page(self.server.cfg, deployed_keys=self.server.deployed_keys)
+            html = build_page(
+                self.server.cfg,
+                deployed_keys=self.server.deployed_keys,
+                urls=self.server.urls,
+                live_domains=self.server.live_domains,
+            )
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.end_headers()
@@ -464,22 +544,41 @@ class _Handler(BaseHTTPRequestHandler):
 
 
 def start_server(
-    name: str, cfg: dict, *, deployed_keys: set[str]
+    name: str,
+    cfg: dict,
+    *,
+    deployed_keys: set[str],
+    urls: dict[str, str] | None = None,
+    live_domains: set[str] | None = None,
 ) -> tuple[HTTPServer, int]:
     """Create and bind the server. Returns (httpd, port)."""
     httpd = HTTPServer(("127.0.0.1", 0), _Handler)
     httpd.config_name = name
     httpd.cfg = cfg
     httpd.deployed_keys = deployed_keys
+    httpd.urls = urls or {}
+    httpd.live_domains = live_domains or set()
     port = httpd.server_address[1]
     return httpd, port
 
 
-def serve_editor(name: str, cfg: dict, *, deployed_keys: set[str] | None = None) -> None:
+def serve_editor(
+    name: str,
+    cfg: dict,
+    *,
+    deployed_keys: set[str] | None = None,
+    urls: dict[str, str] | None = None,
+    live_domains: set[str] | None = None,
+) -> None:
     """Open the web editor and block until Ctrl+C."""
     if deployed_keys is None:
         deployed_keys = set()
-    httpd, port = start_server(name, cfg, deployed_keys=deployed_keys)
+    httpd, port = start_server(
+        name, cfg,
+        deployed_keys=deployed_keys,
+        urls=urls,
+        live_domains=live_domains,
+    )
     url = f"http://localhost:{port}/"
     print(f"  Editing at {url} — press Ctrl+C when done")
     webbrowser.open(url)

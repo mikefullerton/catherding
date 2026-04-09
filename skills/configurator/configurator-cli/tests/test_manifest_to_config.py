@@ -374,3 +374,15 @@ class TestDeployedKeys:
     def test_api_counts_as_backend(self):
         manifest = {"services": {"api": {"status": "deployed"}}}
         assert "backend" in _deployed_keys_from_manifest(manifest)
+
+    def test_repo_deployed_when_name_present(self):
+        manifest = {"project": {"name": "my-project"}}
+        assert "repo" in _deployed_keys_from_manifest(manifest)
+
+    def test_org_deployed_when_org_present(self):
+        manifest = {"project": {"org": "my-org"}}
+        assert "org" in _deployed_keys_from_manifest(manifest)
+
+    def test_repo_not_deployed_without_name(self):
+        manifest = {"project": {}}
+        assert "repo" not in _deployed_keys_from_manifest(manifest)
