@@ -1,13 +1,13 @@
 ---
 name: configurator
-description: "Deploy a project from a configurator spec, or manage an existing deployment. /configurator <config-name>, /configurator add, /configurator deploy, /configurator status, /configurator manifest, /configurator seed-admin, /configurator --help"
-version: "1.19.0"
-argument-hint: "[<config-name>|add|deploy|update|verify|repair|status|manifest|seed-admin|go-live|--help|--version]"
+description: "Configure or deploy a project. /configurator --configure opens the web editor, /configurator --deploy runs deployment. If neither is passed, asks which mode."
+version: "1.20.0"
+argument-hint: "[--configure|--deploy|<config-name>|add|deploy|update|verify|repair|status|manifest|seed-admin|go-live|--help|--version]"
 allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), AskUserQuestion
 model: sonnet
 ---
 
-# Configurator v1.19.0
+# Configurator v1.20.0
 
 Deploy and manage a suite of up to 4 websites as a unified platform. Configuration is gathered by the `configurator` CLI (run interactively in the terminal) and saved as a deployment spec at `~/.configurator/<name>.json`. This skill reads the spec and executes the deployment.
 
@@ -23,10 +23,10 @@ Deploy and manage a suite of up to 4 websites as a unified platform. Configurati
 
 **CRITICAL**: The very first thing you output MUST be the version line:
 
-configurator v1.19.0
+configurator v1.20.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> configurator v1.19.0
+> configurator v1.20.0
 
 Then stop.
 
@@ -34,8 +34,10 @@ Then stop.
 
 | `$ARGUMENTS` | Action |
 |---|---|
+| `--configure` | Go to **Configure** (open web editor, save config, stop) |
+| `--deploy` | Go to **Init** (load config and deploy) |
+| (empty) | **Ask the user** via AskUserQuestion: "Configure or deploy?" with options `--configure` (open web editor) and `--deploy` (deploy a project). Then route accordingly. |
 | `<config-name>` | Go to **Init** (load `~/.configurator/<config-name>.json`) |
-| (empty) | Go to **Init** (auto-detect single config or prompt) |
 | `go-live` | Go to **Go Live** |
 | `add` or `add <description>` | Go to **Add** |
 | `deploy` or `deploy all` | Go to **Deploy All** |
@@ -63,6 +65,19 @@ mkdir -p .site && mv site-manifest.json .site/manifest.json
 ```
 
 All references to "manifest" in this skill mean `.site/manifest.json`.
+
+---
+
+## Configure
+
+**Open the web editor to create or edit a project configuration. Does not deploy.**
+
+Run `uv run --project ${CLAUDE_SKILL_DIR}/configurator-cli configurator` in cwd to open the web editor. The user edits the config in the browser and clicks **Deploy** or **Cancel**.
+
+- If the output contains `ACTION:deploy`, tell the user the config was saved and they can run `/configurator --deploy` to deploy it.
+- If the output contains `ACTION:cancel`, tell the user the configuration was cancelled.
+
+This mode is configure-only — it never proceeds to deployment.
 
 ---
 
@@ -799,7 +814,7 @@ After Step 3E, proceed to Step 4 (commit and push), then Step 5 (install depende
 ### Step 4: Commit and push
 
 ```bash
-git add -A && git commit -m "feat: initial scaffold from configurator v1.19.0"
+git add -A && git commit -m "feat: initial scaffold from configurator v1.20.0"
 ```
 
 If a GitHub repo was created in Step 2, push the initial commit:
