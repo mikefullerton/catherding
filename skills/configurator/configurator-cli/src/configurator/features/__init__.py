@@ -23,12 +23,14 @@ def discover_features() -> list[Feature]:
     from configurator.features.credentials import CredentialsFeature
     from configurator.features.theme import ThemeFeature
     from configurator.features.text_size import TextSizeFeature
+    from configurator.features.user_settings import UserSettingsFeature
 
     features = [
         ProjectFeature(),
         WebsiteFeature(),
         ThemeFeature(),
         TextSizeFeature(),
+        UserSettingsFeature(),
         BackendFeature(),
         AdminFeature(),
         DashboardFeature(),
