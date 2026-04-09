@@ -555,7 +555,7 @@ def start_server(
     live_domains: set[str] | None = None,
 ) -> tuple[HTTPServer, int]:
     """Create and bind the server. Returns (httpd, port)."""
-    httpd = HTTPServer(("127.0.0.1", 0), _Handler)
+    httpd = HTTPServer(("127.0.0.1", 4040), _Handler)
     httpd.config_name = name
     httpd.cfg = cfg
     httpd.deployed_keys = deployed_keys
