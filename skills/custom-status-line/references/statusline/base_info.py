@@ -240,11 +240,11 @@ def run(claude_data: dict, lines: list) -> list:
     used_pct = 100 - rem_pct
 
     if exceeds_200k:
-        l2c5 = f"{RED}{used_pct}% context (extended){RST}"
+        context_col = f"{RED}context: {used_pct}% of {ctx_label} (extended){RST}"
     elif ctx_size > 200000 and used_pct > 20:
-        l2c5 = f"{YELLOW}{used_pct}% context{RST}"
+        context_col = f"{YELLOW}context: {used_pct}% of {ctx_label}{RST}"
     else:
-        l2c5 = f"{used_pct}% context"
+        context_col = f"context: {used_pct}% of {ctx_label}"
 
     # LINE 3
     elapsed_hours, wed_10am = get_wed_10am_elapsed_hours()
@@ -265,7 +265,7 @@ def run(claude_data: dict, lines: list) -> list:
     l3c1 = f"Weekly usage {rate_7d:.1f}%"
     l3c2 = f"day: {proj['elapsed_day']:.2f}"
 
-    l2c4 = ctx_label
+    l2c4 = context_col
 
     # SESSION LINE
     sessions_dir = os.path.expanduser("~/.claude-status-line/sessions")
@@ -307,7 +307,7 @@ def run(claude_data: dict, lines: list) -> list:
     if branch:
         line1 += f"{sep}{pad_right(l1c2, col2_w)}{sep}{pad_right(l1c3, col3_w)}"
 
-    line2 = f"{lbor}{pad_right(l2c1, col1_w)}{sep}{pad_right(l2c2, col2_w)}{sep}{pad_right(l2c3, col3_w)}{sep}{pad_right(l2c4, col4_w)}{sep}{l2c5}"
+    line2 = f"{lbor}{pad_right(l2c1, col1_w)}{sep}{pad_right(l2c2, col2_w)}{sep}{pad_right(l2c3, col3_w)}{sep}{pad_right(l2c4, col4_w)}"
     if yolo_col:
         line2 += f"  {yolo_col}"
 
