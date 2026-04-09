@@ -16,6 +16,7 @@ def discover_features() -> list[Feature]:
     from configurator.features.email import EmailFeature
     from configurator.features.sms import SmsFeature
     from configurator.features.analytics import AnalyticsFeature
+    from configurator.features.ab_testing import AbTestingFeature
 
     features = [
         ProjectFeature(),
@@ -27,6 +28,7 @@ def discover_features() -> list[Feature]:
         EmailFeature(),
         SmsFeature(),
         AnalyticsFeature(),
+        AbTestingFeature(),
     ]
     return _topo_sort(features)
 

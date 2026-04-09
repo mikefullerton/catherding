@@ -7,11 +7,11 @@ from configurator.features.base import Feature
 class TestDiscoverFeatures:
     def test_returns_all_features(self):
         features = discover_features()
-        assert len(features) == 9
+        assert len(features) == 10
 
     def test_feature_ids(self):
         ids = [f.meta().id for f in discover_features()]
-        assert set(ids) == {"project", "website", "backend", "admin", "dashboard", "auth", "email", "sms", "analytics"}
+        assert set(ids) == {"project", "website", "backend", "admin", "dashboard", "auth", "email", "sms", "analytics", "ab_testing"}
 
     def test_project_is_first(self):
         features = discover_features()
