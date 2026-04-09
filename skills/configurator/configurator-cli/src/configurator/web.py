@@ -565,7 +565,10 @@ def start_server(
     port: int = 4040,
 ) -> tuple[HTTPServer, int]:
     """Create and bind the server. Returns (httpd, port)."""
-    httpd = HTTPServer(("127.0.0.1", port), _Handler)
+    httpd = HTTPServer(("127.0.0.1", port), _Handler, bind_and_activate=False)
+    httpd.allow_reuse_address = True
+    httpd.server_bind()
+    httpd.server_activate()
     httpd.config_name = name
     httpd.cfg = cfg
     httpd.deployed_keys = deployed_keys
