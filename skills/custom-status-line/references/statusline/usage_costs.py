@@ -162,7 +162,7 @@ def run(claude_data: dict, lines: list) -> list:
     lbor = "| "
     sep = " | "
 
-    c1 = f"usage {rate_7d:.1f}%"
+    c1 = f"weekly usage: {rate_7d:.1f}%"
     c2 = f"usage today: {today_pct:.1f}%"
     c4 = f"{remaining_days:.1f}d left"
 
