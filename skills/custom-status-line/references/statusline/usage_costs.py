@@ -163,7 +163,7 @@ def run(claude_data: dict, lines: list) -> list:
     sep = " | "
 
     c1 = f"weekly usage: {rate_7d:.1f}%"
-    c2 = f"usage today: {today_pct:.1f}%"
+    c2 = f"today's usage: {today_pct:.1f}%"
     c4 = f"{remaining_days:.1f}d left"
 
     if too_early:
