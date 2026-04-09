@@ -135,6 +135,94 @@ export function useSendMessage() {
   });
 }
 
+// ── Settings ────────────────────────────────────────────────────────────
+
+export function useSettings() {
+  return useQuery({
+    queryKey: ["admin", "settings"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/settings", { headers: getAuthHeaders() });
+      if (!res.ok) throw new Error("Failed to fetch settings");
+      return res.json() as Promise<{ settings: Record<string, unknown> }>;
+    },
+  });
+}
+
+export function useUpdateSetting() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { key: string; value: unknown }) => {
+      const res = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to update setting");
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "settings"] }),
+  });
+}
+
+// ── API Tokens ──────────────────────────────────────────────────────────
+
+interface ApiToken {
+  id: string;
+  name: string;
+  keyId: string;
+  scopes: string[];
+  createdBy: string;
+  lastUsedAt: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+}
+
+interface CreatedApiToken extends ApiToken {
+  secret: string;
+}
+
+export function useApiTokens() {
+  return useQuery({
+    queryKey: ["admin", "api-tokens"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/api-tokens", { headers: getAuthHeaders() });
+      if (!res.ok) throw new Error("Failed to fetch API tokens");
+      return res.json() as Promise<{ tokens: ApiToken[] }>;
+    },
+  });
+}
+
+export function useCreateApiToken() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: { name: string; scopes?: string[] }) => {
+      const res = await fetch("/api/admin/api-tokens", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to create API token");
+      return res.json() as Promise<CreatedApiToken>;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "api-tokens"] }),
+  });
+}
+
+export function useDeleteApiToken() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/admin/api-tokens/${id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error("Failed to delete API token");
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "api-tokens"] }),
+  });
+}
+
 // ── Feedback ─────────────────────────────────────────────────────────────
 
 export function useFeedback(page = 1, status?: string) {

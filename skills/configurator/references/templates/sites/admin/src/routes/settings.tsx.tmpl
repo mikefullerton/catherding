@@ -1,0 +1,39 @@
+import { useSettings, useUpdateSetting } from "../api/admin";
+
+export function SettingsPage() {
+  const { data, isLoading } = useSettings();
+  const updateSetting = useUpdateSetting();
+
+  const allowRegistration = data?.settings?.allow_registration !== false;
+
+  function handleToggleRegistration() {
+    updateSetting.mutate({ key: "allow_registration", value: !allowRegistration });
+  }
+
+  if (isLoading) return <p>Loading...</p>;
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-6">Settings</h1>
+
+      <div className="space-y-4">
+        <label className="flex items-center gap-3 p-4 border rounded-lg cursor-pointer hover:bg-gray-50">
+          <input
+            type="checkbox"
+            checked={allowRegistration}
+            onChange={handleToggleRegistration}
+            disabled={updateSetting.isPending}
+            className="w-4 h-4"
+          />
+          <div>
+            <p className="font-medium">Allow new account registration</p>
+            <p className="text-sm text-gray-500">
+              When disabled, new users cannot create accounts on the main site.
+              Existing accounts are not affected.
+            </p>
+          </div>
+        </label>
+      </div>
+    </div>
+  );
+}

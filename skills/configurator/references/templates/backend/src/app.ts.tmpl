@@ -11,6 +11,8 @@ import { adminUsers } from "./routes/admin/users.js";
 import { adminFlags } from "./routes/admin/flags.js";
 import { adminMessaging } from "./routes/admin/messaging.js";
 import { adminFeedback } from "./routes/admin/feedback.js";
+import { adminSettings } from "./routes/admin/settings.js";
+import { adminApiTokens } from "./routes/admin/api-tokens.js";
 
 export type AppEnv = {
   Variables: {
@@ -46,5 +48,7 @@ app.route("/api/admin/users", adminUsers);
 app.route("/api/admin/flags", adminFlags);
 app.route("/api/admin/messaging", adminMessaging);
 app.route("/api/admin/feedback", adminFeedback);
+app.route("/api/admin/settings", adminSettings);
+app.route("/api/admin/api-tokens", adminApiTokens);
 
 export type AppType = typeof app;

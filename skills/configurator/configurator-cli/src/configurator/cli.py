@@ -191,6 +191,10 @@ def show_config(name: str) -> None:
                 print(f"  API docs:       {be['docs_domain']}")
         else:
             print(f"  Backend:        full ({be.get('domain', f'backend.{domain}')})")
+        envs = be.get("environments", {})
+        active_envs = [e for e in ("staging", "testing") if envs.get(e)]
+        if active_envs:
+            print(f"  Environments:   {', '.join(active_envs)}")
     else:
         print("  Backend:        no")
 
@@ -472,6 +476,22 @@ def run_questions(name: str | None, cfg: dict) -> str:
             be["docs_domain"] = docs_domain or api_domain_default
         else:
             be.pop("docs_domain", None)
+
+    # Backend environments (only if backend is enabled)
+    if be.get("enabled"):
+        env_choices = ["staging", "testing"]
+        env_defaults = [e for e in env_choices if be.get("environments", {}).get(e)]
+        envs = ask_clarifying_list("Which additional environments do you want?", env_choices, defaults=env_defaults)
+        environments = be.get("environments", {})
+        for env in env_choices:
+            if env in envs:
+                environments[env] = True
+            else:
+                environments.pop(env, None)
+        if environments:
+            be["environments"] = environments
+        else:
+            be.pop("environments", None)
 
     cfg["backend"] = be
     save_config(name, cfg)

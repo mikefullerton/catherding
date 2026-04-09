@@ -1,19 +1,66 @@
 import type { Context, Next } from "hono";
 import { verifyAccessToken } from "./session.js";
+import { db } from "../db/client.js";
+import { apiTokens } from "../db/schema.js";
+import { eq, isNull, and, gt } from "drizzle-orm";
 import type { AppEnv } from "../app.js";
+
+async function hashSecret(secret: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(secret);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Attempt to authenticate via API token (sk_live_...). Returns true if matched. */
+async function tryApiTokenAuth(c: Context<AppEnv>, bearer: string): Promise<boolean> {
+  if (!bearer.startsWith("sk_live_")) return false;
+
+  const secretHash = await hashSecret(bearer);
+  const [token] = await db
+    .select()
+    .from(apiTokens)
+    .where(
+      and(
+        eq(apiTokens.secretHash, secretHash),
+        isNull(apiTokens.revokedAt),
+      ),
+    );
+
+  if (!token) return false;
+
+  // Check expiration
+  if (token.expiresAt && token.expiresAt < new Date()) return false;
+
+  // Update last used
+  await db
+    .update(apiTokens)
+    .set({ lastUsedAt: new Date() })
+    .where(eq(apiTokens.id, token.id));
+
+  c.set("userId", token.createdBy);
+  c.set("userEmail", `api-token:${token.keyId}`);
+  c.set("userRole", "user");
+  return true;
+}
 
 export async function extractAuth(c: Context<AppEnv>, next: Next) {
   const authHeader = c.req.header("Authorization");
 
   if (authHeader?.startsWith("Bearer ")) {
-    const token = authHeader.slice(7);
-    try {
-      const payload = await verifyAccessToken(token);
-      c.set("userId", payload.sub);
-      c.set("userEmail", payload.email);
-      c.set("userRole", payload.role as "admin" | "user");
-    } catch {
-      // Token invalid — continue without auth
+    const bearer = authHeader.slice(7);
+
+    // Try API token first, then JWT
+    if (!(await tryApiTokenAuth(c, bearer))) {
+      try {
+        const payload = await verifyAccessToken(bearer);
+        c.set("userId", payload.sub);
+        c.set("userEmail", payload.email);
+        c.set("userRole", payload.role as "admin" | "user");
+      } catch {
+        // Token invalid — continue without auth
+      }
     }
   }
 
@@ -27,14 +74,18 @@ export async function requireAuth(c: Context<AppEnv>, next: Next) {
     return c.json({ type: "about:blank", title: "Unauthorized", status: 401 }, 401);
   }
 
-  const token = authHeader.slice(7);
-  try {
-    const payload = await verifyAccessToken(token);
-    c.set("userId", payload.sub);
-    c.set("userEmail", payload.email);
-    c.set("userRole", payload.role as "admin" | "user");
-  } catch {
-    return c.json({ type: "about:blank", title: "Invalid or expired token", status: 401 }, 401);
+  const bearer = authHeader.slice(7);
+
+  // Try API token first, then JWT
+  if (!(await tryApiTokenAuth(c, bearer))) {
+    try {
+      const payload = await verifyAccessToken(bearer);
+      c.set("userId", payload.sub);
+      c.set("userEmail", payload.email);
+      c.set("userRole", payload.role as "admin" | "user");
+    } catch {
+      return c.json({ type: "about:blank", title: "Invalid or expired token", status: 401 }, 401);
+    }
   }
 
   await next();
