@@ -79,18 +79,18 @@ def log_to_db(claude: dict, session_id: str, context_pct: int,
         db_path = os.path.expanduser("~/claude-usage.db")
         db = get_db(db_path)
 
-        cost = claude.get("cost", {})
-        ctx = claude.get("context_window", {})
-        usage = ctx.get("current_usage", {})
+        cost = claude.get("cost") or {}
+        ctx = claude.get("context_window") or {}
+        usage = ctx.get("current_usage") or {}
 
         upsert_session(db,
             session_id=session_id,
             session_name=claude.get("session_name", ""),
-            model_id=claude.get("model", {}).get("id", "unknown"),
-            model_display=claude.get("model", {}).get("display_name", "unknown"),
+            model_id=(claude.get("model") or {}).get("id") or "unknown",
+            model_display=(claude.get("model") or {}).get("display_name") or "unknown",
             claude_version=claude.get("version", ""),
             cwd=claude.get("cwd", ""),
-            project_dir=claude.get("workspace", {}).get("project_dir", ""),
+            project_dir=(claude.get("workspace") or {}).get("project_dir") or "",
             transcript_path=claude.get("transcript_path", ""),
             context_window_size=ctx.get("context_window_size", 0),
             duration_s=cost.get("total_duration_ms", 0) // 1000,
@@ -113,8 +113,8 @@ def log_to_db(claude: dict, session_id: str, context_pct: int,
             weekly_pct=rate_7d,
             daily_avg_pct=projection["daily_avg"],
             five_hour_pct=rate_5h,
-            five_hour_resets_at=claude.get("rate_limits", {}).get("five_hour", {}).get("resets_at", 0),
-            seven_day_resets_at=claude.get("rate_limits", {}).get("seven_day", {}).get("resets_at", 0),
+            five_hour_resets_at=((claude.get("rate_limits") or {}).get("five_hour") or {}).get("resets_at") or 0,
+            seven_day_resets_at=((claude.get("rate_limits") or {}).get("seven_day") or {}).get("resets_at") or 0,
             projected_pct=projection["projected"],
         )
         db.close()
