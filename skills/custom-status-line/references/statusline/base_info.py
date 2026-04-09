@@ -169,30 +169,49 @@ def run(claude_data: dict, lines: list) -> list:
     l1c2 = ""
     l1c3 = ""
     if branch:
-        dirty = git_cmd("status", "--porcelain")
-        dirty_count = len(dirty.splitlines()) if dirty else 0
+        porcelain = git_cmd("status", "--porcelain")
+        added = 0
+        deleted = 0
+        changed = 0
+        if porcelain:
+            for line in porcelain.splitlines():
+                code = line[:2]
+                if code == "??":
+                    added += 1
+                elif "D" in code:
+                    deleted += 1
+                else:
+                    changed += 1
 
         if is_worktree:
             l1c2 = f"{GREEN}git-worktree{RST}:({YELLOW}{branch}{RST})"
         else:
             l1c2 = f"git:({YELLOW}{branch}{RST})"
 
-        stats = [f"{dirty_count} dirty"]
+        stats = [f"{added} added, {deleted} deleted, {changed} changed"]
 
         if branch not in ("main", "master"):
             commits = git_cmd("rev-list", "--count", "main..HEAD")
             commits = int(commits) if commits else 0
             behind_main = git_cmd("rev-list", "--count", "HEAD..main")
             behind_main = int(behind_main) if behind_main else 0
-            stats.append(f"{commits} ahead of main")
-            stats.append(f"{behind_main} behind main")
+            if commits == 0 and behind_main == 0:
+                stats.append("in sync with main")
+            else:
+                stats.append(f"{commits} ahead, {behind_main} behind main")
 
-        ahead_remote = git_cmd("rev-list", "--count", f"origin/{branch}..HEAD") if git_cmd("rev-parse", "--verify", f"origin/{branch}") else ""
-        ahead_remote = int(ahead_remote) if ahead_remote else 0
-        behind_remote = git_cmd("rev-list", "--count", f"HEAD..origin/{branch}") if git_cmd("rev-parse", "--verify", f"origin/{branch}") else ""
-        behind_remote = int(behind_remote) if behind_remote else 0
-        stats.append(f"{ahead_remote} ahead of remote")
-        stats.append(f"{behind_remote} behind remote")
+        has_remote = bool(git_cmd("rev-parse", "--verify", f"origin/{branch}"))
+        if has_remote:
+            ahead_remote = git_cmd("rev-list", "--count", f"origin/{branch}..HEAD")
+            ahead_remote = int(ahead_remote) if ahead_remote else 0
+            behind_remote = git_cmd("rev-list", "--count", f"HEAD..origin/{branch}")
+            behind_remote = int(behind_remote) if behind_remote else 0
+            if ahead_remote == 0 and behind_remote == 0:
+                stats.append("in sync with remote")
+            else:
+                stats.append(f"{ahead_remote} ahead, {behind_remote} behind remote")
+        else:
+            stats.append("no remote")
 
         l1c3 = f"[{', '.join(stats)}]"
 
