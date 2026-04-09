@@ -6,6 +6,7 @@ Personal collection of tools, scripts, Claude Code rules, skills, and extensions
 
 ```
 .claude/skills/        # 11 Claude Code skills
+skills/                # 4 distributable skills (configurator, webinitor, new-project, quick-ref)
 .claude/rules/         # 6 rules (active in this repo)
 rules/                 # 6 distributable rules + 1 script
 ```
@@ -24,6 +25,7 @@ rules/                 # 6 distributable rules + 1 script
 | `/lint-agent` | Lint an agent against best practices |
 | `/show-project-setup` | Show project setup dashboard |
 | `/install-recommended-tools` | Install recommended developer tools |
+| `/webinitor` | Website infrastructure management — Cloudflare, Railway, GoDaddy, GitHub |
 | `/configurator add [description]` | Add services, auth, features, storage to existing project |
 | `/new-project <name> [in <org>]` | Create a new GitHub repo with project scaffolding |
 | `/port-swiftui-to-appkit` | Plan conversion of a SwiftUI app to AppKit |
