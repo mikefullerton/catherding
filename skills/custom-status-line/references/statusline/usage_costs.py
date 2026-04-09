@@ -107,9 +107,9 @@ def run(claude_data: dict, lines: list) -> list:
     maybe_run_scanner()
 
     rate_7d = float(
-        claude_data.get("rate_limits", {})
-        .get("seven_day", {})
-        .get("used_percentage", 0)
+        ((claude_data.get("rate_limits") or {})
+         .get("seven_day") or {})
+        .get("used_percentage") or 0
     )
     if rate_7d <= 0:
         return lines
