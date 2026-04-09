@@ -8,3 +8,4 @@ uv.lock
 .venv/
 .superpowers/
 .wrangler/
+skills/configurator/configurator-cli/tests/test_web.py
