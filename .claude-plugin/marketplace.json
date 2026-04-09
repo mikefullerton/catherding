@@ -7,27 +7,9 @@
   },
   "plugins": [
     {
-      "name": "yolo",
-      "description": "Toggle per-session YOLO mode with configurable deny list",
-      "source": "./plugins/yolo",
-      "category": "development"
-    },
-    {
       "name": "custom-status-line",
       "description": "Composable status line pipeline with project info, git stats, worktree detection, and repo cleanup status",
       "source": "./plugins/custom-status-line",
-      "category": "development"
-    },
-    {
-      "name": "repo-tools",
-      "description": "Repository status overview and interactive cleanup for git repos",
-      "source": "./plugins/repo-tools",
-      "category": "development"
-    },
-    {
-      "name": "show-project-setup",
-      "description": "HTML dashboard showing rules, skills, plugins, MCP servers, and dev tools",
-      "source": "./plugins/show-project-setup",
       "category": "development"
     }
   ]
