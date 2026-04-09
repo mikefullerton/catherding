@@ -171,7 +171,7 @@ def run(claude_data: dict, lines: list) -> list:
     if too_early:
         c3 = f"{DIM}daily usage ave: --{RST}"
         c5 = f"{DIM}too early{RST}"
-        t3 = f"{DIM}daily usage ave 2: --{RST}"
+        t3 = f"{DIM}daily usage ave: --{RST}"
         t5 = f"{DIM}too early{RST}"
     else:
         daily_avg_pct = rate_7d / elapsed_days
@@ -182,7 +182,7 @@ def run(claude_data: dict, lines: list) -> list:
         # Token-based: rate_7d / number of calendar days with transcript data
         daily_avg_pct_2 = rate_7d / num_data_days if num_data_days > 0 else 0
         projected_2 = daily_avg_pct_2 * 7.0
-        t3 = f"daily usage ave 2: {daily_avg_pct_2:.1f}%"
+        t3 = f"daily usage ave: {daily_avg_pct_2:.1f}%"
         t5 = f"{RED}{projected_2:.1f}%{RST} projected" if projected_2 > 100.0 else f"{projected_2:.1f}% projected"
 
     # Match column widths from existing lines, widen if usage content is wider

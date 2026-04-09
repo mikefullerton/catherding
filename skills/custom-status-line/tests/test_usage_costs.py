@@ -132,7 +132,7 @@ class TestRun:
         assert "daily usage ave:" in result[1]
         assert "left" in result[1]
         assert "projected" in result[1]
-        assert "daily usage ave 2:" in result[2]
+        assert "daily usage ave:" in result[2]
         assert "projected" in result[2]
 
     def test_overage_projected(self, usage_db, monkeypatch):
@@ -171,7 +171,7 @@ class TestRun:
         assert len(result) == 2
         # Should either show "too early" or a valid projection depending on time of day
         assert "today" in result[0]
-        assert "daily usage ave 2:" in result[1]
+        assert "daily usage ave:" in result[1]
 
 
 class TestExtractColWidths:
