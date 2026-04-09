@@ -411,19 +411,23 @@ def run_questions(name: str | None, cfg: dict) -> str:
     # Q4: website type
     ws = cfg.get("website", {})
     default_ws_type = ws.get("type")
-    ws_type = ask_choice(4, "What type of user-facing website do you want to deploy?", ["new", "existing"], default=default_ws_type, required=True)
+    ws_type = ask_choice(4, "What type of user-facing website do you want to deploy?", ["new", "existing", "none"], default=default_ws_type, required=True)
     ws["type"] = ws_type
 
-    # Q4.1: website domain
-    ws_domain_default = ws.get("domain") or domain
-    ws_domain = ask_clarifying_text(f"What domain name should we configure for this site? (default: {domain})", default=ws_domain_default)
-    ws["domain"] = ws_domain or domain
+    if ws_type == "none":
+        ws.pop("domain", None)
+        ws.pop("addons", None)
+    else:
+        # Q4.1: website domain
+        ws_domain_default = ws.get("domain") or domain
+        ws_domain = ask_clarifying_text(f"What domain name should we configure for this site? (default: {domain})", default=ws_domain_default)
+        ws["domain"] = ws_domain or domain
 
-    # Q4.2: website addons
-    addon_choices = ["sqlite database", "key-value storage", "file storage"]
-    addon_defaults = ws.get("addons", [])
-    addons = ask_clarifying_list(f"What addons do you want for {ws.get('domain', domain)}?", addon_choices, defaults=addon_defaults)
-    ws["addons"] = addons
+        # Q4.2: website addons
+        addon_choices = ["sqlite database", "key-value storage", "file storage"]
+        addon_defaults = ws.get("addons", [])
+        addons = ask_clarifying_list(f"What addons do you want for {ws.get('domain', domain)}?", addon_choices, defaults=addon_defaults)
+        ws["addons"] = addons
 
     cfg["website"] = ws
     save_config(name, cfg)

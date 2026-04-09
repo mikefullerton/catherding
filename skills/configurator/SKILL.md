@@ -97,7 +97,7 @@ Read the config JSON and set these internal variables:
 | `local_path` | `TARGET_DIR` | Path to local project directory |
 | `create_repo` | `CREATE_REPO` | If `true`, create the repo + directory during Step 2 |
 | `domain` | `DOMAIN` | Domain name for the project |
-| `website.type` | `FLOW` | `"new"` or `"existing"` |
+| `website.type` | `FLOW` | `"new"`, `"existing"`, or `"none"` (backend-only) |
 | `website.domain` | `SITE_DOMAIN` | Domain for the main site (defaults to `DOMAIN`) |
 | `website.addons` | `ADDONS` | List: `sqlite database`, `key-value storage`, `file storage` |
 | `backend.enabled` | — | If `true`, include backend in `SERVICES` |
@@ -109,7 +109,7 @@ Read the config JSON and set these internal variables:
 | `auth_providers` | `AUTH_PROVIDERS` | List: `email/password`, `github`, `google`, `apple` |
 
 Build the `SERVICES` set from the config:
-- Always includes `main` (every config has a website)
+- Include `main` if `website.type` is not `"none"`
 - Add `backend` if `backend.enabled` is `true`
 - Add `admin` if `admin_sites.admin.enabled` is `true`
 - Add `dashboard` if `admin_sites.dashboard.enabled` is `true`
