@@ -18,7 +18,7 @@ class LoggingFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="logging", label="Logging", version=_VERSION,
-            order=70, dependencies=["backend"],
+            order=70, dependencies=["backend"], column="right",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

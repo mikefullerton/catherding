@@ -11,7 +11,7 @@ class UserSettingsFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="user_settings", label="User Settings", version=_VERSION,
-            order=13, dependencies=["website", "auth"],
+            order=13, dependencies=["website", "auth"], column="right",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

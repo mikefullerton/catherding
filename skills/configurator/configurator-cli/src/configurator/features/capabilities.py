@@ -18,7 +18,7 @@ class CapabilitiesFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="capabilities", label="Capabilities", version=_VERSION,
-            order=43, dependencies=["auth"],
+            order=43, dependencies=["auth"], column="right",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

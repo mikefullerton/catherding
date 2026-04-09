@@ -11,7 +11,7 @@ class PausingFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="pausing", label="User/Token Pausing", version=_VERSION,
-            order=42, dependencies=["auth"],
+            order=42, dependencies=["auth"], column="right",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

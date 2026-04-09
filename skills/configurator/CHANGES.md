@@ -2,6 +2,13 @@
 
 Changes to what the configurator deploys. Each entry represents a new deployment option, improved template, or fix that affects deployed projects. The CLI shows relevant changes when a project's manifest version is behind the current configurator version.
 
+## 1.22.0
+
+- **Two-column layout**: Web editor now uses a two-column grid — infrastructure & deployments on the left, settings & features on the right. Responsive: collapses to single column on narrow screens.
+- **Dev-team theme**: Dark theme with gold accents, DM Mono / Instrument Serif / Manrope fonts, grain overlay, matching the Agentic Cookbook design system.
+- **Config merge**: Saved config preferences (environments, theme, etc.) are now preserved when rebuilding from a manifest, instead of being discarded.
+- **Backend environments**: `manifest_to_config()` now extracts staging/testing environments from manifest services and features sections.
+
 ## 0.6.15
 
 - **Display name**: Project config now includes a human-readable display name field.

@@ -11,7 +11,7 @@ class LoginTrackingFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="login_tracking", label="Login Tracking", version=_VERSION,
-            order=41, dependencies=["auth"],
+            order=41, dependencies=["auth"], column="right",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

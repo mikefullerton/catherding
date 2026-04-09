@@ -18,7 +18,7 @@ class AnalyticsFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="analytics", label="Analytics", version=_VERSION,
-            order=60, dependencies=["website"],
+            order=60, dependencies=["website"], column="right",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

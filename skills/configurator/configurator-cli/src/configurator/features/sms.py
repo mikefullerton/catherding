@@ -17,7 +17,7 @@ class SmsFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="sms", label="SMS", version=_VERSION,
-            order=51, dependencies=["backend"],
+            order=51, dependencies=["backend"], column="right",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

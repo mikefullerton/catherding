@@ -18,7 +18,7 @@ class AbTestingFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="ab_testing", label="A/B Testing", version=_VERSION,
-            order=61, dependencies=["website"],
+            order=61, dependencies=["website"], column="right",
         )
 
     def config_html(self, ctx: RenderContext) -> str:

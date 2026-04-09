@@ -17,7 +17,7 @@ class FeedbackFeature(Feature):
     def meta(self) -> FeatureMeta:
         return FeatureMeta(
             id="feedback", label="Feedback", version=_VERSION,
-            order=14, dependencies=["website"],
+            order=14, dependencies=["website"], column="right",
         )
 
     def config_html(self, ctx: RenderContext) -> str:
