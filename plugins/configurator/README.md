@@ -1,10 +1,10 @@
-# Site Manager
+# Configurator
 
 Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform. Built on Cloudflare Workers, Railway, and modern TypeScript.
 
 ## Architecture
 
-For a domain like `foo.com`, Site Manager creates:
+For a domain like `foo.com`, Configurator creates:
 
 | Service | Platform | URL |
 |---------|----------|-----|
@@ -25,14 +25,14 @@ For a domain like `foo.com`, Site Manager creates:
 
 | Command | Description |
 |---------|-------------|
-| `/site-manager init [domain]` | Scaffold a new project (backend + 3 sites) |
-| `/site-manager deploy [service]` | Deploy all or specific service |
-| `/site-manager status` | Check status of all services |
-| `/site-manager manifest` | View site-manifest.json |
-| `/site-manager manifest validate` | Validate manifest schema |
-| `/site-manager seed-admin` | Create initial admin account |
-| `/site-manager --help` | Show help |
-| `/site-manager --version` | Show version |
+| `/configurator init [domain]` | Scaffold a new project (backend + 3 sites) |
+| `/configurator deploy [service]` | Deploy all or specific service |
+| `/configurator status` | Check status of all services |
+| `/configurator manifest` | View site-manifest.json |
+| `/configurator manifest validate` | Validate manifest schema |
+| `/configurator seed-admin` | Create initial admin account |
+| `/configurator --help` | Show help |
+| `/configurator --version` | Show version |
 
 ## Prerequisites
 
@@ -45,8 +45,8 @@ For a domain like `foo.com`, Site Manager creates:
 
 ```bash
 # From the cat-herding marketplace
-claude plugin install site-manager@cat-herding
+claude plugin install configurator@cat-herding
 
 # Or load directly for development
-claude --plugin-dir ./plugins/site-manager
+claude --plugin-dir ./plugins/configurator
 ```

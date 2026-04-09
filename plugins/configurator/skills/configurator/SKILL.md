@@ -1,13 +1,13 @@
 ---
-name: site-manager
-description: "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform. /site-manager init, /site-manager add, /site-manager deploy, /site-manager status, /site-manager manifest, /site-manager seed-admin, /site-manager --help"
-version: "1.16.0"
+name: configurator
+description: "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform. /configurator init, /configurator add, /configurator deploy, /configurator status, /configurator manifest, /configurator seed-admin, /configurator --help"
+version: "1.17.0"
 argument-hint: "[init|add|deploy|update|verify|repair|status|manifest|seed-admin|--help|--version]"
 allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), AskUserQuestion
 model: sonnet
 ---
 
-# Site Manager v1.16.0
+# Configurator v1.17.0
 
 Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
@@ -23,10 +23,10 @@ Scaffold, deploy, and manage a suite of 4 websites as a unified platform.
 
 **CRITICAL**: The very first thing you output MUST be the version line:
 
-site-manager v1.16.0
+site-manager v1.17.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> site-manager v1.16.0
+> site-manager v1.17.0
 
 Then stop.
 
@@ -105,7 +105,7 @@ ls .site/manifest.json wrangler.jsonc wrangler.toml 2>/dev/null
 ```
 
 Check for existing config first:
-- If `.site/manifest.json` exists → this is an **existing site-manager project**. Set `FLOW=update`. Read the manifest, print a summary of what's configured, and skip to **Step 1-update** (re-scaffold + redeploy). Do NOT run steps 1b-1k.
+- If `.site/manifest.json` exists → this is an **existing configurator project**. Set `FLOW=update`. Read the manifest, print a summary of what's configured, and skip to **Step 1-update** (re-scaffold + redeploy). Do NOT run steps 1b-1k.
 - If `wrangler.jsonc` or `wrangler.toml` exists at root → note it (already configured for Workers).
 
 **Check the root directory first, then scan immediate subdirectories.** Websites often live in a subdirectory like `site/`, `web/`, `frontend/`, `app/`, or `www/`. Run the detection checklist against the root AND each immediate subdirectory that contains a `package.json` or `index.html`:
@@ -349,7 +349,7 @@ Ask ONE question:
 ```
 What's the domain for this project?
 
-This won't be connected yet — run /site-manager go-live when you're ready.
+This won't be connected yet — run /configurator go-live when you're ready.
 ```
 
 **STOP. Wait for the user's answer.**
@@ -361,7 +361,7 @@ This won't be connected yet — run /site-manager go-live when you're ready.
 Read the manifest and print a summary:
 
 ```
-=== Existing site-manager project ===
+=== Existing configurator project ===
 
   Project:     <name>
   Display:     <displayName>
@@ -594,7 +594,7 @@ For each template in `${CLAUDE_SKILL_DIR}/references/templates/`, read the `.tmp
 | `{{D1_DATABASE_ID}}` | `placeholder-run-wrangler-d1-create` |
 | `{{PROJECT_TYPE}}` | Project type: `auth-service`, `full`, `api`, or `worker` |
 | `{{AUTH_SERVICE_URL}}` | Auth service URL (if using external auth, else empty) |
-| `{{SITE_MANAGER_VERSION}}` | Current site-manager version (e.g., `1.3.0`) |
+| `{{SITE_MANAGER_VERSION}}` | Current configurator version (e.g., `1.3.0`) |
 
 **Template mapping** — which templates to copy depends on project type:
 
@@ -996,7 +996,7 @@ After Step 3E, proceed to Step 4 (commit and push), then Step 5 (install depende
 ### Step 4: Commit and push
 
 ```bash
-git add -A && git commit -m "feat: initial scaffold from site-manager v1.16.0"
+git add -A && git commit -m "feat: initial scaffold from configurator v1.17.0"
 ```
 
 If a GitHub repo was created in Step 2, push the initial commit:
@@ -1266,7 +1266,7 @@ If any tests fail, report the failures but continue.
 
 Update these fields:
 - `project.type` — set to the project type (`full`, `api`, or `worker`)
-- `_site_manager_version` — set to the current site-manager version
+- `_site_manager_version` — set to the current configurator version
 - All service URLs and statuses set to `"deployed"` (only services that exist for this project type)
 - `lastDeployed` timestamps
 - `features.auth.adminSeeded` set to `true` (full projects only)
@@ -1323,7 +1323,7 @@ Print the final summary appropriate to the project type.
     Password: <admin-password>
 
   To use in other projects:
-    /site-manager init --auth <railway-url>
+    /configurator init --auth <railway-url>
 ```
 
 **Full project:**
@@ -1342,7 +1342,7 @@ Print the final summary appropriate to the project type.
     Password: <admin-password>
 
   To connect your custom domain:
-    /site-manager go-live
+    /configurator go-live
 ```
 
 **API project:**
@@ -1355,7 +1355,7 @@ Print the final summary appropriate to the project type.
   GitHub:        <repo-url>
 
   To connect your custom domain:
-    /site-manager go-live
+    /configurator go-live
 ```
 
 **Worker project:**
@@ -1368,7 +1368,7 @@ Print the final summary appropriate to the project type.
   GitHub:        <repo-url>
 
   To connect your custom domain:
-    /site-manager go-live
+    /configurator go-live
 ```
 
 **Existing project (site only):**
@@ -1387,7 +1387,7 @@ Print the final summary appropriate to the project type.
     (package.json updated)
 
   To connect your custom domain:
-    /site-manager go-live
+    /configurator go-live
 ```
 
 **Existing project (with backend):**
@@ -1404,7 +1404,7 @@ Print the final summary appropriate to the project type.
     Password: <admin-password>
 
   To connect your custom domain:
-    /site-manager go-live
+    /configurator go-live
 ```
 
 **Existing project (full suite):**
@@ -1423,7 +1423,7 @@ Print the final summary appropriate to the project type.
     Password: <admin-password>
 
   To connect your custom domain:
-    /site-manager go-live
+    /configurator go-live
 ```
 
 Open deployed site URLs in the browser:
@@ -1445,7 +1445,7 @@ cat .site/manifest.json
 ```
 
 If `.site/manifest.json` does not exist, print:
-> This is not a site-manager project. Run `/site-manager init` first.
+> This is not a configurator project. Run `/configurator init` first.
 
 Then stop.
 
@@ -1552,7 +1552,7 @@ Ask:
 1. Scaffold the code (see Scaffold Instructions below)
 2. Update `.site/manifest.json` with the new state
 3. Commit changes
-4. Print: "Code scaffolded and committed. Run `/site-manager deploy <service>` when ready."
+4. Print: "Code scaffolded and committed. Run `/configurator deploy <service>` when ready."
 
 **Mode 3 — Chat:**
 1. Discuss the addition with the user — answer questions, explain trade-offs
@@ -1711,7 +1711,7 @@ Print the output as-is.
 
 Read `.site/manifest.json`. Verify:
 - `services.backend.status` is `"deployed"` — if not, print:
-  > Backend is not deployed. Run `/site-manager deploy backend` first.
+  > Backend is not deployed. Run `/configurator deploy backend` first.
 - `features.auth.adminSeeded` is not `true` — if already seeded, print:
   > Admin account already seeded. Check .site/manifest.json for details.
 
@@ -1975,7 +1975,7 @@ Confirm the new deployment works at the workers.dev URL. The existing site (GH P
   Next steps:
     1. Test the new site at the workers.dev URL
     2. When ready, connect your domain:
-       /site-manager go-live
+       /configurator go-live
     3. After go-live, disable the old hosting:
        - GitHub Pages: Settings → Pages → disable
 ```
@@ -1984,7 +1984,7 @@ Confirm the new deployment works at the workers.dev URL. The existing site (GH P
 
 ## Update
 
-**Absorbed into Init.** Running `/site-manager init` on an existing project (one with `.site/manifest.json`) automatically re-scaffolds templates, rebuilds, and redeploys. See **Step 1-update** in the Init flow.
+**Absorbed into Init.** Running `/configurator init` on an existing project (one with `.site/manifest.json`) automatically re-scaffolds templates, rebuilds, and redeploys. See **Step 1-update** in the Init flow.
 
 The `site-manager update` CLI command is kept as an alias that runs the same init flow.
 
@@ -2016,7 +2016,7 @@ Read `.site/issues.json` and fix all issues. This is the same fix logic as the v
 site-manager repair
 ```
 
-The CLI checks for developer mode (`~/.site-manager/developer`). If that file exists, issues are displayed but not fixed — the assumption is the tool developer is testing and fixes belong in the site-manager templates/scripts, not the deployed project.
+The CLI checks for developer mode (`~/.site-manager/developer`). If that file exists, issues are displayed but not fixed — the assumption is the tool developer is testing and fixes belong in the configurator templates/scripts, not the deployed project.
 
 If developer mode is off (normal users), the CLI delegates to Claude to apply fixes. Apply fixes for each issue (see Init Step 13 for the fix list), then re-run verify to confirm.
 
@@ -2030,18 +2030,18 @@ If the issues file doesn't exist or has no issues, print:
 Print:
 
 ```
-Site Manager v1.16.0 — Scaffold, deploy, and manage website suites
+Configurator v1.17.0 — Scaffold, deploy, and manage website suites
 
 Commands (Claude session):
-  /site-manager init [domain]       Scaffold a new project
-  /site-manager migrate [domain]    Set up in an existing repo
-  /site-manager go-live             Connect custom domain to deployed project
-  /site-manager add [description]   Add services, auth, features to existing project
-  /site-manager deploy [service]    Deploy all services (or: backend, main, admin, dashboard)
-  /site-manager seed-admin          Create initial admin account
-  /site-manager update              Re-scaffold with latest templates and redeploy
-  /site-manager verify              Run full verification suite and fix issues
-  /site-manager repair              Fix issues from last verify
+  /configurator init [domain]       Scaffold a new project
+  /configurator migrate [domain]    Set up in an existing repo
+  /configurator go-live             Connect custom domain to deployed project
+  /configurator add [description]   Add services, auth, features to existing project
+  /configurator deploy [service]    Deploy all services (or: backend, main, admin, dashboard)
+  /configurator seed-admin          Create initial admin account
+  /configurator update              Re-scaffold with latest templates and redeploy
+  /configurator verify              Run full verification suite and fix issues
+  /configurator repair              Fix issues from last verify
 
 Commands (terminal or Claude):
   site-manager status               Check health of all services

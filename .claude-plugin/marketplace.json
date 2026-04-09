@@ -37,9 +37,9 @@
       "category": "infrastructure"
     },
     {
-      "name": "site-manager",
+      "name": "configurator",
       "description": "Scaffold, deploy, and manage a suite of websites (backend + main + admin + dashboard) as a unified platform",
-      "source": "./plugins/site-manager",
+      "source": "./plugins/configurator",
       "category": "infrastructure"
     }
   ]
