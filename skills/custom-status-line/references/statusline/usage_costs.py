@@ -198,18 +198,15 @@ def run(claude_data: dict, lines: list) -> list:
 def _extract_col_widths(lines):
     """Extract column visible widths from existing status lines.
 
-    Splits on ' | ' separator used by base_info.  The first part includes
-    the '| ' border prefix (2 visible chars), so we subtract 2.
+    Scans backward to prefer the session line (last line from base_info),
+    which has all columns padded.  The first part includes the '| ' border
+    prefix (2 visible chars), so we subtract 2.
     """
     sep = " | "
 
-    # Prefer line index 2 (session) or 1 (git/model) — both have 4 cols
-    for idx in (2, 1):
-        if idx >= len(lines):
-            continue
+    for idx in range(len(lines) - 1, 0, -1):
         parts = lines[idx].split(sep)
         if len(parts) >= 4:
-            # Part 0 includes "| " border prefix (2 visible chars)
             widths = [visible_len(parts[0]) - 2]
             widths.extend(visible_len(p) for p in parts[1:])
             return widths

@@ -139,11 +139,14 @@ def run(claude_data: dict, lines: list) -> list:
 
     duration = format_duration(duration_ms)
 
-    # Project name — strip worktree suffixes, show only directory name
+    # Project name — extract worktree name, then strip suffixes
     cwd = claude.get("cwd", "")
+    worktree_name = ""
     for suffix in ["/.claude/worktrees/", "/.worktrees/"]:
         if suffix in cwd:
+            worktree_name = cwd[cwd.index(suffix) + len(suffix):].split("/")[0]
             cwd = cwd[:cwd.index(suffix)]
+            break
     cwd = os.path.basename(cwd) or cwd
 
     # Git info
@@ -184,10 +187,7 @@ def run(claude_data: dict, lines: list) -> list:
                 else:
                     changed += 1
 
-        if is_worktree:
-            l1c2 = f"{GREEN}git-worktree{RST}:({YELLOW}{branch}{RST})"
-        else:
-            l1c2 = f"git:({YELLOW}{branch}{RST})"
+        l1c2 = f"git:({YELLOW}{branch}{RST})"
 
         UP = "\u2191"
         DN = "\u2193"
@@ -297,6 +297,8 @@ def run(claude_data: dict, lines: list) -> list:
     line1 = f"{l1c1}"
     if branch:
         line1 += f"{sep}{l1c2}"
+    if is_worktree and worktree_name:
+        line1 += f"{sep}{GREEN}worktree{RST}:({YELLOW}{worktree_name}{RST})"
 
     result = [line1]
 
@@ -306,7 +308,7 @@ def run(claude_data: dict, lines: list) -> list:
             git_line += f"{sep}{gs4}"
         result.append(git_line)
 
-    line2 = f"{lbor}{pad_left(l2c1, col1_w)}{sep}{pad_right(l2c2, col2_w)}{sep}{l2c3}"
+    line2 = f"{lbor}{pad_left(l2c1, col1_w)}{sep}{pad_right(l2c2, col2_w)}{sep}{pad_right(l2c3, col3_w)}"
     if yolo_col:
         line2 += f"{sep}{yolo_col}"
 
