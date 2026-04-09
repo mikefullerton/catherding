@@ -33,12 +33,25 @@ class TestBuildPage:
         parsed = json.loads(html[start:end])
         assert parsed["repo"] == "test"
 
+    def test_embeds_urls(self):
+        cfg = {"repo": "test"}
+        urls = {"main": "https://example.com", "backend": "https://api.example.com"}
+        html = build_page(cfg, deployed_keys=set(), urls=urls)
+        assert "https://example.com" in html
+        assert "https://api.example.com" in html
+
+    def test_embeds_live_domains(self):
+        cfg = {"repo": "test"}
+        html = build_page(cfg, deployed_keys=set(), live_domains={"main", "backend"})
+        assert '"backend"' in html
+        assert '"main"' in html
+
 
 class TestServer:
     def test_serves_html_on_get(self, monkeypatch, tmp_path):
         monkeypatch.setattr("configurator.cli.CONFIG_DIR", tmp_path)
         cfg = {"repo": "test-project", "domain": "test.com"}
-        httpd, port = start_server("test-project", cfg, deployed_keys=set())
+        httpd, port = start_server("test-project", cfg, deployed_keys=set(), port=0)
         t = threading.Thread(target=httpd.handle_request)
         t.start()
         try:
@@ -54,7 +67,7 @@ class TestServer:
     def test_patch_updates_config(self, monkeypatch, tmp_path):
         monkeypatch.setattr("configurator.cli.CONFIG_DIR", tmp_path)
         cfg = {"repo": "test-project"}
-        httpd, port = start_server("test-project", cfg, deployed_keys=set())
+        httpd, port = start_server("test-project", cfg, deployed_keys=set(), port=0)
 
         def handle_two():
             httpd.handle_request()
@@ -77,6 +90,45 @@ class TestServer:
             saved = json.loads((tmp_path / "test-project.json").read_text())
             assert saved["repo"] == "updated"
             assert saved["domain"] == "new.com"
+        finally:
+            httpd.server_close()
+            t.join(timeout=2)
+
+    def test_deploy_sets_action(self, monkeypatch, tmp_path):
+        monkeypatch.setattr("configurator.cli.CONFIG_DIR", tmp_path)
+        cfg = {"repo": "test-project"}
+        httpd, port = start_server("test-project", cfg, deployed_keys=set(), port=0)
+        assert httpd.action == "cancel"  # default
+        t = threading.Thread(target=httpd.handle_request)
+        t.start()
+        try:
+            req = urllib.request.Request(
+                f"http://localhost:{port}/api/deploy",
+                data=b"",
+                method="POST",
+            )
+            resp = urllib.request.urlopen(req)
+            assert resp.status == 200
+            assert httpd.action == "deploy"
+        finally:
+            httpd.server_close()
+            t.join(timeout=2)
+
+    def test_cancel_sets_action(self, monkeypatch, tmp_path):
+        monkeypatch.setattr("configurator.cli.CONFIG_DIR", tmp_path)
+        cfg = {"repo": "test-project"}
+        httpd, port = start_server("test-project", cfg, deployed_keys=set(), port=0)
+        t = threading.Thread(target=httpd.handle_request)
+        t.start()
+        try:
+            req = urllib.request.Request(
+                f"http://localhost:{port}/api/cancel",
+                data=b"",
+                method="POST",
+            )
+            resp = urllib.request.urlopen(req)
+            assert resp.status == 200
+            assert httpd.action == "cancel"
         finally:
             httpd.server_close()
             t.join(timeout=2)

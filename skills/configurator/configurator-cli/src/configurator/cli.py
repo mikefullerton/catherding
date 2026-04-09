@@ -169,8 +169,13 @@ def _manifest_to_config(manifest: dict) -> dict:
 
 def _deployed_keys_from_manifest(manifest: dict) -> set[str]:
     """Extract which features are deployed from a manifest."""
-    services = manifest.get("services", {})
     keys: set[str] = set()
+    project = manifest.get("project", {})
+    if project.get("name"):
+        keys.add("repo")
+    if project.get("org"):
+        keys.add("org")
+    services = manifest.get("services", {})
     if "main" in services:
         keys.add("website")
     if "backend" in services or "api" in services or "api-docs" in services:
@@ -180,6 +185,56 @@ def _deployed_keys_from_manifest(manifest: dict) -> set[str]:
     if "dashboard" in services:
         keys.add("dashboard")
     return keys
+
+
+def _detect_org_from_git(path: Path) -> str | None:
+    """Detect GitHub org from git remote URL."""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(path), "remote", "get-url", "origin"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode != 0:
+            return None
+        url = result.stdout.strip()
+        # Handle both SSH and HTTPS URLs
+        # git@github.com:org/repo.git or https://github.com/org/repo.git
+        m = re.search(r"github\.com[:/]([^/]+)/", url)
+        return m.group(1) if m else None
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return None
+
+
+def _extract_urls_from_manifest(manifest: dict) -> dict[str, str]:
+    """Extract deployed URLs from manifest services."""
+    urls: dict[str, str] = {}
+    services = manifest.get("services", {})
+    for key in ("main", "backend", "admin", "dashboard"):
+        svc = services.get(key, {})
+        if svc.get("url"):
+            urls[key] = svc["url"]
+        elif svc.get("domain"):
+            urls[key] = f"https://{svc['domain']}"
+    return urls
+
+
+def _check_live_domains(manifest: dict) -> set[str]:
+    """Check which domains from the manifest resolve via DNS."""
+    import socket
+    services = manifest.get("services", {})
+    domains: dict[str, str] = {}
+    for key in ("main", "backend", "admin", "dashboard"):
+        domain = services.get(key, {}).get("domain")
+        if domain:
+            domains[key] = domain
+    live: set[str] = set()
+    for key, domain in domains.items():
+        try:
+            socket.getaddrinfo(domain, 443, type=socket.SOCK_STREAM)
+            live.add(key)
+        except socket.gaierror:
+            pass
+    return live
 
 
 # ── Change history ─────────────────────────────────────────────────────────
@@ -640,6 +695,12 @@ def cmd_configure(*, tui: bool = False) -> None:
         cfg["local_path"] = str(cwd.resolve())
         name = project_name
 
+        # Detect org from git remote if not in manifest
+        if "org" not in cfg:
+            org = _detect_org_from_git(cwd)
+            if org:
+                cfg["org"] = org
+
         # Delete any existing draft config for this project
         delete_config(name)
 
@@ -703,7 +764,13 @@ def cmd_configure(*, tui: bool = False) -> None:
             # Web editor
             from configurator.web import serve_editor
             deployed = _deployed_keys_from_manifest(manifest)
-            serve_editor(name, cfg, deployed_keys=deployed)
+            # Also mark org as deployed if we detected it from git
+            if cfg.get("org"):
+                deployed.add("org")
+            urls = _extract_urls_from_manifest(manifest)
+            live = _check_live_domains(manifest)
+            action = serve_editor(name, cfg, deployed_keys=deployed, urls=urls, live_domains=live)
+            print(f"ACTION:{action}")
 
         return
 
@@ -779,7 +846,8 @@ def cmd_configure(*, tui: bool = False) -> None:
             save_config(name, cfg)
 
         from configurator.web import serve_editor
-        serve_editor(name, cfg, deployed_keys=set())
+        action = serve_editor(name, cfg, deployed_keys=set())
+        print(f"ACTION:{action}")
 
 
 # ── Entry point ─────────────────────────────────────────────────────────────
