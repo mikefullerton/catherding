@@ -167,7 +167,9 @@ def run(claude_data: dict, lines: list) -> list:
         l1c1 += f" {DIM}({session_name}){RST}"
 
     l1c2 = ""
-    l1c3 = ""
+    gs1 = ""
+    gs2 = ""
+    gs3 = ""
     if branch:
         dirty = git_cmd("status", "--porcelain")
         dirty_count = len(dirty.splitlines()) if dirty else 0
@@ -177,28 +179,22 @@ def run(claude_data: dict, lines: list) -> list:
         else:
             l1c2 = f"git:({YELLOW}{branch}{RST})"
 
-        stats_parts = []
-        if dirty_count > 0:
-            stats_parts.append(f"{dirty_count} files changed")
+        gs1 = f"{dirty_count} files changed"
 
         if branch not in ("main", "master"):
             commits = git_cmd("rev-list", "--count", "main..HEAD")
-            if commits and int(commits) > 0:
-                stats_parts.append(f"{commits} commits")
+            commits = int(commits) if commits else 0
             behind = git_cmd("rev-list", "--count", "HEAD..main")
-            if behind and int(behind) > 0:
-                stats_parts.append(f"{behind} behind main")
+            behind = int(behind) if behind else 0
+            gs2 = f"{commits} commits ahead"
+            gs3 = f"{behind} behind main"
         else:
             ahead = git_cmd("rev-list", "--count", "origin/main..HEAD")
-            if ahead and int(ahead) > 0:
-                stats_parts.append(f"{ahead} ahead of remote")
+            ahead = int(ahead) if ahead else 0
             behind = git_cmd("rev-list", "--count", "HEAD..origin/main")
-            if behind and int(behind) > 0:
-                stats_parts.append(f"{behind} behind remote")
-
-        if not stats_parts:
-            stats_parts.append("up to date")
-        l1c3 = f"[{', '.join(stats_parts)}]"
+            behind = int(behind) if behind else 0
+            gs2 = f"{ahead} ahead of remote"
+            gs3 = f"{behind} behind remote"
 
     # LINE 2
     settings_path = os.path.expanduser("~/.claude/settings.json")
@@ -294,16 +290,22 @@ def run(claude_data: dict, lines: list) -> list:
     sc4 = f"{s_waiting} waiting"
 
     # Column alignment
-    col1_w = max(visible_len(l1c1), visible_len(l2c1), visible_len(sc1), visible_len(l3c1))
-    col2_w = max(visible_len(l1c2), visible_len(l2c2), visible_len(sc2), visible_len(l3c2))
-    col3_w = max(visible_len(l1c3), visible_len(l2c3), visible_len(sc3), visible_len(l3c3))
+    col1_w = max(visible_len(l1c1), visible_len(gs1), visible_len(l2c1), visible_len(sc1), visible_len(l3c1))
+    col2_w = max(visible_len(l1c2), visible_len(gs2), visible_len(l2c2), visible_len(sc2), visible_len(l3c2))
+    col3_w = max(visible_len(gs3), visible_len(l2c3), visible_len(sc3), visible_len(l3c3))
     col4_w = max(visible_len(l2c4), visible_len(sc4), visible_len(l3c4))
 
     lbor = f"{ORANGE}|{RST} "
 
     line1 = f"{lbor}{pad_right(l1c1, col1_w)}"
     if branch:
-        line1 += f"{sep}{pad_right(l1c2, col2_w)}{sep}{pad_right(l1c3, col3_w)}"
+        line1 += f"{sep}{pad_right(l1c2, col2_w)}"
+
+    result = [line1]
+
+    if branch:
+        git_status_line = f"{lbor}{pad_right(gs1, col1_w)}{sep}{pad_right(gs2, col2_w)}{sep}{pad_right(gs3, col3_w)}"
+        result.append(git_status_line)
 
     line2 = f"{lbor}{pad_right(l2c1, col1_w)}{sep}{pad_right(l2c2, col2_w)}{sep}{pad_right(l2c3, col3_w)}{sep}{pad_right(l2c4, col4_w)}"
     if yolo_col:
@@ -313,7 +315,9 @@ def run(claude_data: dict, lines: list) -> list:
 
     line3 = f"{lbor}{pad_left(l3c1, col1_w)}{sep}{pad_right(l3c2, col2_w)}{sep}{pad_right(l3c3, col3_w)}{sep}{l3c4}"
 
+    result.extend([line2, session_line, line3])
+
     # Log to SQLite (non-blocking)
     log_to_db(claude, session_id, used_pct, proj, rate_5h, rate_7d, wed_10am, elapsed_hours)
 
-    return [line1, line2, session_line, line3]
+    return result
