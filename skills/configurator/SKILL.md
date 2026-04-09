@@ -21,7 +21,7 @@ Deploy and manage a suite of up to 4 websites as a unified platform. Configurati
 
 **Step 0a — Ensure permissions**: Run `python3 ${CLAUDE_SKILL_DIR}/references/ensure-permissions.py ${CLAUDE_SKILL_DIR}/SKILL.md` to whitelist this skill's tools in `~/.claude/settings.json`. This is silent and idempotent.
 
-**Step 0b — Ensure CLI is installed**: Run `uv tool install -e ${CLAUDE_SKILL_DIR}/configurator-cli --force --reinstall` to ensure the global `configurator` command is up to date. The `--reinstall` flag forces a rebuild so version changes are always picked up.
+**Step 0b — Ensure CLI is installed**: Determine the install path: if the current working directory is inside a git worktree that contains `skills/configurator/configurator-cli/`, use that path (worktree-local source). Otherwise use `${CLAUDE_SKILL_DIR}/configurator-cli`. Then run `uv tool install -e <path> --force --reinstall`. The `--reinstall` flag forces a rebuild so version changes are always picked up.
 
 **CRITICAL**: The very first thing you output MUST be the version line. Get it by running `configurator --version`.
 
