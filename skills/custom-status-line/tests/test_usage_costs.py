@@ -128,7 +128,7 @@ class TestRun:
         insert_turn(db, yesterday, inp=1_000_000, out=0)
         result = run(make_claude_data(rate_7d=50.0), ["existing"])
         assert len(result) == 2
-        assert "Today:" in result[1]
+        assert "today's usage:" in result[1]
         assert "days left" in result[1]
         assert "daily ave:" in result[1]
         assert "projected" in result[1]
@@ -166,7 +166,7 @@ class TestRun:
         result = run(make_claude_data(rate_7d=50.0), [])
         assert len(result) == 1
         # Should either show "too early" or a valid projection depending on time of day
-        assert "Today:" in result[0]
+        assert "today's usage:" in result[0]
 
 
 class TestExtractColWidths:

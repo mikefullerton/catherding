@@ -163,8 +163,8 @@ def run(claude_data: dict, lines: list) -> list:
     sep = f" {ORANGE}|{RST} "
 
     c1 = f"Weekly usage {rate_7d:.1f}%"
-    c2 = f"Today: {today_pct:.1f}%"
-    c3 = f"{remaining_days:.1f} days left"
+    c2 = f"{remaining_days:.1f} days left"
+    c3 = f"today's usage: {today_pct:.1f}%"
 
     if too_early:
         c4 = f"{DIM}daily ave: --{RST}"
