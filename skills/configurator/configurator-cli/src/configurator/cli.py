@@ -137,11 +137,8 @@ def _manifest_to_config(manifest: dict) -> dict:
         be: dict = {"enabled": True, "type": "full"}
         if services["backend"].get("domain"):
             be["domain"] = services["backend"]["domain"]
-        cfg["backend"] = be
-    elif "api" in services:
-        be = {"enabled": True, "type": "api"}
-        if services["api"].get("endpoint_url"):
-            be["endpoint_url"] = services["api"]["endpoint_url"]
+        if services["backend"].get("endpoint_url"):
+            be["endpoint_url"] = services["backend"]["endpoint_url"]
         if services.get("api-docs", {}).get("domain"):
             be["docs_domain"] = services["api-docs"]["domain"]
         cfg["backend"] = be
@@ -252,13 +249,11 @@ def show_config(name: str) -> None:
     # Backend
     be = cfg.get("backend", {})
     if be.get("enabled"):
-        be_type = be.get("type", "full")
-        if be_type == "api":
-            print(f"  Backend:        api ({be.get('endpoint_url', '—')})")
-            if be.get("docs_domain"):
-                print(f"  API docs:       {be['docs_domain']}")
-        else:
-            print(f"  Backend:        full ({be.get('domain', f'backend.{domain}')})")
+        print(f"  Backend:        yes ({be.get('domain', f'backend.{domain}')})")
+        if be.get("endpoint_url"):
+            print(f"  API endpoint:   {be['endpoint_url']}")
+        if be.get("docs_domain"):
+            print(f"  API docs:       {be['docs_domain']}")
         envs = be.get("environments", {})
         active_envs = [e for e in ("staging", "testing") if envs.get(e)]
         if active_envs:
@@ -480,34 +475,39 @@ def run_questions(name: str | None, cfg: dict) -> str:
     cfg["website"] = ws
     save_config(name, cfg)
 
-    # Q5: backend / api
+    # Q5: backend
     be = cfg.get("backend", {})
-    be_type = be.get("type", "none")
-    if be.get("enabled") and not be.get("type"):
-        be_type = "full"  # migrate old configs
-    be_answer = ask_choice(5, f"Do you want a backend for {domain}?", ["full backend", "api", "none"], default=be_type if be_type in ("full backend", "api", "none") else "none")
+    be_default = "yes" if be.get("enabled") else "no"
+    be_answer = ask_choice(5, f"Do you want a backend for {domain}?", ["yes", "no"], default=be_default)
 
-    if be_answer == "none":
+    if be_answer == "no":
         be = {"enabled": False}
-    elif be_answer == "full backend":
+    else:
         be["enabled"] = True
         be["type"] = "full"
         be_domain_default = be.get("domain") or f"backend.{domain}"
         be_domain = ask_clarifying_text(f"What domain for the backend? (default: backend.{domain})", default=be_domain_default)
         be["domain"] = be_domain or f"backend.{domain}"
-    elif be_answer == "api":
-        be["enabled"] = True
-        be["type"] = "api"
+
+        # API endpoint
         api_url_default = be.get("endpoint_url", "")
-        api_url = ask_clarifying_text("What is the API endpoint URL?", default=api_url_default)
-        be["endpoint_url"] = api_url
+        api_answer = ask_clarifying_choice(
+            "Configure an API endpoint URL?",
+            ["yes", "no"],
+            default="yes" if api_url_default else "no",
+        )
+        if api_answer == "yes":
+            api_url = ask_clarifying_text("What is the API endpoint URL?", default=api_url_default)
+            be["endpoint_url"] = api_url
+        else:
+            be.pop("endpoint_url", None)
 
         # API docs site
         api_domain_default = be.get("docs_domain") or f"api.{domain}"
         docs_answer = ask_clarifying_choice(
             f"Deploy an API docs site at {api_domain_default}?",
             ["yes", "no"],
-            default="yes" if be.get("docs_domain") else "yes",
+            default="yes" if be.get("docs_domain") else "no",
         )
         if docs_answer == "yes":
             docs_domain = ask_clarifying_text(f"Domain for the API docs site? (default: api.{domain})", default=api_domain_default)
@@ -515,8 +515,7 @@ def run_questions(name: str | None, cfg: dict) -> str:
         else:
             be.pop("docs_domain", None)
 
-    # Backend environments (only if backend is enabled)
-    if be.get("enabled"):
+        # Backend environments
         env_choices = ["staging", "testing"]
         env_defaults = [e for e in env_choices if be.get("environments", {}).get(e)]
         envs = ask_clarifying_list("Which additional environments do you want?", env_choices, defaults=env_defaults)
