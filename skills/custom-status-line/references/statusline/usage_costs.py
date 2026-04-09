@@ -162,24 +162,21 @@ def run(claude_data: dict, lines: list) -> list:
     lbor = "| "
     sep = " | "
 
-    c1 = f"Weekly usage {rate_7d:.1f}%"
-    c2 = f"{remaining_days:.1f} days left"
-    c3 = f"today's usage: {today_pct:.1f}%"
+    c1 = f"usage {rate_7d:.1f}%"
+    c2 = f"{today_pct:.1f}% today"
+    c4 = f"{remaining_days:.1f}d left"
 
     if too_early:
-        c4 = f"{DIM}daily ave: --{RST}"
-        c5 = f"{DIM}projected: too early{RST}"
+        c3 = f"{DIM}-- daily{RST}"
+        c5 = f"{DIM}too early{RST}"
     else:
         daily_avg_pct = rate_7d / elapsed_days
         projected = daily_avg_pct * 7.0
 
-        c4 = f"daily ave: {daily_avg_pct:.1f}%"
+        c3 = f"{daily_avg_pct:.1f}% daily"
 
         if projected > 100.0:
-            cost_per_pct = total_cost / rate_7d
-            proj_overage_api = (projected - 100.0) * cost_per_pct
-            proj_overage_actual = proj_overage_api * EXTENDED_USE_DISCOUNT
-            c5 = f"{RED}{projected:.1f}%{RST} projected (~${proj_overage_actual:.0f} extended use)"
+            c5 = f"{RED}{projected:.1f}%{RST} projected"
         else:
             c5 = f"{projected:.1f}% projected"
 

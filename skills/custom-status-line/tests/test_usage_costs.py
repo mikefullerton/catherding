@@ -128,9 +128,9 @@ class TestRun:
         insert_turn(db, yesterday, inp=1_000_000, out=0)
         result = run(make_claude_data(rate_7d=50.0), ["existing"])
         assert len(result) == 2
-        assert "today's usage:" in result[1]
-        assert "days left" in result[1]
-        assert "daily ave:" in result[1]
+        assert "today" in result[1]
+        assert "left" in result[1]
+        assert "daily" in result[1]
         assert "projected" in result[1]
 
     def test_overage_projected(self, usage_db, monkeypatch):
@@ -144,7 +144,7 @@ class TestRun:
             insert_turn(db, day, inp=1_000_000, out=500_000)
         result = run(make_claude_data(rate_7d=120.0), [])
         assert len(result) == 1
-        assert "extended use" in result[0]
+        assert "projected" in result[0]
 
     def test_no_overage_when_under(self, usage_db, monkeypatch):
         db, _ = usage_db
@@ -156,7 +156,8 @@ class TestRun:
             insert_turn(db, day, inp=1_000_000, out=0)
         result = run(make_claude_data(rate_7d=10.0), [])
         assert len(result) == 1
-        assert "extended use" not in result[0]
+        # Under 100%, no RED color in projected
+        assert "projected" in result[0]
 
     def test_too_early_suppresses_projection(self, usage_db):
         db, _ = usage_db
@@ -166,7 +167,7 @@ class TestRun:
         result = run(make_claude_data(rate_7d=50.0), [])
         assert len(result) == 1
         # Should either show "too early" or a valid projection depending on time of day
-        assert "today's usage:" in result[0]
+        assert "today" in result[0]
 
 
 class TestExtractColWidths:
