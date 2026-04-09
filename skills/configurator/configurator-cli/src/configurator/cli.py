@@ -157,10 +157,12 @@ def _manifest_to_config(manifest: dict) -> dict:
             admin_sites[site_type] = {"enabled": False}
     cfg["admin_sites"] = admin_sites
 
-    # Auth providers
-    auth = manifest.get("auth", {})
+    # Auth providers — check both top-level and features.auth for compatibility
+    auth = manifest.get("features", {}).get("auth", manifest.get("auth", {}))
     if auth.get("providers"):
-        cfg["auth_providers"] = auth["providers"]
+        # Map manifest provider names to CLI names (e.g., "email" -> "email/password")
+        provider_map = {"email": "email/password"}
+        cfg["auth_providers"] = [provider_map.get(p, p) for p in auth["providers"]]
 
     return cfg
 
