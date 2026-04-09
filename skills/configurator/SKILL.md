@@ -1,13 +1,13 @@
 ---
 name: configurator
 description: "Deploy a project from a configurator spec, or manage an existing deployment. /configurator <config-name>, /configurator add, /configurator deploy, /configurator status, /configurator manifest, /configurator seed-admin, /configurator --help"
-version: "1.18.0"
+version: "1.19.0"
 argument-hint: "[<config-name>|add|deploy|update|verify|repair|status|manifest|seed-admin|go-live|--help|--version]"
 allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), AskUserQuestion
 model: sonnet
 ---
 
-# Configurator v1.18.0
+# Configurator v1.19.0
 
 Deploy and manage a suite of up to 4 websites as a unified platform. Configuration is gathered by the `configurator` CLI (run interactively in the terminal) and saved as a deployment spec at `~/.configurator/<name>.json`. This skill reads the spec and executes the deployment.
 
@@ -23,10 +23,10 @@ Deploy and manage a suite of up to 4 websites as a unified platform. Configurati
 
 **CRITICAL**: The very first thing you output MUST be the version line:
 
-configurator v1.18.0
+configurator v1.19.0
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> configurator v1.18.0
+> configurator v1.19.0
 
 Then stop.
 
@@ -110,6 +110,7 @@ Read the config JSON and set these internal variables:
 | `admin_sites.dashboard.enabled` | — | If `true`, include dashboard in `SERVICES` |
 | `admin_sites.dashboard.domain` | `DASHBOARD_DOMAIN` | Domain for dashboard site |
 | `auth_providers` | `AUTH_PROVIDERS` | List: `email/password`, `github`, `google`, `apple` |
+| `configurator_version` | `CONFIG_VERSION` | Version of configurator CLI that wrote this config |
 
 Build the `SERVICES` set from the config:
 - Include `main` if `website.type` is not `"none"`
@@ -214,10 +215,10 @@ Read the manifest and print a summary header:
 ```
 === Verifying deployment: <name> ===
 
-  Domain:      <domain>
-  Type:        <type>
-  Manifest:    <configurator version that created/last updated it>
-  Skill:       <current skill version>
+  Domain:        <domain>
+  Type:          <type>
+  Configurator:  v<configurator_version from manifest, or "unknown">
+  Skill:         v<current skill version>
 ```
 
 Then verify each area in order. For each area, check the actual deployed state, compare against the config AND the latest skill patterns, and report status:
@@ -267,7 +268,7 @@ Then verify each area in order. For each area, check the actual deployed state, 
     [ok] Main site worker configuration
 
   Needs update:
-    [update] Backend templates (skill v1.15.0 -> v1.18.0)
+    [update] Backend templates (skill v1.15.0 -> v1.19.0)
     [update] Auth middleware (added google provider)
 
   New (not yet deployed):
@@ -303,7 +304,8 @@ If confirmed:
 3. **Rebuild** — `npm install`, then build each updated/new service.
 4. **Redeploy** — deploy each updated/new service (Steps 9/9E for CF Workers, Railway for backend).
 5. **Verify** — run `site-manager verify` and fix any issues.
-6. **Update manifest** — update `.site/manifest.json` with current skill version and any new services.
+6. **Update manifest** — update `.site/manifest.json` with current skill version, `configurator_version`, and any new services.
+7. **Delete config** — remove `~/.configurator/<config-name>.json` (the draft is consumed; manifest is the source of truth).
 
 After completion, skip all remaining Init steps. Done.
 
@@ -799,7 +801,7 @@ After Step 3E, proceed to Step 4 (commit and push), then Step 5 (install depende
 ### Step 4: Commit and push
 
 ```bash
-git add -A && git commit -m "feat: initial scaffold from configurator v1.18.0"
+git add -A && git commit -m "feat: initial scaffold from configurator v1.19.0"
 ```
 
 If a GitHub repo was created in Step 2, push the initial commit:
@@ -1069,11 +1071,20 @@ If any tests fail, report the failures but continue.
 
 Update these fields:
 - `project.type` — set to the project type (`full`, `api`, or `worker`)
-- `_site_manager_version` — set to the current configurator version
+- `configurator_version` — set to `CONFIG_VERSION` (the CLI version that wrote the config)
+- `_site_manager_version` — set to the current skill version (v1.19.0)
 - All service URLs and statuses set to `"deployed"` (only services that exist for this project type)
 - `lastDeployed` timestamps
 - `features.auth.adminSeeded` set to `true` (full projects only)
 - `storage` — for worker projects, record which storage options were selected (e.g., `{"d1": true, "kv": false, "r2": false}`)
+
+**After writing the manifest, delete the configurator config file:**
+
+```bash
+rm -f ~/.configurator/<config-name>.json
+```
+
+The config file is a draft — once deployed, the manifest is the source of truth. The CLI will recreate a draft from the manifest if the user wants to modify the deployment later.
 
 Commit and push:
 
@@ -1833,7 +1844,7 @@ If the issues file doesn't exist or has no issues, print:
 Print:
 
 ```
-Configurator v1.18.0 — Deploy and manage website suites
+Configurator v1.19.0 — Deploy and manage website suites
 
 Setup (run in terminal first):
   configurator                      Interactive config wizard — creates deployment spec

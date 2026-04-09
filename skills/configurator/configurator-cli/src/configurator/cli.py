@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -11,11 +12,16 @@ from pathlib import Path
 import questionary
 from questionary import Choice
 
+from configurator import __version__
+
 CONFIG_DIR = Path.home() / ".configurator"
 GLOBAL_CONFIG = CONFIG_DIR / "configurator-config.json"
 TOTAL_QUESTIONS = 7
 
 ORGS = ["mikefullerton", "agentic-cookbook"]
+
+# Locate CHANGES.md relative to this source file (editable install)
+CHANGES_PATH = Path(__file__).resolve().parents[3] / "CHANGES.md"
 
 
 class UserQuit(Exception):
@@ -43,6 +49,7 @@ def load_config(name: str) -> dict:
 
 
 def save_config(name: str, cfg: dict) -> None:
+    cfg["configurator_version"] = __version__
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     config_path(name).write_text(json.dumps(cfg, indent=2) + "\n")
 
@@ -80,22 +87,26 @@ def _find_repo(projects_path: str, repo_name: str) -> Path | None:
     return None
 
 
-def _load_manifest_defaults(repo_path: Path) -> dict | None:
-    """Load .site/manifest.json and map to config defaults."""
-    manifest_path = repo_path / ".site" / "manifest.json"
+def _load_manifest(path: Path) -> dict | None:
+    """Load .site/manifest.json from a project path."""
+    manifest_path = path / ".site" / "manifest.json"
     if not manifest_path.exists():
         return None
-
     try:
-        manifest = json.loads(manifest_path.read_text())
+        return json.loads(manifest_path.read_text())
     except (json.JSONDecodeError, OSError):
         return None
 
+
+def _manifest_to_config(manifest: dict) -> dict:
+    """Map a .site/manifest.json to a configurator config structure."""
     cfg: dict = {}
     project = manifest.get("project", {})
 
     if project.get("name"):
         cfg["repo"] = project["name"]
+    if project.get("org"):
+        cfg["org"] = project["org"]
     if project.get("domain"):
         cfg["domain"] = project["domain"]
 
@@ -115,17 +126,24 @@ def _load_manifest_defaults(repo_path: Path) -> dict | None:
             addons.append("key-value storage")
         if main_svc.get("r2"):
             addons.append("file storage")
-        if main_svc.get("auth") or manifest.get("auth"):
-            addons.append("authentication")
         if addons:
             ws["addons"] = addons
         cfg["website"] = ws
+    else:
+        cfg["website"] = {"type": "none"}
 
     # Backend
     if "backend" in services:
-        be: dict = {"enabled": True}
+        be: dict = {"enabled": True, "type": "full"}
         if services["backend"].get("domain"):
             be["domain"] = services["backend"]["domain"]
+        cfg["backend"] = be
+    elif "api" in services:
+        be = {"enabled": True, "type": "api"}
+        if services["api"].get("endpoint_url"):
+            be["endpoint_url"] = services["api"]["endpoint_url"]
+        if services.get("api-docs", {}).get("domain"):
+            be["docs_domain"] = services["api-docs"]["domain"]
         cfg["backend"] = be
     else:
         cfg["backend"] = {"enabled": False}
@@ -148,6 +166,56 @@ def _load_manifest_defaults(repo_path: Path) -> dict | None:
         cfg["auth_providers"] = auth["providers"]
 
     return cfg
+
+
+# ── Change history ─────────────────────────────────────────────────────────
+
+
+def _parse_version(v: str) -> tuple[int, ...]:
+    """Parse a version string like '0.2.0' into a comparable tuple."""
+    return tuple(int(x) for x in v.split("."))
+
+
+def _load_changes_since(since_version: str | None) -> dict[str, list[str]]:
+    """Parse CHANGES.md and return changes grouped by version, for versions > since_version."""
+    if not CHANGES_PATH.exists():
+        return {}
+
+    text = CHANGES_PATH.read_text()
+    since = _parse_version(since_version) if since_version else (0, 0, 0)
+
+    changes: dict[str, list[str]] = {}
+    current_version: str | None = None
+
+    for line in text.splitlines():
+        # Match version headings like "## 0.3.0"
+        m = re.match(r"^## (\d+\.\d+\.\d+)", line)
+        if m:
+            current_version = m.group(1)
+            continue
+
+        if current_version and _parse_version(current_version) > since:
+            stripped = line.strip()
+            if stripped.startswith("- "):
+                changes.setdefault(current_version, []).append(stripped)
+
+    return changes
+
+
+def _show_new_options(manifest_version: str | None) -> None:
+    """Show new deployment options available since manifest_version."""
+    changes = _load_changes_since(manifest_version)
+    if not changes:
+        return
+
+    print()
+    print("  New deployment options available:")
+    print()
+    for version in sorted(changes.keys(), key=_parse_version):
+        print(f"    v{version}:")
+        for entry in changes[version]:
+            print(f"      {entry}")
+        print()
 
 
 # ── Display ─────────────────────────────────────────────────────────────────
@@ -354,37 +422,7 @@ def run_questions(name: str | None, cfg: dict) -> str:
         if found:
             cfg["local_path"] = str(found)
             print(f"  Found repo at {found}")
-
-            # Check for existing deployment manifest
-            manifest_cfg = _load_manifest_defaults(found)
-            if manifest_cfg:
-                # Merge manifest values as defaults (don't overwrite user's existing cfg values)
-                for key, val in manifest_cfg.items():
-                    if key not in cfg or not cfg[key]:
-                        cfg[key] = val
-                    elif isinstance(val, dict) and isinstance(cfg.get(key), dict):
-                        for k, v in val.items():
-                            if k not in cfg[key]:
-                                cfg[key][k] = v
-
-                save_config(name, cfg)
-                print()
-                print("  Found existing deployment:")
-                show_config(name)
-                try:
-                    modify = ask_clarifying_choice(
-                        "Would you like to modify the deployment configuration?",
-                        ["yes", "no"],
-                        default="yes",
-                    )
-                except UserQuit:
-                    raise
-                if modify == "no":
-                    # Save as-is and offer deploy command
-                    return name
-            else:
-                save_config(name, cfg)
-
+            save_config(name, cfg)
             repo_found = True
         else:
             print(f"  Repo '{repo}' not found in {projects_path}")
@@ -580,6 +618,89 @@ def cmd_delete(config_name: str | None) -> None:
 
 
 def cmd_configure() -> None:
+    # Check if we're in a deployed project directory
+    cwd = Path.cwd()
+    manifest = _load_manifest(cwd)
+
+    if manifest:
+        project_name = manifest.get("project", {}).get("name", cwd.name)
+        manifest_version = manifest.get("configurator_version")
+
+        print(f"  Found deployed project: {project_name}")
+        if manifest_version:
+            print(f"  Deployed with configurator v{manifest_version}")
+
+        # Show new options if the manifest is behind current version
+        if not manifest_version or _parse_version(manifest_version) < _parse_version(__version__):
+            _show_new_options(manifest_version)
+
+        # Always create a fresh draft config from the manifest
+        cfg = _manifest_to_config(manifest)
+        cfg["local_path"] = str(cwd.resolve())
+        name = project_name
+
+        # Delete any existing draft config for this project
+        delete_config(name)
+
+        save_config(name, cfg)
+        print()
+        print("  Draft configuration from current deployment:")
+        show_config(name)
+
+        try:
+            proceed = ask_choice(None, "Edit this configuration?", ["yes", "no"], default="yes")
+        except UserQuit:
+            delete_config(name)
+            return
+
+        if proceed == "no":
+            delete_config(name)
+            return
+
+        questions_started = False
+        try:
+            questions_started = True
+            name = run_questions(name, cfg)
+        except UserQuit:
+            if questions_started and name:
+                try:
+                    delete_it = ask_choice(None, f"Delete the draft configuration '{name}'?", ["yes", "no"], default="yes")
+                except UserQuit:
+                    delete_it = "yes"
+                if delete_it == "yes":
+                    delete_config(name)
+                    print(f"Draft configuration '{name}' deleted.")
+                else:
+                    print(f"Draft configuration '{name}' saved.")
+            return
+
+        # Show and confirm
+        show_config(name)
+        try:
+            ok = ask_choice(None, "Does that look ok?", ["yes", "no"], default="yes")
+        except UserQuit:
+            print(f"Configuration '{name}' saved.")
+            return
+
+        if ok == "no":
+            cfg = load_config(name)
+            try:
+                run_questions(name, cfg)
+                show_config(name)
+            except UserQuit:
+                print(f"Configuration '{name}' saved.")
+                return
+
+        command = f"/configurator {name}"
+        try:
+            subprocess.run(["pbcopy"], input=command.encode(), check=True)
+            print(f"To deploy, run '{command}' in Claude (command copied to clipboard)")
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            print(f"To deploy, run '{command}' in Claude")
+
+        return
+
+    # No manifest in cwd — standard flow
     configs = list_configs()
     menu = configs + ["New configuration"]
 
@@ -652,7 +773,6 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.version:
-        from configurator import __version__
         print(f"configurator {__version__}")
         return
 
