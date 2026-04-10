@@ -291,13 +291,14 @@ def run(claude_data: dict, lines: list) -> list:
     col3_w = max(visible_len(gs3), visible_len(l2c3), visible_len(sc3))
     col4_w = max(visible_len(gs4), visible_len(sc4))
 
-    # Session name as col0 on model line and session line
-    col0_val = session_name + sep
+    # Session name as col0 — only rendered when non-empty, on all tabular lines
+    col0_val = (session_name + sep) if session_name else ""
+    col0_w = visible_len(col0_val)
 
     lbor = "| "
 
     # Pad path so git:(branch) aligns with col3 of rows below
-    path_w = col1_w + col2_w + 5  # accounts for lbor(2) + sep(3)
+    path_w = col0_w + col1_w + col2_w + 5  # accounts for col0, lbor(2), sep(3)
     l1c1 = pad_right(l1c1, path_w)
 
     line1 = f"{l1c1}"
@@ -309,7 +310,7 @@ def run(claude_data: dict, lines: list) -> list:
     result = [line1]
 
     if branch:
-        git_line = f"{lbor}{pad_left(gs1, col1_w)}{sep}{pad_right(gs2, col2_w)}{sep}{pad_right(gs3, col3_w)}"
+        git_line = f"{lbor}{col0_val}{pad_left(gs1, col1_w)}{sep}{pad_right(gs2, col2_w)}{sep}{pad_right(gs3, col3_w)}"
         if gs4:
             git_line += f"{sep}{gs4}"
         result.append(git_line)
