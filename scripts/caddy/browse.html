@@ -177,7 +177,7 @@ li:hover .site-title { color: var(--accent); }
   align-items: baseline;
   white-space: nowrap;
 }
-.log-time { color: var(--text-dim); width: 11ch; flex-shrink: 0; }
+.log-time { color: var(--text-dim); width: 8ch; flex-shrink: 0; }
 .log-action { width: 9ch; flex-shrink: 0; }
 .log-installed { color: var(--added); }
 .log-removed { color: var(--removed); }
@@ -439,7 +439,7 @@ function pollLog() {
           var time = document.createElement("span");
           time.className = "log-time";
           var d = new Date(entry.time);
-          time.textContent = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+          time.textContent = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
           div.appendChild(time);
 
           var action = document.createElement("span");
