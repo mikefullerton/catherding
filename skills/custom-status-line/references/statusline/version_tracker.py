@@ -6,6 +6,7 @@ import os
 from statusline.formatting import (
     YELLOW, GREEN, DIM, RST,
     visible_len, pad_right, pad_left,
+    extract_col_widths, reformat_columns,
 )
 
 
@@ -32,18 +33,6 @@ def load_version_info():
             return json.load(f)
     except (OSError, json.JSONDecodeError):
         return None
-
-
-def _extract_col_widths(lines):
-    """Extract column visible widths from existing status lines."""
-    sep = " | "
-    for idx in range(len(lines) - 1, 0, -1):
-        parts = lines[idx].split(sep)
-        if len(parts) >= 4:
-            widths = [visible_len(parts[0]) - 2]
-            widths.extend(visible_len(p) for p in parts[1:])
-            return widths
-    return None
 
 
 def run(claude_data: dict, lines: list) -> list:
@@ -75,28 +64,13 @@ def run(claude_data: dict, lines: list) -> list:
         v3 = f"{DIM}no new fields{RST}"
 
     # Match column widths from existing lines, widen if version content is wider
-    col_widths = _extract_col_widths(lines)
+    col_widths = extract_col_widths(lines)
     if col_widths and len(col_widths) >= 3:
         vc_widths = [visible_len(v1), visible_len(v2), visible_len(v3)]
         new_widths = [max(col_widths[i], vc_widths[i]) for i in range(3)]
 
-        # Reformat existing aligned lines if any column got wider
         if new_widths != col_widths[:3]:
-            for i, line in enumerate(lines):
-                if not line.startswith(lbor):
-                    continue
-                parts = line.split(sep)
-                if len(parts) < 3:
-                    continue
-                # Skip lines with different column structure (model line with session name)
-                first_col_w = visible_len(parts[0]) - len(lbor)
-                if abs(first_col_w - col_widths[0]) > 1:
-                    continue
-                rebuilt = lbor + pad_left(parts[0][len(lbor):], new_widths[0])
-                for j in range(1, len(parts)):
-                    col = pad_right(parts[j], new_widths[j]) if j < len(new_widths) else parts[j]
-                    rebuilt += sep + col
-                lines[i] = rebuilt
+            reformat_columns(lines, col_widths, new_widths)
 
         v1 = pad_left(v1, new_widths[0])
         v2 = pad_right(v2, new_widths[1])

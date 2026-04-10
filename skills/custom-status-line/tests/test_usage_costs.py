@@ -170,8 +170,7 @@ class TestRun:
 
 class TestExtractColWidths:
     def test_extracts_widths_from_base_info_lines(self):
-        from statusline.usage_costs import _extract_col_widths
-        from statusline.formatting import pad_right, pad_left
+        from statusline.formatting import extract_col_widths, pad_right, pad_left
         sep = " | "
         lbor = "| "
         # Simulate 3 lines from base_info with known column widths
@@ -179,16 +178,16 @@ class TestExtractColWidths:
         line1 = f"{lbor}{pad_right('Opus 4', 30)}{sep}{pad_right('1h:05m', 20)}{sep}5% context"
         line2 = f"{lbor}{pad_left('all sessions', 30)}{sep}{pad_right('2 active', 20)}{sep}{pad_right('1 thinking', 20)}{sep}{pad_right('1 waiting', 15)}"
         lines = [line0, line1, line2]
-        widths = _extract_col_widths(lines)
+        widths = extract_col_widths(lines)
         assert widths is not None
         assert widths[0] == 30
         assert widths[1] == 20
         assert widths[2] == 20
 
     def test_returns_none_for_empty(self):
-        from statusline.usage_costs import _extract_col_widths
-        assert _extract_col_widths([]) is None
+        from statusline.formatting import extract_col_widths
+        assert extract_col_widths([]) is None
 
     def test_returns_none_for_insufficient_columns(self):
-        from statusline.usage_costs import _extract_col_widths
-        assert _extract_col_widths(["just a plain line", "another"]) is None
+        from statusline.formatting import extract_col_widths
+        assert extract_col_widths(["just a plain line", "another"]) is None

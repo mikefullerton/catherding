@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from statusline.formatting import (
     ORANGE, RED, DIM, RST,
     visible_len, pad_right, pad_left,
+    extract_col_widths, reformat_columns,
 )
 
 USAGE_DB = os.path.expanduser("~/.claude/usage.db")
@@ -176,28 +177,13 @@ def run(claude_data: dict, lines: list) -> list:
         c5 = f"{RED}{projected:.1f}%{RST} projected" if projected > 100.0 else f"{projected:.1f}% projected"
 
     # Match column widths from existing lines, widen if usage content is wider
-    col_widths = _extract_col_widths(lines)
+    col_widths = extract_col_widths(lines)
     if col_widths and len(col_widths) >= 4:
         uc_widths = [visible_len(c1), visible_len(c2), visible_len(c3), visible_len(c4)]
         new_widths = [max(col_widths[i], uc_widths[i]) for i in range(4)]
 
-        # Reformat existing aligned lines if any column got wider
         if new_widths != col_widths[:4]:
-            for i, line in enumerate(lines):
-                if not line.startswith(lbor):
-                    continue
-                parts = line.split(sep)
-                if len(parts) < 3:
-                    continue
-                # Skip lines with different column structure (model line with session name col0)
-                first_col_w = visible_len(parts[0]) - len(lbor)
-                if abs(first_col_w - col_widths[0]) > 1:
-                    continue
-                rebuilt = lbor + pad_left(parts[0][len(lbor):], new_widths[0])
-                for j in range(1, len(parts)):
-                    col = pad_right(parts[j], new_widths[j]) if j < len(new_widths) else parts[j]
-                    rebuilt += sep + col
-                lines[i] = rebuilt
+            reformat_columns(lines, col_widths, new_widths)
 
         c1 = pad_left(c1, new_widths[0])
         c2 = pad_right(c2, new_widths[1])
@@ -206,21 +192,3 @@ def run(claude_data: dict, lines: list) -> list:
 
     lines.append(f"{lbor}{c1}{sep}{c2}{sep}{c3}{sep}{c4}{sep}{c5}")
     return lines
-
-
-def _extract_col_widths(lines):
-    """Extract column visible widths from existing status lines.
-
-    Scans backward to prefer the session line (last line from base_info),
-    which has all columns padded.  The first part includes the '| ' border
-    prefix (2 visible chars), so we subtract 2.
-    """
-    sep = " | "
-
-    for idx in range(len(lines) - 1, 0, -1):
-        parts = lines[idx].split(sep)
-        if len(parts) >= 4:
-            widths = [visible_len(parts[0]) - 2]
-            widths.extend(visible_len(p) for p in parts[1:])
-            return widths
-    return None
