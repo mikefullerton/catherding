@@ -333,6 +333,7 @@ function addDeleteButton(li) {
       .then(function(r) {
         if (!r.ok) throw r;
         li.parentNode.removeChild(li);
+        setTimeout(pollLog, 1500);
       })
       .catch(function() { alert("Failed to remove " + name); });
   });
@@ -399,6 +400,7 @@ function pollSites() {
       var ul = document.getElementById("sites");
 
       // Remove items no longer on server
+      var changed = false;
       var toRemove = [];
       ul.querySelectorAll("li").forEach(function(li) {
         var a = li.querySelector("a[data-file]");
@@ -406,7 +408,7 @@ function pollSites() {
           toRemove.push(li);
         }
       });
-      toRemove.forEach(function(li) { ul.removeChild(li); });
+      toRemove.forEach(function(li) { ul.removeChild(li); changed = true; });
 
       // Add new items
       var keys = Object.keys(serverEntries);
@@ -422,6 +424,7 @@ function pollSites() {
           var link = li.querySelector("a");
           enrichLink(link);
           addMeta(link);
+          changed = true;
         }
       });
 
@@ -432,6 +435,9 @@ function pollSites() {
         emptyLi.textContent = "No sites. Drop .html files or directories into ~/.local-server/sites/";
         ul.appendChild(emptyLi);
       }
+
+      // Refresh log immediately when sites changed
+      if (changed) setTimeout(pollLog, 1500);
     })
     .catch(function() {});
 }
