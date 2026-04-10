@@ -105,16 +105,24 @@ li:hover .site-title { color: var(--accent); }
     <li><a href="{{.URL}}" data-file="{{.Name}}"><div class="site-title">{{.Name}}</div></a></li>
     {{end}}{{end}}
     {{if eq (len .Items) 0}}
-    <li class="empty">No sites. Drop .html files into ~/.local-server/sites/</li>
+    <li class="empty">No sites. Drop .html files or directories into ~/.local-server/sites/</li>
     {{end}}
   </ul>
 </div>
 <script>
 document.querySelectorAll("#sites a[data-file]").forEach(function(link) {
-  var file = link.getAttribute("data-file");
-  if (!file.endsWith(".html")) return;
-  fetch("/" + file)
-    .then(function(r) { return r.text(); })
+  var name = link.getAttribute("data-file");
+  // Determine fetch URL: .html files directly, directories via index.html
+  var fetchUrl;
+  if (name.endsWith(".html")) {
+    fetchUrl = "/" + name;
+  } else if (name.endsWith("/")) {
+    fetchUrl = "/" + name + "index.html";
+  } else {
+    return;
+  }
+  fetch(fetchUrl)
+    .then(function(r) { if (!r.ok) throw r; return r.text(); })
     .then(function(html) {
       var doc = new DOMParser().parseFromString(html, "text/html");
       var title = doc.querySelector("title");
@@ -134,7 +142,7 @@ document.querySelectorAll("#sites a[data-file]").forEach(function(link) {
 
       var fileDiv = document.createElement("div");
       fileDiv.className = "site-file";
-      fileDiv.textContent = file;
+      fileDiv.textContent = name.replace(/\/$/, "");
       link.appendChild(fileDiv);
     })
     .catch(function() {});

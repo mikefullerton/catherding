@@ -94,21 +94,26 @@ CADDY_BLOCK=$(cat <<'CADDY_EOF'
 
 An always-on Caddy server serves `~/.local-server/sites/` at `http://localhost:2080`. **Use it instead of spawning one-off HTTP servers** (`python -m http.server`, `npx serve`, etc.).
 
-To serve a page, just copy the HTML file:
+To serve a page, just copy it in:
 
 ```bash
+# Single HTML file
 cp my-page.html ~/.local-server/sites/
 # Live at http://localhost:2080/my-page.html
-# Listed on the home page at http://localhost:2080/
+
+# Directory with assets (must contain index.html)
+cp -r my-app/ ~/.local-server/sites/
+# Live at http://localhost:2080/my-app/
 ```
 
-To remove it:
+To remove:
 
 ```bash
 rm ~/.local-server/sites/my-page.html
+rm -rf ~/.local-server/sites/my-app
 ```
 
-The home page auto-refreshes every 5 seconds to show whatever is in the directory. It reads metadata from each HTML file to build the listing:
+The home page auto-refreshes every 5 seconds. It reads metadata from each file (or directory's \`index.html\`) to build the listing:
 
 \`\`\`html
 <title>My Dashboard</title>
