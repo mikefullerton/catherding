@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Pipeline module: base project/git info, model stats, weekly usage."""
+"""Pipeline module: all status lines — project/git, model, sessions, usage, version."""
 import json
 import os
+import sqlite3
 import subprocess
 import time
+from collections import defaultdict
 from datetime import datetime, timedelta
 
 from statusline.formatting import (
@@ -11,6 +13,24 @@ from statusline.formatting import (
     visible_len, pad_right, pad_left,
 )
 from statusline.db import get_db, upsert_session, append_weekly_usage
+
+
+# --- Usage costs constants ---
+
+USAGE_DB = os.path.expanduser("~/.claude/usage.db")
+SCANNER_DIR = os.path.expanduser("~/projects/external/claude-usage")
+THROTTLE_FILE = os.path.expanduser("~/.claude-status-line/scanner-last-run")
+SCAN_INTERVAL = 300  # 5 minutes
+
+PRICING = {
+    "opus":   (15.00, 75.00),
+    "sonnet": ( 3.00, 15.00),
+    "haiku":  ( 0.80,  4.00),
+}
+
+# --- Version tracker constants ---
+
+VERSION_FILE = os.path.expanduser("~/.claude-status-line/claude_version.json")
 
 
 def git_cmd(*args: str) -> str:
@@ -122,16 +142,191 @@ def log_to_db(claude: dict, session_id: str, context_pct: int,
         pass  # don't let logging failures break the status line
 
 
+# --- Usage costs helpers ---
+
+def model_family(model_id: str) -> str:
+    if not model_id:
+        return "sonnet"
+    m = model_id.lower()
+    for fam in ("opus", "sonnet", "haiku"):
+        if fam in m:
+            return fam
+    return "sonnet"
+
+
+def calc_cost(model_id: str, inp: int, out: int, cr: int, cc: int) -> float:
+    ip, op = PRICING[model_family(model_id)]
+    return (
+        inp * ip / 1_000_000
+        + out * op / 1_000_000
+        + cr * ip * 0.10 / 1_000_000
+        + cc * ip * 1.25 / 1_000_000
+    )
+
+
+def maybe_run_scanner():
+    try:
+        if os.path.exists(THROTTLE_FILE):
+            if time.time() - os.path.getmtime(THROTTLE_FILE) < SCAN_INTERVAL:
+                return
+        if not os.path.isfile(os.path.join(SCANNER_DIR, "scanner.py")):
+            return
+        with open(THROTTLE_FILE, "w") as f:
+            f.write(str(time.time()))
+        subprocess.run(
+            ["python3", os.path.join(SCANNER_DIR, "scanner.py")],
+            capture_output=True, timeout=30,
+        )
+    except Exception:
+        pass
+
+
+def get_wed_10am() -> datetime:
+    now = datetime.now()
+    dow = now.isoweekday()
+    days_since_wed = (dow - 3) % 7
+    if days_since_wed == 0 and now.hour < 10:
+        days_since_wed = 7
+    return now.replace(hour=10, minute=0, second=0, microsecond=0) - timedelta(days=days_since_wed)
+
+
+def query_daily_costs(db: sqlite3.Connection, since_str: str) -> dict:
+    """Return {date_str: dollar_cost} for each day since the given timestamp."""
+    rows = db.execute("""
+        SELECT substr(timestamp, 1, 10) as day, model,
+               sum(input_tokens), sum(output_tokens),
+               sum(cache_read_tokens), sum(cache_creation_tokens)
+        FROM turns WHERE timestamp >= ?
+        GROUP BY day, model
+    """, (since_str,)).fetchall()
+
+    daily = defaultdict(float)
+    for day, model, inp, out, cr, cc in rows:
+        daily[day] += calc_cost(model, inp or 0, out or 0, cr or 0, cc or 0)
+    return dict(daily)
+
+
+def get_usage_columns(claude_data: dict) -> tuple:
+    """Compute usage line columns. Returns (c1, c2, c3, c4, c5) or None if no data."""
+    maybe_run_scanner()
+
+    rate_7d = float(
+        ((claude_data.get("rate_limits") or {})
+         .get("seven_day") or {})
+        .get("used_percentage") or 0
+    )
+    if rate_7d <= 0:
+        return None
+
+    if not os.path.exists(USAGE_DB):
+        return None
+
+    try:
+        db = sqlite3.connect(USAGE_DB, timeout=2)
+    except Exception:
+        return None
+
+    try:
+        now = datetime.now()
+        today_str = now.strftime("%Y-%m-%d")
+
+        wed_10am = get_wed_10am()
+        wed_str = wed_10am.strftime("%Y-%m-%dT%H:%M:%S")
+
+        daily_costs = query_daily_costs(db, wed_str)
+        total_cost = sum(daily_costs.values())
+
+        db.close()
+    except Exception:
+        try:
+            db.close()
+        except Exception:
+            pass
+        return None
+
+    if total_cost <= 0:
+        return None
+
+    pct_per_dollar = rate_7d / total_cost
+
+    today_cost = daily_costs.get(today_str, 0)
+    today_pct = today_cost * pct_per_dollar
+
+    elapsed_s = (now - wed_10am).total_seconds()
+    elapsed_hours = max(1, elapsed_s / 3600)
+    elapsed_days = elapsed_s / 86400
+    remaining_days = max(0, 7.0 - elapsed_days)
+
+    too_early = elapsed_hours < 6
+
+    c1 = f"weekly usage: {rate_7d:.1f}%"
+    c2 = f"today's usage: {today_pct:.1f}%"
+    c4 = f"{remaining_days:.1f}d left"
+
+    if too_early:
+        c3 = f"{DIM}daily usage ave: --{RST}"
+        c5 = f"{DIM}too early{RST}"
+    else:
+        daily_avg_pct = rate_7d / elapsed_days
+        projected = daily_avg_pct * 7.0
+        c3 = f"daily usage ave: {daily_avg_pct:.1f}%"
+        c5 = f"{RED}{projected:.1f}%{RST} projected" if projected > 100.0 else f"{projected:.1f}% projected"
+
+    return (c1, c2, c3, c4, c5)
+
+
+# --- Version tracker helpers ---
+
+def extract_paths(obj, prefix=""):
+    """Recursively extract all dotted field paths from a JSON object."""
+    paths = []
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            p = f"{prefix}.{k}" if prefix else k
+            paths.append(p)
+            paths.extend(extract_paths(v, p))
+    elif isinstance(obj, list) and obj:
+        paths.extend(extract_paths(obj[0], prefix + "[]"))
+    return paths
+
+
+def get_version_columns(claude_data: dict) -> tuple:
+    """Compute version line columns. Returns (v1, v2, v3) or None if no upgrade."""
+    try:
+        with open(VERSION_FILE) as f:
+            info = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    current_version = claude_data.get("version", "")
+    built_against = info.get("built_against", "")
+    known_fields = set(info.get("fields", []))
+
+    if not current_version or current_version == built_against:
+        return None
+
+    current_fields = set(extract_paths(claude_data))
+    new_fields = sorted(current_fields - known_fields)
+
+    v1 = "claude upgrade"
+    v2 = f"{YELLOW}{current_version}{RST} (from {built_against})"
+    if new_fields:
+        count = len(new_fields)
+        v3 = f"{GREEN}{count} new field{'s' if count != 1 else ''}{RST}"
+    else:
+        v3 = f"{DIM}no new fields{RST}"
+
+    return (v1, v2, v3)
+
+
 def run(claude_data: dict, lines: list) -> list:
-    """Generate 3 status lines: project/git, model/stats, weekly usage."""
+    """Generate all status lines: project/git, model/stats, sessions, usage, version."""
     claude = claude_data
 
     # Extract fields — use `or` to coalesce None values to defaults
     model_name = (claude.get("model") or {}).get("display_name") or "unknown"
     rem_pct = int((claude.get("context_window") or {}).get("remaining_percentage") or 100)
     duration_ms = int((claude.get("cost") or {}).get("total_duration_ms") or 0)
-    lines_added = int((claude.get("cost") or {}).get("total_lines_added") or 0)
-    lines_removed = int((claude.get("cost") or {}).get("total_lines_removed") or 0)
     session_name = claude.get("session_name") or ""
     rate_5h = float(((claude.get("rate_limits") or {}).get("five_hour") or {}).get("used_percentage") or 0)
     rate_7d = float(((claude.get("rate_limits") or {}).get("seven_day") or {}).get("used_percentage") or 0)
@@ -163,7 +358,7 @@ def run(claude_data: dict, lines: list) -> list:
         git_dir = git_cmd("rev-parse", "--git-dir")
         is_worktree = bool(git_dir and "/worktrees/" in git_dir)
 
-    # LINE 1
+    # LINE 1 — path
     l1c1 = f"{BLUE}{cwd}{RST}"
 
     l1c2 = ""
@@ -223,14 +418,14 @@ def run(claude_data: dict, lines: list) -> list:
         else:
             gs4 = ""
 
-    # LINE 2
+    # LINE 3 — model
     ctx_size = int((claude.get("context_window") or {}).get("context_window_size") or 200000)
     exceeds_200k = bool(claude.get("exceeds_200k_tokens"))
     ctx_label = "1M" if ctx_size > 200000 else "200k"
 
     l2c1 = model_name
 
-    # YOLO indicator (appended as last column on line 2)
+    # YOLO indicator
     yolo_col = ""
     if session_id:
         yolo_path = os.path.expanduser(f"~/.claude-yolo-sessions/{session_id}.json")
@@ -257,7 +452,7 @@ def run(claude_data: dict, lines: list) -> list:
     else:
         l2c3 = f"{used_pct}% of {ctx_label} context"
 
-    # SESSION LINE
+    # LINE 4 — sessions
     sessions_dir = os.path.expanduser("~/.claude-status-line/sessions")
     s_thinking = 0
     s_waiting = 0
@@ -285,13 +480,38 @@ def run(claude_data: dict, lines: list) -> list:
     sc3 = f"{s_thinking} thinking"
     sc4 = f"{s_waiting} waiting"
 
-    # Column alignment — line 1 is free-form, align lines 2+ only
-    col1_w = max(visible_len(gs1), visible_len(l2c1), visible_len(sc1))
-    col2_w = max(visible_len(gs2), visible_len(l2c2), visible_len(sc2))
-    col3_w = max(visible_len(gs3), visible_len(l2c3), visible_len(sc3))
-    col4_w = max(visible_len(gs4), visible_len(sc4))
+    # LINE 5 — usage costs (optional)
+    usage_cols = get_usage_columns(claude)
 
-    # Session name as col0 on all tabular lines (git, model, session)
+    # LINE 6 — version tracker (optional)
+    version_cols = get_version_columns(claude)
+
+    # --- Column alignment ---
+    # Collect all column content for width calculation
+    col1_vals = [gs1, l2c1, sc1]
+    col2_vals = [gs2, l2c2, sc2]
+    col3_vals = [gs3, l2c3, sc3]
+    col4_vals = [gs4, sc4]
+
+    if usage_cols:
+        uc1, uc2, uc3, uc4, uc5 = usage_cols
+        col1_vals.append(uc1)
+        col2_vals.append(uc2)
+        col3_vals.append(uc3)
+        col4_vals.append(uc4)
+
+    if version_cols:
+        vc1, vc2, vc3 = version_cols
+        col1_vals.append(vc1)
+        col2_vals.append(vc2)
+        col3_vals.append(vc3)
+
+    col1_w = max(visible_len(v) for v in col1_vals)
+    col2_w = max(visible_len(v) for v in col2_vals)
+    col3_w = max(visible_len(v) for v in col3_vals)
+    col4_w = max(visible_len(v) for v in col4_vals) if col4_vals else 0
+
+    # Session name as col0 on all tabular lines
     col0_val = session_name + sep
     col0_w = visible_len(col0_val)
 
@@ -322,6 +542,16 @@ def run(claude_data: dict, lines: list) -> list:
     session_line = f"{lbor}{col0_val}{pad_left(sc1, col1_w)}{sep}{pad_right(sc2, col2_w)}{sep}{pad_right(sc3, col3_w)}{sep}{pad_right(sc4, col4_w)}"
 
     result.extend([line2, session_line])
+
+    # LINE 5 — usage
+    if usage_cols:
+        usage_line = f"{lbor}{col0_val}{pad_left(uc1, col1_w)}{sep}{pad_right(uc2, col2_w)}{sep}{pad_right(uc3, col3_w)}{sep}{pad_right(uc4, col4_w)}{sep}{uc5}"
+        result.append(usage_line)
+
+    # LINE 6 — version
+    if version_cols:
+        ver_line = f"{lbor}{col0_val}{pad_left(vc1, col1_w)}{sep}{pad_right(vc2, col2_w)}{sep}{pad_right(vc3, col3_w)}"
+        result.append(ver_line)
 
     # Log to SQLite (non-blocking)
     elapsed_hours, wed_10am = get_wed_10am_elapsed_hours()
