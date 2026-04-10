@@ -62,6 +62,12 @@ class DashboardFeature(Feature):
     // Dashboard domain — disable when not enabled
     $("#dash-domain").disabled = !$("#dash-enabled").checked;"""
 
+    def config_identifiers(self) -> dict[str, str]:
+        return {
+            "dashboard.enabled": "bool",
+            "dashboard.domain": "string",
+        }
+
     def default_config(self) -> dict:
         return {"enabled": False}
 

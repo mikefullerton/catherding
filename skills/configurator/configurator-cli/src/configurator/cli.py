@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 from configurator import __version__
@@ -356,11 +358,45 @@ def cmd_delete(config_name: str | None) -> None:
     print(f"Configuration '{config_name}' deleted.")
 
 
+def _git_author(path: Path) -> dict[str, str]:
+    """Read git user.name and user.email from the given repo path."""
+    author: dict[str, str] = {}
+    for field in ("name", "email"):
+        try:
+            result = subprocess.run(
+                ["git", "-C", str(path), "config", f"user.{field}"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                author[field] = result.stdout.strip()
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            pass
+    return author
+
+
+def _migrate_draft(cfg: dict) -> dict:
+    """Migrate a draft config from an older configurator version to the current one.
+
+    Updates the configurator_version field and applies any schema changes.
+    """
+    draft_version = cfg.get("configurator_version", "0.0.0")
+    if draft_version == __version__:
+        return cfg
+
+    # Ensure change_history list exists
+    if "_change_history" not in cfg:
+        cfg["_change_history"] = []
+
+    cfg["configurator_version"] = __version__
+    return cfg
+
+
 def cmd_configure() -> None:
     from configurator.web import serve_editor
 
     cwd = Path.cwd()
     manifest = _load_manifest(cwd)
+    author = _git_author(cwd)
 
     if manifest:
         project_name = manifest.get("project", {}).get("name", cwd.name)
@@ -375,15 +411,23 @@ def cmd_configure() -> None:
 
         name = project_name
         saved = load_config(name)
-        cfg = _manifest_to_config(manifest, saved=saved or None)
-        cfg["local_path"] = str(cwd.resolve())
+
+        if saved and saved.get("configurator_version"):
+            # Existing draft — migrate if needed, reuse as-is
+            cfg = _migrate_draft(saved)
+            cfg["local_path"] = str(cwd.resolve())
+            print(f"  Resuming draft (v{saved.get('configurator_version', '?')})")
+        else:
+            # No draft — create from manifest
+            cfg = _manifest_to_config(manifest, saved=saved or None)
+            cfg["local_path"] = str(cwd.resolve())
+            cfg["_change_history"] = []
 
         if "org" not in cfg:
             org = _detect_org_from_git(cwd)
             if org:
                 cfg["org"] = org
 
-        delete_config(name)
         save_config(name, cfg)
 
         deployed = _deployed_keys_from_manifest(manifest)
@@ -391,14 +435,25 @@ def cmd_configure() -> None:
             deployed.add("org")
         urls = _extract_urls_from_manifest(manifest)
         live = _check_live_domains(manifest)
-        action = serve_editor(name, cfg, deployed_keys=deployed, urls=urls, live_domains=live)
+        action = serve_editor(name, cfg, deployed_keys=deployed, urls=urls, live_domains=live, author=author)
         print(f"ACTION:{action}")
         return
 
     # No manifest — use cwd name or first saved config
     name = cwd.name
-    cfg = load_config(name) or {}
-    action = serve_editor(name, cfg, deployed_keys=set())
+    saved = load_config(name)
+
+    if saved and saved.get("configurator_version"):
+        # Existing draft — migrate if needed
+        cfg = _migrate_draft(saved)
+        cfg["local_path"] = str(cwd.resolve())
+        print(f"  Resuming draft (v{saved.get('configurator_version', '?')})")
+    else:
+        cfg = saved or {}
+        cfg["_change_history"] = cfg.get("_change_history", [])
+
+    save_config(name, cfg)
+    action = serve_editor(name, cfg, deployed_keys=set(), author=author)
     print(f"ACTION:{action}")
 
 
@@ -480,6 +535,58 @@ def cmd_deploy_plan() -> None:
     print(json.dumps(plan, indent=2))
 
 
+def cmd_snapshot() -> None:
+    """Copy the current config draft into .site/deployments/ as a timestamped file."""
+    cwd = Path.cwd()
+    site_dir = cwd / ".site"
+    if not site_dir.exists():
+        print("No .site directory found.")
+        return
+
+    manifest = _load_manifest(cwd)
+    if not manifest:
+        print("No manifest found.")
+        return
+
+    project_name = manifest.get("project", {}).get("name", cwd.name)
+    draft_path = config_path(project_name)
+    if not draft_path.exists():
+        print(f"No draft found for '{project_name}'.")
+        return
+
+    deployments_dir = site_dir / "deployments"
+    deployments_dir.mkdir(parents=True, exist_ok=True)
+
+    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H-%M-%S")
+    snapshot_path = deployments_dir / f"{ts}-deployment.json"
+    shutil.copy2(str(draft_path), str(snapshot_path))
+    print(f"  Snapshot: {snapshot_path.name}")
+
+
+def cmd_schema() -> None:
+    """Dump all config identifiers from all features."""
+    from configurator.features import discover_features
+
+    features = discover_features()
+    all_ids: dict[str, str] = {}
+    for feature in features:
+        all_ids.update(feature.config_identifiers())
+
+    if not all_ids:
+        print("No identifiers registered.")
+        return
+
+    max_id = max(len(k) for k in all_ids)
+    print()
+    print(f"  {'Identifier':<{max_id}}  Type")
+    print(f"  {'-' * max_id}  ------")
+    for ident, vtype in sorted(all_ids.items()):
+        print(f"  {ident:<{max_id}}  {vtype}")
+    print()
+    print(f"  {len(all_ids)} identifiers across {sum(1 for f in features if f.config_identifiers())} features")
+    print()
+
+
 def cmd_repair() -> None:
     """Check each deployed feature and report status."""
     from configurator.deploy import feature_versions
@@ -538,6 +645,8 @@ def main() -> None:
     parser.add_argument("--delete", nargs="?", const="", metavar="NAME", help="Delete a configuration")
     parser.add_argument("--deploy-plan", action="store_true", help="Output deploy plan as JSON")
     parser.add_argument("--repair", action="store_true", help="Check deployed features and report status")
+    parser.add_argument("--schema", action="store_true", help="Show all config identifiers")
+    parser.add_argument("--snapshot", action="store_true", help="Save current draft to .site/deployments/")
     parser.add_argument("--set-credentials", action="store_true", help="Set deployment credentials in macOS Keychain")
     parser.add_argument("--version", action="store_true", help="Show version")
     args = parser.parse_args()
@@ -556,6 +665,14 @@ def main() -> None:
 
     if args.repair:
         cmd_repair()
+        return
+
+    if args.schema:
+        cmd_schema()
+        return
+
+    if args.snapshot:
+        cmd_snapshot()
         return
 
     if args.show is not None:

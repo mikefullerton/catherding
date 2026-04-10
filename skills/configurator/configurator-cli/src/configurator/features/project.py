@@ -106,6 +106,14 @@ class ProjectFeature(Feature):
     // Org other
     $("#org-other-field").style.display = $("#org").value === "other" ? "" : "none";"""
 
+    def config_identifiers(self) -> dict[str, str]:
+        return {
+            "project.display-name": "string",
+            "project.repo": "string",
+            "project.org": "string",
+            "project.domain": "string",
+        }
+
     def default_config(self) -> dict:
         return {"displayName": "", "repo": "", "org": "", "domain": ""}
 

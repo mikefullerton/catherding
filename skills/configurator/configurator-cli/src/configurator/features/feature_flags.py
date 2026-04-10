@@ -61,6 +61,14 @@ class FeatureFlagsFeature(Feature):
     $("#feature-flags-flag-hooks").disabled = !ffOn;
     $("#feature-flags-ab-hooks").disabled = !ffOn;"""
 
+    def config_identifiers(self) -> dict[str, str]:
+        return {
+            "feature-flags.enabled": "bool",
+            "feature-flags.capability-hooks": "bool",
+            "feature-flags.flag-hooks": "bool",
+            "feature-flags.ab-hooks": "bool",
+        }
+
     def default_config(self) -> dict:
         return {"enabled": False}
 

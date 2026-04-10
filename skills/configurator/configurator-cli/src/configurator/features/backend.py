@@ -101,6 +101,15 @@ class BackendFeature(Feature):
     $("#env-staging").disabled = !beEnabled;
     $("#env-testing").disabled = !beEnabled;"""
 
+    def config_identifiers(self) -> dict[str, str]:
+        return {
+            "backend.enabled": "bool",
+            "backend.domain": "string",
+            "backend.docs-domain": "string",
+            "backend.environments.staging": "bool",
+            "backend.environments.testing": "bool",
+        }
+
     def default_config(self) -> dict:
         return {"enabled": False}
 

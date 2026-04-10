@@ -63,6 +63,14 @@ class LoginTrackingFeature(Feature):
     $("#login-tracking-tokens").disabled = !ltOn;
     $("#login-tracking-retention").disabled = !ltOn;"""
 
+    def config_identifiers(self) -> dict[str, str]:
+        return {
+            "login-tracking.enabled": "bool",
+            "login-tracking.track-users": "bool",
+            "login-tracking.track-tokens": "bool",
+            "login-tracking.retention-days": "int",
+        }
+
     def default_config(self) -> dict:
         return {"enabled": False}
 

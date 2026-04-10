@@ -62,6 +62,12 @@ class AdminFeature(Feature):
     // Admin domain — disable when not enabled
     $("#admin-domain").disabled = !$("#admin-enabled").checked;"""
 
+    def config_identifiers(self) -> dict[str, str]:
+        return {
+            "admin.enabled": "bool",
+            "admin.domain": "string",
+        }
+
     def default_config(self) -> dict:
         return {"enabled": False}
 

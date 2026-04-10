@@ -80,6 +80,14 @@ class EmailFeature(Feature):
     $("#email-from-address").disabled = !emailOn;
     $("#email-from-name").disabled = !emailOn;"""
 
+    def config_identifiers(self) -> dict[str, str]:
+        return {
+            "email.enabled": "bool",
+            "email.provider": "string",
+            "email.from-address": "string",
+            "email.from-name": "string",
+        }
+
     def default_config(self) -> dict:
         return {"enabled": False}
 

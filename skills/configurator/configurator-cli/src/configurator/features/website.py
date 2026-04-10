@@ -92,6 +92,13 @@ class WebsiteFeature(Feature):
         el.disabled = wsNone;
     }"""
 
+    def config_identifiers(self) -> dict[str, str]:
+        return {
+            "website.type": "enum",
+            "website.domain": "string",
+            "website.addons": "list",
+        }
+
     def default_config(self) -> dict:
         return {"type": "none"}
 

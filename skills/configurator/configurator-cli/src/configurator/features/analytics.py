@@ -72,6 +72,13 @@ class AnalyticsFeature(Feature):
     $("#analytics-provider").disabled = !analyticsOn;
     $("#analytics-site-id").disabled = !analyticsOn;"""
 
+    def config_identifiers(self) -> dict[str, str]:
+        return {
+            "analytics.enabled": "bool",
+            "analytics.provider": "string",
+            "analytics.site-id": "string",
+        }
+
     def default_config(self) -> dict:
         return {"enabled": False}
 

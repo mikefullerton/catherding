@@ -69,6 +69,13 @@ class FeedbackFeature(Feature):
     $("#feedback-destination").disabled = !fbOn;
     $("#feedback-screenshots").disabled = !fbOn;"""
 
+    def config_identifiers(self) -> dict[str, str]:
+        return {
+            "feedback.enabled": "bool",
+            "feedback.destination": "string",
+            "feedback.screenshots": "bool",
+        }
+
     def default_config(self) -> dict:
         return {"enabled": False}
 

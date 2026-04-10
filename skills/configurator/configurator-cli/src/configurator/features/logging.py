@@ -77,6 +77,13 @@ class LoggingFeature(Feature):
     $("#logging-provider").disabled = !loggingOn;
     $("#logging-level").disabled = !loggingOn;"""
 
+    def config_identifiers(self) -> dict[str, str]:
+        return {
+            "logging.enabled": "bool",
+            "logging.provider": "string",
+            "logging.level": "string",
+        }
+
     def default_config(self) -> dict:
         return {"enabled": False}
 

@@ -71,6 +71,13 @@ class SmsFeature(Feature):
     $("#sms-provider").disabled = !smsOn;
     $("#sms-from-number").disabled = !smsOn;"""
 
+    def config_identifiers(self) -> dict[str, str]:
+        return {
+            "sms.enabled": "bool",
+            "sms.provider": "string",
+            "sms.from-number": "string",
+        }
+
     def default_config(self) -> dict:
         return {"enabled": False}
 

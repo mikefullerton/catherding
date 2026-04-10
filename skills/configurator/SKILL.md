@@ -1,7 +1,7 @@
 ---
 name: configurator
 description: "Configure or deploy a project. /configurator --configure opens the web editor, /configurator --deploy runs deployment. If neither is passed, asks which mode."
-version: "1.28.1"
+version: "1.29.0"
 argument-hint: "[--configure|--deploy|<config-name>|add|deploy|update|verify|repair|status|manifest|seed-admin|go-live|--help|--version]"
 allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), Bash(uv run *), AskUserQuestion
 model: sonnet
@@ -1105,13 +1105,13 @@ Update these fields:
 - `features.auth.adminSeeded` set to `true` (full projects only)
 - `storage` — for worker projects, record which storage options were selected (e.g., `{"d1": true, "kv": false, "r2": false}`)
 
-**After writing the manifest, delete the configurator config file:**
+**After writing the manifest, save a deployment snapshot and clear the change history:**
 
 ```bash
-rm -f ~/.configurator/<config-name>.json
+configurator --snapshot
 ```
 
-The config file is a draft — once deployed, the manifest is the source of truth. The CLI will recreate a draft from the manifest if the user wants to modify the deployment later.
+This copies the current draft into `.site/deployments/YYYY-MM-DD-HH-MM-SS-deployment.json` for audit history. The draft remains in `~/.configurator/` as a persistent working copy — it will be reloaded (and migrated if needed) next time the user runs `configurator --configure`.
 
 Commit and push:
 

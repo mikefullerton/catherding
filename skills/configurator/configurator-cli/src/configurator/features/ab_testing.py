@@ -72,6 +72,13 @@ class AbTestingFeature(Feature):
     $("#ab-testing-provider").disabled = !abOn;
     $("#ab-testing-client-key").disabled = !abOn;"""
 
+    def config_identifiers(self) -> dict[str, str]:
+        return {
+            "ab-testing.enabled": "bool",
+            "ab-testing.provider": "string",
+            "ab-testing.client-key": "string",
+        }
+
     def default_config(self) -> dict:
         return {"enabled": False}
 

@@ -58,6 +58,14 @@ class Feature(abc.ABC):
     def deployed_keys(self, manifest: dict) -> set[str]:
         """Return which of this feature's keys are deployed."""
 
+    def config_identifiers(self) -> dict[str, str]:
+        """Return mapping of dot-path identifiers to value types for this feature.
+
+        Example: {"email.enabled": "bool", "email.provider": "string"}
+        Read-only features return an empty dict.
+        """
+        return {}
+
     def validate(self, feature_cfg: dict | list, full_cfg: dict) -> list[str]:
         """Validate this feature's config. Return list of error strings."""
         return []

@@ -70,6 +70,14 @@ class CapabilitiesFeature(Feature):
     $("#capabilities-user-assignable").disabled = !capsOn;
     $("#capabilities-token-assignable").disabled = !capsOn;"""
 
+    def config_identifiers(self) -> dict[str, str]:
+        return {
+            "capabilities.enabled": "bool",
+            "capabilities.definitions": "list",
+            "capabilities.user-assignable": "bool",
+            "capabilities.token-assignable": "bool",
+        }
+
     def default_config(self) -> dict:
         return {"enabled": False}
 

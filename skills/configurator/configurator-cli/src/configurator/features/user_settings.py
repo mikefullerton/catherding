@@ -67,6 +67,15 @@ class UserSettingsFeature(Feature):
     $("#user-settings-theme").disabled = !usOn;
     $("#user-settings-notifications").disabled = !usOn;"""
 
+    def config_identifiers(self) -> dict[str, str]:
+        return {
+            "user-settings.enabled": "bool",
+            "user-settings.profile": "bool",
+            "user-settings.password-change": "bool",
+            "user-settings.theme-preference": "bool",
+            "user-settings.notifications": "bool",
+        }
+
     def default_config(self) -> dict:
         return {"enabled": False}
 

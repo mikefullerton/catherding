@@ -50,6 +50,9 @@ class ThemeFeature(Feature):
     def config_js_update_disabled(self) -> str:
         return ""
 
+    def config_identifiers(self) -> dict[str, str]:
+        return {"theme.mode": "enum"}
+
     def default_config(self) -> dict:
         return {"mode": "system"}
 

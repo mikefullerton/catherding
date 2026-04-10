@@ -2,6 +2,13 @@
 
 Changes to what the configurator deploys. Each entry represents a new deployment option, improved template, or fix that affects deployed projects. The CLI shows relevant changes when a project's manifest version is behind the current configurator version.
 
+## 1.29.0
+
+- **Persistent drafts**: Config files are now persistent working copies that survive between editing sessions. Re-opening the configurator resumes the existing draft instead of recreating it. Drafts include a `configurator_version` field and are automatically migrated when opened by a newer version.
+- **Change history**: Every edit in the web editor records a change entry with date, author (from git config), config identifier, change type (add/change/remove), old and new values, configurator version, and session ID. A new "History" panel displays the full change log.
+- **Config identifiers**: Formalized dot-separated identifiers for all 60 config items (e.g., `backend.enabled`, `email.from-address`). Each feature declares its identifiers via `config_identifiers()`. New `--schema` CLI flag dumps the full identifier registry.
+- **Deployment snapshots**: On deploy, `--snapshot` copies the current draft into `.site/deployments/YYYY-MM-DD-HH-MM-SS-deployment.json` for audit history. Drafts are no longer deleted after deploy.
+
 ## 1.28.1
 
 - **Data Model panel**: New read-only section displays SQL tables parsed from migration files (CREATE TABLE) or Drizzle schema.ts. Shows table name, columns, types, and constraints. Displays "No backend configured" when backend is disabled.

@@ -61,6 +61,14 @@ class PausingFeature(Feature):
     $("#pausing-tokens").disabled = !pausingOn;
     $("#pausing-auto-unpause").disabled = !pausingOn;"""
 
+    def config_identifiers(self) -> dict[str, str]:
+        return {
+            "pausing.enabled": "bool",
+            "pausing.pause-users": "bool",
+            "pausing.pause-tokens": "bool",
+            "pausing.auto-unpause": "bool",
+        }
+
     def default_config(self) -> dict:
         return {"enabled": False}
 

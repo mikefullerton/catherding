@@ -52,6 +52,9 @@ class AuthFeature(Feature):
     def config_js_update_disabled(self) -> str:
         return ""
 
+    def config_identifiers(self) -> dict[str, str]:
+        return {"auth.providers": "list"}
+
     def default_config(self) -> list:
         return []
 

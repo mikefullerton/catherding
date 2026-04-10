@@ -27,6 +27,7 @@ CATEGORIES = [
     ("comms", "Communications"),
     ("analytics", "Analytics & Flags"),
     ("secrets", "Secrets"),
+    ("history", "History"),
     ("manifest", "Manifest"),
 ]
 
@@ -79,6 +80,7 @@ def build_page(
     urls: dict[str, str] | None = None,
     live_domains: set[str] | None = None,
     api_base: str = "",
+    author: dict[str, str] | None = None,
 ) -> str:
     """Build the HTML page by composing feature fragments."""
     features = discover_features()
@@ -92,6 +94,16 @@ def build_page(
     # Build panels per category
     panels_html = ""
     for cat_id, cat_label in CATEGORIES:
+        if cat_id == "history":
+            panels_html += (
+                '<div class="panel" id="cat-history" style="display:none">\n'
+                '<fieldset>\n<legend>Change History</legend>\n'
+                '<div id="history-content" class="history-content">'
+                '<p class="readonly" style="color: var(--fg-dim);">No changes yet.</p>'
+                '</div>\n'
+                '</fieldset>\n</div>\n\n'
+            )
+            continue
         if cat_id == "manifest":
             # Manifest panel is JS-driven, not feature-composed
             panels_html += (
@@ -110,9 +122,8 @@ def build_page(
     # Build nav links
     nav_html = ""
     for cat_id, cat_label in CATEGORIES:
-        if cat_id == "manifest":
-            # Always show manifest nav link
-            nav_html += f'    <a href="#" data-cat="manifest">Manifest</a>\n'
+        if cat_id in ("history", "manifest"):
+            nav_html += f'    <a href="#" data-cat="{cat_id}">{cat_label}</a>\n'
             continue
         cat_features = [f for f in features if f.meta().category == cat_id]
         if not cat_features:
@@ -126,10 +137,19 @@ def build_page(
         block for f in features if (block := f.config_js_update_disabled())
     )
 
+    import uuid
     config_json = json.dumps(cfg, indent=2)
     deployed_json = json.dumps(sorted(deployed_keys))
     urls_json = json.dumps(urls or {})
     live_json = json.dumps(sorted(live_domains or set()))
+    author_json = json.dumps(author or {})
+    session_id = str(uuid.uuid4())
+    # Build identifier map from all features
+    all_identifiers: dict[str, str] = {}
+    for f in features:
+        all_identifiers.update(f.config_identifiers())
+    identifiers_json = json.dumps(all_identifiers)
+    change_history_json = json.dumps(cfg.get("_change_history", []))
     version = __version__
     project_name = cfg.get("repo") or cfg.get("display_name") or "Untitled"
     page_title = f"Configurator — {project_name}"
@@ -400,6 +420,26 @@ input[type="checkbox"] {{ accent-color: var(--accent); }}
 .manifest-new {{ color: var(--green); }}
 .manifest-changed {{ color: var(--accent); }}
 
+/* History */
+.history-content {{ max-height: 600px; overflow-y: auto; }}
+.history-table {{
+    width: 100%; border-collapse: collapse; font-size: 0.85rem;
+}}
+.history-table th {{
+    text-align: left; padding: 0.4rem 0.6rem; color: var(--fg-muted);
+    border-bottom: 1px solid var(--border); font-weight: 500;
+}}
+.history-table td {{
+    padding: 0.4rem 0.6rem; border-bottom: 1px solid var(--border);
+}}
+.history-date {{ color: var(--fg-muted); white-space: nowrap; font-size: 0.8rem; }}
+.history-item code {{ font-size: 0.8rem; color: var(--accent); }}
+.history-value {{ font-family: var(--mono); font-size: 0.8rem; }}
+.history-author {{ color: var(--fg-muted); font-size: 0.8rem; }}
+.history-add {{ color: var(--green); }}
+.history-remove {{ color: var(--red); }}
+.history-change {{ color: var(--accent); }}
+
 /* Secrets */
 .secret-list {{ display: flex; flex-direction: column; gap: 0.5rem; }}
 .secret-row {{
@@ -467,6 +507,12 @@ const ORIGINAL_CONFIG = JSON.parse(JSON.stringify(CONFIG));
 const DEPLOYED = new Set({deployed_json});
 const URLS = {urls_json};
 const LIVE = new Set({live_json});
+const AUTHOR = {author_json};
+const SESSION_ID = "{session_id}";
+const CONFIGURATOR_VERSION = "{version}";
+const IDENTIFIERS = {identifiers_json};
+let CHANGE_HISTORY = {change_history_json};
+let LAST_CONFIG = JSON.parse(JSON.stringify(CONFIG));
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
@@ -478,8 +524,66 @@ function debounceSave() {{
     saveTimer = setTimeout(saveConfig, 300);
 }}
 
+function configToIdentifier(path) {{
+    // Map config dict paths to formal identifiers
+    // e.g., "admin_sites.admin.enabled" -> "admin.enabled"
+    const map = {{
+        "displayName": "project.display-name",
+        "repo": "project.repo",
+        "org": "project.org",
+        "domain": "project.domain",
+    }};
+    if (map[path]) return map[path];
+    // admin_sites.admin.X -> admin.X, admin_sites.dashboard.X -> dashboard.X
+    const adminMatch = path.match(/^admin_sites\\.([^.]+)\\.(.+)$/);
+    if (adminMatch) return adminMatch[1] + "." + adminMatch[2].replace(/_/g, "-");
+    // auth_providers -> auth.providers
+    if (path === "auth_providers") return "auth.providers";
+    // Regular: feature_id.key -> feature-id.key (underscores to hyphens)
+    return path.replace(/_/g, "-");
+}}
+
+function diffConfigs(oldCfg, newCfg, prefix) {{
+    prefix = prefix || "";
+    const changes = [];
+    const allKeys = new Set([...Object.keys(oldCfg || {{}}), ...Object.keys(newCfg || {{}})]);
+    for (const key of allKeys) {{
+        if (key.startsWith("_") || key === "configurator_version" || key === "local_path" || key === "create_repo") continue;
+        const path = prefix ? prefix + "." + key : key;
+        const oldVal = oldCfg ? oldCfg[key] : undefined;
+        const newVal = newCfg ? newCfg[key] : undefined;
+        if (typeof oldVal === "object" && !Array.isArray(oldVal) && oldVal !== null &&
+            typeof newVal === "object" && !Array.isArray(newVal) && newVal !== null) {{
+            changes.push(...diffConfigs(oldVal, newVal, path));
+        }} else if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {{
+            const identifier = configToIdentifier(path);
+            let changeType = "change";
+            if (oldVal === undefined || oldVal === "" || oldVal === false) changeType = "add";
+            if (newVal === undefined || newVal === "" || newVal === false) changeType = "remove";
+            changes.push({{
+                date: new Date().toISOString(),
+                author: AUTHOR,
+                item: identifier,
+                change_type: changeType,
+                old_value: oldVal === undefined ? null : oldVal,
+                new_value: newVal === undefined ? null : newVal,
+                summary: "",
+                configurator_version: CONFIGURATOR_VERSION,
+                session_id: SESSION_ID,
+            }});
+        }}
+    }}
+    return changes;
+}}
+
 function saveConfig() {{
     const cfg = readForm();
+    const changes = diffConfigs(LAST_CONFIG, cfg);
+    if (changes.length > 0) {{
+        CHANGE_HISTORY.push(...changes);
+    }}
+    LAST_CONFIG = JSON.parse(JSON.stringify(cfg));
+    cfg._change_history = CHANGE_HISTORY;
     fetch("{api_base}/api/config", {{
         method: "PATCH",
         headers: {{"Content-Type": "application/json"}},
@@ -488,6 +592,7 @@ function saveConfig() {{
         const el = $("#saved");
         el.classList.add("visible");
         setTimeout(() => el.classList.remove("visible"), 1500);
+        updateHistoryPanel();
     }});
 }}
 
@@ -568,12 +673,49 @@ function renderManifestDiff(current, original) {{
     }}).join("\\n");
 }}
 
+// History panel
+function updateHistoryPanel() {{
+    const el = $("#history-content");
+    if (!CHANGE_HISTORY.length) {{
+        el.innerHTML = '<p class="readonly" style="color: var(--fg-dim);">No changes yet.</p>';
+        return;
+    }}
+    // Show most recent first
+    const entries = [...CHANGE_HISTORY].reverse();
+    let html = '<table class="history-table"><tr><th>Date</th><th>Item</th><th>Change</th><th>Value</th><th>Author</th></tr>';
+    for (const e of entries) {{
+        const date = new Date(e.date).toLocaleString();
+        const typeClass = "history-" + e.change_type;
+        let valueStr = "";
+        if (e.change_type === "change") {{
+            valueStr = escHtml(String(e.old_value)) + " → " + escHtml(String(e.new_value));
+        }} else if (e.change_type === "add") {{
+            valueStr = escHtml(String(e.new_value));
+        }} else {{
+            valueStr = '<span style="text-decoration: line-through;">' + escHtml(String(e.old_value)) + '</span>';
+        }}
+        const authorStr = e.author && e.author.name ? escHtml(e.author.name) : "unknown";
+        html += '<tr>'
+            + '<td class="history-date">' + escHtml(date) + '</td>'
+            + '<td class="history-item"><code>' + escHtml(e.item) + '</code></td>'
+            + '<td class="' + typeClass + '">' + escHtml(e.change_type) + '</td>'
+            + '<td class="history-value">' + valueStr + '</td>'
+            + '<td class="history-author">' + authorStr + '</td>'
+            + '</tr>';
+    }}
+    html += '</table>';
+    el.innerHTML = html;  // nosec: all content escaped via escHtml
+}}
+
 // Nav switching
 function switchPanel(cat) {{
     for (const p of $$(".panel")) p.style.display = "none";
     const target = $(`#cat-${{cat}}`);
     if (target) target.style.display = "";
     for (const a of $$("nav a")) a.classList.toggle("active", a.dataset.cat === cat);
+    if (cat === "history") {{
+        updateHistoryPanel();
+    }}
     if (cat === "manifest") {{
         const cfg = filterConfig(readForm());
         const el = $("#manifest-json");
@@ -707,6 +849,7 @@ def serve_editor(
     urls: dict[str, str] | None = None,
     live_domains: set[str] | None = None,
     port: int | None = None,
+    author: dict[str, str] | None = None,
 ) -> str:
     """Open the web editor and block until deploy/cancel/Ctrl+C.
 
@@ -734,6 +877,7 @@ def serve_editor(
         urls=urls,
         live_domains=live_domains,
         api_base=api_base,
+        author=author,
     )
 
     # Copy to Caddy sites directory

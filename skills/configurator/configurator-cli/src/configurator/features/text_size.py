@@ -67,6 +67,12 @@ class TextSizeFeature(Feature):
     const tsCustom = $("#text-size-mode").value === "custom";
     $("#text-size-custom-field").style.display = tsCustom ? "" : "none";"""
 
+    def config_identifiers(self) -> dict[str, str]:
+        return {
+            "text-size.mode": "enum",
+            "text-size.custom-px": "int",
+        }
+
     def default_config(self) -> dict:
         return {"mode": "system"}
 
