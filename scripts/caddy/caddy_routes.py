@@ -5,24 +5,31 @@ Provides a CLI and importable API for registering, removing, and listing
 routes on the always-on local Caddy server (localhost:2019 admin API).
 
 CLI usage:
-    caddy_routes.py add   <path> <root_dir>          # serve a directory
-    caddy_routes.py add   <path> <root_dir> --browse  # with directory listing
-    caddy_routes.py remove <path>
+    caddy_routes.py publish <name> <file_or_dir>      # copy to ~/www/<name>/, immediately live
+    caddy_routes.py unpublish <name>                   # remove ~/www/<name>/
+    caddy_routes.py add   <path> <root_dir>            # serve a directory (dynamic route)
+    caddy_routes.py add   <path> <root_dir> --browse   # with directory listing
+    caddy_routes.py remove <path>                      # remove a dynamic route
     caddy_routes.py list
     caddy_routes.py status
 
 Python usage:
-    from caddy_routes import add_route, remove_route, list_routes, status
+    from caddy_routes import publish, unpublish, add_route, remove_route, list_routes, status
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
+import shutil
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 from typing import Optional
+
+WWW_ROOT = Path.home() / "www"
 
 ADMIN_API = "http://localhost:2019"
 ROUTES_PATH = "/config/apps/http/servers/srv0/routes"
@@ -61,6 +68,59 @@ def _find_route_index(path_prefix: str) -> Optional[int]:
             if normalized in matcher.get("path", []):
                 return i
     return None
+
+
+def publish(name: str, source: str) -> str:
+    """Copy a file or directory into ~/www/<name>/ so Caddy serves it immediately.
+
+    Args:
+        name: URL path name — content will be at http://localhost:2080/<name>/
+        source: Path to an HTML file or a directory of files
+
+    Returns:
+        The URL where the content is now live
+    """
+    src = Path(source)
+    if not src.exists():
+        print(f"Error: source not found: {source}", file=sys.stderr)
+        sys.exit(1)
+
+    dest = WWW_ROOT / name
+    if dest.exists():
+        shutil.rmtree(dest)
+    dest.mkdir(parents=True)
+
+    if src.is_file():
+        # Single file → copy as index.html (unless it already has that name)
+        target_name = src.name if src.name != "index.html" else "index.html"
+        shutil.copy2(src, dest / target_name)
+        if target_name != "index.html":
+            shutil.copy2(src, dest / "index.html")
+    else:
+        # Directory → copy contents
+        shutil.copytree(src, dest, dirs_exist_ok=True)
+
+    url = f"http://localhost:2080/{name}/"
+    print(f"Published: {url}")
+    return url
+
+
+def unpublish(name: str) -> bool:
+    """Remove ~/www/<name>/ and its contents.
+
+    Args:
+        name: The name used in publish()
+
+    Returns:
+        True if the directory was found and removed
+    """
+    dest = WWW_ROOT / name
+    if not dest.exists():
+        print(f"Nothing published at {name}", file=sys.stderr)
+        return False
+    shutil.rmtree(dest)
+    print(f"Unpublished: {name}")
+    return True
 
 
 def add_route(path_prefix: str, root_dir: str, browse: bool = False) -> bool:
@@ -128,27 +188,35 @@ def remove_route(path_prefix: str) -> bool:
 
 
 def list_routes() -> list:
-    """List all registered routes.
+    """List all registered routes and published sites.
 
     Returns:
         List of route dicts from Caddy config
     """
-    routes = _get_routes()
-    if not routes:
-        print("No routes configured.")
-        return []
+    # Published sites in ~/www
+    published = sorted(p for p in WWW_ROOT.iterdir() if p.is_dir()) if WWW_ROOT.exists() else []
+    if published:
+        print("Published sites (~/www):")
+        for p in published:
+            print(f"  http://localhost:2080/{p.name}/")
+    else:
+        print("No published sites.")
 
-    for i, route in enumerate(routes):
-        paths = []
-        for m in route.get("match", []):
-            paths.extend(m.get("path", []))
-        roots = []
-        for h in route.get("handle", []):
-            if h.get("handler") == "file_server" and "root" in h:
-                roots.append(h["root"])
-        path_str = ", ".join(paths) if paths else "(catch-all)"
-        root_str = " -> ".join(roots) if roots else ""
-        print(f"  [{i}] {path_str}  {root_str}")
+    # Dynamic routes
+    routes = _get_routes()
+    if routes:
+        print("Dynamic routes:")
+        for i, route in enumerate(routes):
+            paths = []
+            for m in route.get("match", []):
+                paths.extend(m.get("path", []))
+            roots = []
+            for h in route.get("handle", []):
+                if h.get("handler") == "file_server" and "root" in h:
+                    roots.append(h["root"])
+            path_str = ", ".join(paths) if paths else "(catch-all)"
+            root_str = " -> ".join(roots) if roots else ""
+            print(f"  [{i}] {path_str}  {root_str}")
 
     return routes
 
@@ -180,20 +248,31 @@ def main():
     parser = argparse.ArgumentParser(description="Manage local Caddy routes")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    add_p = sub.add_parser("add", help="Add a file server route")
+    pub_p = sub.add_parser("publish", help="Copy content to ~/www/<name>/ for instant serving")
+    pub_p.add_argument("name", help="URL path name (e.g. my-tool)")
+    pub_p.add_argument("source", help="HTML file or directory to publish")
+
+    unpub_p = sub.add_parser("unpublish", help="Remove ~/www/<name>/")
+    unpub_p.add_argument("name", help="Name to unpublish")
+
+    add_p = sub.add_parser("add", help="Add a dynamic file server route")
     add_p.add_argument("path", help="URL path prefix (e.g. /my-tool)")
     add_p.add_argument("root", help="Directory to serve (absolute path)")
     add_p.add_argument("--browse", action="store_true", help="Enable directory listing")
 
-    rm_p = sub.add_parser("remove", help="Remove a route")
+    rm_p = sub.add_parser("remove", help="Remove a dynamic route")
     rm_p.add_argument("path", help="URL path prefix to remove")
 
-    sub.add_parser("list", help="List all routes")
+    sub.add_parser("list", help="List all routes and published sites")
     sub.add_parser("status", help="Check Caddy status")
 
     args = parser.parse_args()
 
-    if args.command == "add":
+    if args.command == "publish":
+        publish(args.name, args.source)
+    elif args.command == "unpublish":
+        unpublish(args.name)
+    elif args.command == "add":
         add_route(args.path, args.root, args.browse)
     elif args.command == "remove":
         remove_route(args.path)
