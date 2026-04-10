@@ -334,8 +334,12 @@ def run(claude_data: dict, lines: list) -> list:
 
     duration = format_duration(duration_ms)
 
-    # Project path relative to ~ (stable across cd)
+    # Project path relative to ~ (stable across cd, strip worktree suffix)
     project_dir = (claude.get("workspace") or {}).get("project_dir") or claude.get("cwd", "")
+    for suffix in ["/.claude/worktrees/", "/.worktrees/"]:
+        if suffix in project_dir:
+            project_dir = project_dir[:project_dir.index(suffix)]
+            break
     home = os.path.expanduser("~")
     display_path = project_dir.replace(home, "~") if project_dir.startswith(home) else project_dir
 
