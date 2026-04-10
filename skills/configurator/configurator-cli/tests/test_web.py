@@ -3,8 +3,9 @@
 import json
 import threading
 import urllib.request
+from pathlib import Path
 
-from configurator.web import build_page, start_server
+from configurator.web import build_page, start_server, SITES_DIR
 
 
 class TestBuildPage:
@@ -45,6 +46,65 @@ class TestBuildPage:
         html = build_page(cfg, deployed_keys=set(), live_domains={"main", "backend"})
         assert '"backend"' in html
         assert '"main"' in html
+
+    def test_title_includes_project_name(self):
+        cfg = {"repo": "my-cool-project"}
+        html = build_page(cfg, deployed_keys=set())
+        assert "<title>Configurator — my-cool-project</title>" in html
+
+    def test_meta_description_includes_project_name(self):
+        cfg = {"repo": "my-cool-project"}
+        html = build_page(cfg, deployed_keys=set())
+        assert "Deployment config for my-cool-project" in html
+
+    def test_title_fallback_when_no_repo(self):
+        html = build_page({}, deployed_keys=set())
+        assert "<title>Configurator — Untitled</title>" in html
+
+
+class TestCaddyPublish:
+    """Tests that verify publishing/cleanup to ~/.local-server/sites/."""
+
+    SITE_FILE = SITES_DIR / "configurator.html"
+
+    def _cleanup(self):
+        if self.SITE_FILE.exists():
+            self.SITE_FILE.unlink()
+
+    def test_publish_and_cleanup(self):
+        """Write HTML to Caddy sites dir, verify it exists and has content, then clean up."""
+        self._cleanup()
+        try:
+            cfg = {"repo": "publish-test", "domain": "example.com"}
+            html = build_page(cfg, deployed_keys=set(), api_base="http://localhost:4040")
+            SITES_DIR.mkdir(parents=True, exist_ok=True)
+            self.SITE_FILE.write_text(html, encoding="utf-8")
+
+            assert self.SITE_FILE.exists()
+            content = self.SITE_FILE.read_text()
+            assert "publish-test" in content
+            assert "<title>Configurator — publish-test</title>" in content
+            assert 'name="description"' in content
+        finally:
+            self._cleanup()
+
+        assert not self.SITE_FILE.exists()
+
+    def test_caddy_serves_published_page(self):
+        """Publish HTML, fetch it from Caddy at localhost:2080, then clean up."""
+        self._cleanup()
+        try:
+            cfg = {"repo": "caddy-test", "domain": "example.com"}
+            html = build_page(cfg, deployed_keys=set(), api_base="http://localhost:4040")
+            SITES_DIR.mkdir(parents=True, exist_ok=True)
+            self.SITE_FILE.write_text(html, encoding="utf-8")
+
+            resp = urllib.request.urlopen("http://localhost:2080/configurator.html", timeout=5)
+            served = resp.read().decode()
+            assert resp.status == 200
+            assert "caddy-test" in served
+        finally:
+            self._cleanup()
 
 
 class TestServer:
