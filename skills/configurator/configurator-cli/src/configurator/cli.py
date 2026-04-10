@@ -9,23 +9,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-import questionary
-from questionary import Choice
-
 from configurator import __version__
 
 CONFIG_DIR = Path.home() / ".configurator"
 GLOBAL_CONFIG = CONFIG_DIR / "configurator-config.json"
-TOTAL_QUESTIONS = 7
-
 ORGS = ["mikefullerton", "agentic-cookbook"]
 
 # Locate CHANGES.md relative to this source file (editable install)
 CHANGES_PATH = Path(__file__).resolve().parents[3] / "CHANGES.md"
-
-
-class UserQuit(Exception):
-    pass
 
 
 # ── Config I/O ──────────────────────────────────────────────────────────────
@@ -319,276 +310,6 @@ def show_config(name: str) -> None:
     print()
 
 
-# ── Prompt helpers ──────────────────────────────────────────────────────────
-
-
-QUIT_LABEL = "Quit"
-
-
-def prefix(n: int) -> str:
-    return f"[{n}/{TOTAL_QUESTIONS}]"
-
-
-def ask_text(question_num: int, message: str, *, required: bool = False, default: str = "") -> str:
-    full = f"{prefix(question_num)} {message}"
-    while True:
-        answer = questionary.text(full, default=default).ask()
-        if answer is None:
-            raise UserQuit
-        answer = answer.strip()
-        if answer.lower() == "q":
-            raise UserQuit
-        if required and not answer:
-            print("  This question is required.")
-            continue
-        return answer
-
-
-def ask_choice(question_num: int | None, message: str, choices: list[str], *, default: str | None = None, required: bool = False) -> str:
-    if question_num is not None:
-        full = f"{prefix(question_num)} {message}"
-    else:
-        full = message
-    items = [Choice(c, value=c) for c in choices] + [Choice(QUIT_LABEL, value=QUIT_LABEL)]
-    answer = questionary.select(full, choices=items, default=default).ask()
-    if answer is None or answer == QUIT_LABEL:
-        raise UserQuit
-    return answer
-
-
-def ask_list(question_num: int | None, message: str, choices: list[str], *, defaults: list[str] | None = None, min_required: int = 0) -> list[str]:
-    if question_num is not None:
-        full = f"{prefix(question_num)} {message}"
-    else:
-        full = message
-
-    defaults = defaults or []
-    items = [Choice(c, checked=(c in defaults)) for c in choices] + [Choice(QUIT_LABEL, checked=False)]
-
-    while True:
-        answer = questionary.checkbox(full, choices=items).ask()
-        if answer is None or QUIT_LABEL in answer:
-            raise UserQuit
-        if len(answer) < min_required:
-            print(f"  Please select at least {min_required}.")
-            continue
-        return answer
-
-
-def ask_clarifying_text(message: str, *, default: str = "") -> str:
-    answer = questionary.text(f"  {message}", default=default).ask()
-    if answer is None:
-        raise UserQuit
-    answer = answer.strip()
-    if answer.lower() == "q":
-        raise UserQuit
-    return answer
-
-
-def ask_clarifying_choice(message: str, choices: list[str], *, default: str | None = None) -> str:
-    return ask_choice(None, f"  {message}", choices, default=default)
-
-
-def ask_clarifying_list(message: str, choices: list[str], *, defaults: list[str] | None = None) -> list[str]:
-    return ask_list(None, f"  {message}", choices, defaults=defaults)
-
-
-# ── Question flow ───────────────────────────────────────────────────────────
-
-
-def run_questions(name: str | None, cfg: dict) -> str:
-    """Run through all questions. Returns the config name."""
-
-    # Q1: repo name
-    default_repo = cfg.get("repo", name or "")
-    repo = ask_text(1, "What is the name of the GitHub repo for this project?", required=True, default=default_repo)
-    cfg["repo"] = repo
-
-    # For a new project, set the name now and save
-    if name is None:
-        name = repo
-    save_config(name, cfg)
-
-    # ── Resolve projects path and locate repo ──
-    gcfg = load_global_config()
-    projects_path = gcfg.get("projects_path")
-
-    # Ensure projects_path is set and valid
-    if projects_path:
-        if not Path(projects_path).is_dir():
-            print(f"  Projects folder not found: {projects_path}")
-            try:
-                retry = ask_clarifying_choice("Enter a different path?", ["yes", "no"], default="yes")
-            except UserQuit:
-                raise
-            if retry == "yes":
-                projects_path = None  # fall through to prompt below
-            else:
-                gcfg.pop("projects_path", None)
-                save_global_config(gcfg)
-                projects_path = None
-
-    if not projects_path:
-        entered = ask_clarifying_text("What is the path to your projects folder?")
-        if entered and Path(entered).expanduser().is_dir():
-            projects_path = str(Path(entered).expanduser().resolve())
-            gcfg["projects_path"] = projects_path
-            save_global_config(gcfg)
-        elif entered:
-            print(f"  Path does not exist: {entered}")
-            try:
-                retry = ask_clarifying_choice("Try again?", ["yes", "no"], default="yes")
-            except UserQuit:
-                raise
-            if retry == "yes":
-                entered = ask_clarifying_text("What is the path to your projects folder?")
-                if entered and Path(entered).expanduser().is_dir():
-                    projects_path = str(Path(entered).expanduser().resolve())
-                    gcfg["projects_path"] = projects_path
-                    save_global_config(gcfg)
-                else:
-                    print("  Skipping projects folder.")
-
-    # Search for repo in projects folder
-    repo_found = False
-    if projects_path:
-        found = _find_repo(projects_path, repo)
-        if found:
-            cfg["local_path"] = str(found)
-            print(f"  Found repo at {found}")
-            save_config(name, cfg)
-            repo_found = True
-        else:
-            print(f"  Repo '{repo}' not found in {projects_path}")
-            try:
-                create = ask_clarifying_choice("Should Claude create it during the deployment phase?", ["yes", "no"], default="yes")
-            except UserQuit:
-                raise
-            if create == "yes":
-                default_create_path = str(Path.cwd() / repo)
-                create_path = ask_clarifying_text(f"Path to create the project at? (default: {default_create_path})", default=default_create_path)
-                cfg["local_path"] = create_path or default_create_path
-                cfg["create_repo"] = True
-                save_config(name, cfg)
-
-    # Q2: organization (skip if repo already exists locally)
-    if not repo_found:
-        default_org = cfg.get("org")
-        org_choices = ORGS + ["other"]
-        org_default = default_org if default_org in org_choices else None
-        org = ask_choice(2, "What is the organization for this GitHub repo?", org_choices, default=org_default, required=True)
-        if org == "other":
-            org = ask_clarifying_text("What is the name of the organization?", default=default_org if default_org not in ORGS else "")
-            if not org:
-                org = "other"
-        cfg["org"] = org
-        save_config(name, cfg)
-
-    # Q3: domain
-    default_domain = cfg.get("domain", "")
-    domain = ask_text(3, "What is the domain name for this family of websites and services?", default=default_domain)
-    cfg["domain"] = domain
-    save_config(name, cfg)
-
-    # Q4: website type
-    ws = cfg.get("website", {})
-    default_ws_type = ws.get("type")
-    ws_type = ask_choice(4, "What type of user-facing website do you want to deploy?", ["new", "existing", "none"], default=default_ws_type, required=True)
-    ws["type"] = ws_type
-
-    if ws_type == "none":
-        ws.pop("domain", None)
-        ws.pop("addons", None)
-    else:
-        # Q4.1: website domain
-        ws_domain_default = ws.get("domain") or domain
-        ws_domain = ask_clarifying_text(f"What domain name should we configure for this site? (default: {domain})", default=ws_domain_default)
-        ws["domain"] = ws_domain or domain
-
-        # Q4.2: website addons
-        addon_choices = ["sqlite database", "key-value storage", "file storage"]
-        addon_defaults = ws.get("addons", [])
-        addons = ask_clarifying_list(f"What addons do you want for {ws.get('domain', domain)}?", addon_choices, defaults=addon_defaults)
-        ws["addons"] = addons
-
-    cfg["website"] = ws
-    save_config(name, cfg)
-
-    # Q5: backend
-    be = cfg.get("backend", {})
-    be_default = "yes" if be.get("enabled") else "no"
-    be_answer = ask_choice(5, f"Do you want a backend for {domain}?", ["yes", "no"], default=be_default)
-
-    if be_answer == "no":
-        be = {"enabled": False}
-    else:
-        be["enabled"] = True
-        be["type"] = "full"
-        be_domain_default = be.get("domain") or f"backend.{domain}"
-        be_domain = ask_clarifying_text(f"What domain for the backend? (default: backend.{domain})", default=be_domain_default)
-        be["domain"] = be_domain or f"backend.{domain}"
-
-        # API docs site
-        api_domain_default = be.get("docs_domain") or f"api.{domain}"
-        docs_answer = ask_clarifying_choice(
-            f"Deploy an API docs site at {api_domain_default}?",
-            ["yes", "no"],
-            default="yes" if be.get("docs_domain") else "no",
-        )
-        if docs_answer == "yes":
-            docs_domain = ask_clarifying_text(f"Domain for the API docs site? (default: api.{domain})", default=api_domain_default)
-            be["docs_domain"] = docs_domain or api_domain_default
-        else:
-            be.pop("docs_domain", None)
-
-        # Backend environments
-        env_choices = ["staging", "testing"]
-        env_defaults = [e for e in env_choices if be.get("environments", {}).get(e)]
-        envs = ask_clarifying_list("Which additional environments do you want?", env_choices, defaults=env_defaults)
-        environments = be.get("environments", {})
-        for env in env_choices:
-            if env in envs:
-                environments[env] = True
-            else:
-                environments.pop(env, None)
-        if environments:
-            be["environments"] = environments
-        else:
-            be.pop("environments", None)
-
-    cfg["backend"] = be
-    save_config(name, cfg)
-
-    # Q6: admin sites
-    admin_sites = cfg.get("admin_sites", {})
-    admin_choices = ["admin", "dashboard"]
-    admin_defaults = [s for s in admin_choices if admin_sites.get(s, {}).get("enabled")]
-    selected_admin = ask_list(6, f"What admin sites do you want for {domain}?", admin_choices, defaults=admin_defaults)
-
-    for site_type in admin_choices:
-        s = admin_sites.get(site_type, {})
-        if site_type in selected_admin:
-            s["enabled"] = True
-            s_domain_default = s.get("domain") or f"{site_type}.{domain}"
-            s_domain = ask_clarifying_text(f"What domain name should we configure for {site_type}? (default: {site_type}.{domain})", default=s_domain_default)
-            s["domain"] = s_domain or f"{site_type}.{domain}"
-        else:
-            s["enabled"] = False
-            s.pop("domain", None)
-        admin_sites[site_type] = s
-
-    cfg["admin_sites"] = admin_sites
-    save_config(name, cfg)
-
-    # Q7: auth providers
-    auth_choices = ["email/password", "github", "google", "apple"]
-    auth_defaults = cfg.get("auth_providers", ["email/password"])
-    providers = ask_list(7, f"What types of authentication should we configure for {domain}?", auth_choices, defaults=auth_defaults)
-    cfg["auth_providers"] = providers
-    save_config(name, cfg)
-
-    return name
-
 
 # ── Commands ────────────────────────────────────────────────────────────────
 
@@ -625,25 +346,19 @@ def cmd_delete(config_name: str | None) -> None:
         return
 
     if not config_name:
-        try:
-            config_name = ask_choice(None, "Which configuration do you want to delete?", configs)
-        except UserQuit:
-            return
-
-    try:
-        confirm = ask_choice(None, f"Delete '{config_name}'? This cannot be undone.", ["no", "yes"], default="no")
-    except UserQuit:
+        print("Available configurations:")
+        for c in configs:
+            print(f"  {c}")
+        print("Usage: configurator --delete <name>")
         return
 
-    if confirm == "yes":
-        delete_config(config_name)
-        print(f"Configuration '{config_name}' deleted.")
-    else:
-        print("Cancelled.")
+    delete_config(config_name)
+    print(f"Configuration '{config_name}' deleted.")
 
 
-def cmd_configure(*, tui: bool = False) -> None:
-    # Check if we're in a deployed project directory
+def cmd_configure() -> None:
+    from configurator.web import serve_editor
+
     cwd = Path.cwd()
     manifest = _load_manifest(cwd)
 
@@ -655,169 +370,36 @@ def cmd_configure(*, tui: bool = False) -> None:
         if manifest_version:
             print(f"  Deployed with configurator v{manifest_version}")
 
-        # Show new options only if the manifest is behind current version
         if manifest_version and _parse_version(manifest_version) < _parse_version(__version__):
             _show_new_options(manifest_version)
 
-        # Build config from manifest, merging in saved preferences
         name = project_name
         saved = load_config(name)
         cfg = _manifest_to_config(manifest, saved=saved or None)
         cfg["local_path"] = str(cwd.resolve())
 
-        # Detect org from git remote if not in manifest
         if "org" not in cfg:
             org = _detect_org_from_git(cwd)
             if org:
                 cfg["org"] = org
 
-        # Delete any existing draft config for this project
         delete_config(name)
-
         save_config(name, cfg)
-        print()
-        print("  Draft configuration from current deployment:")
-        show_config(name)
 
-        if tui:
-            try:
-                proceed = ask_choice(None, "Edit this configuration?", ["yes", "no"], default="yes")
-            except UserQuit:
-                delete_config(name)
-                return
-
-            if proceed == "no":
-                delete_config(name)
-                return
-
-            questions_started = False
-            try:
-                questions_started = True
-                name = run_questions(name, cfg)
-            except UserQuit:
-                if questions_started and name:
-                    try:
-                        delete_it = ask_choice(None, f"Delete the draft configuration '{name}'?", ["yes", "no"], default="yes")
-                    except UserQuit:
-                        delete_it = "yes"
-                    if delete_it == "yes":
-                        delete_config(name)
-                        print(f"Draft configuration '{name}' deleted.")
-                    else:
-                        print(f"Draft configuration '{name}' saved.")
-                return
-
-            # Show and confirm
-            show_config(name)
-            try:
-                ok = ask_choice(None, "Does that look ok?", ["yes", "no"], default="yes")
-            except UserQuit:
-                print(f"Configuration '{name}' saved.")
-                return
-
-            if ok == "no":
-                cfg = load_config(name)
-                try:
-                    run_questions(name, cfg)
-                    show_config(name)
-                except UserQuit:
-                    print(f"Configuration '{name}' saved.")
-                    return
-
-            command = f"/configurator {name}"
-            try:
-                subprocess.run(["pbcopy"], input=command.encode(), check=True)
-                print(f"To deploy, run '{command}' in Claude (command copied to clipboard)")
-            except (FileNotFoundError, subprocess.CalledProcessError):
-                print(f"To deploy, run '{command}' in Claude")
-        else:
-            # Web editor
-            from configurator.web import serve_editor
-            deployed = _deployed_keys_from_manifest(manifest)
-            # Also mark org as deployed if we detected it from git
-            if cfg.get("org"):
-                deployed.add("org")
-            urls = _extract_urls_from_manifest(manifest)
-            live = _check_live_domains(manifest)
-            action = serve_editor(name, cfg, deployed_keys=deployed, urls=urls, live_domains=live)
-            print(f"ACTION:{action}")
-
-        return
-
-    # No manifest in cwd — standard flow
-    configs = list_configs()
-    menu = configs + ["New configuration"]
-
-    try:
-        chosen = ask_choice(None, "Choose a configuration:", menu)
-    except UserQuit:
-        return
-
-    if chosen == "New configuration":
-        name = None
-        cfg: dict = {}
-    else:
-        name = chosen
-        cfg = load_config(name)
-
-    if tui:
-        questions_started = False
-        try:
-            questions_started = True
-            name = run_questions(name, cfg)
-        except UserQuit:
-            if questions_started and name:
-                try:
-                    delete_it = ask_choice(None, f"Delete the configuration '{name}'?", ["no", "yes"], default="no")
-                except UserQuit:
-                    delete_it = "no"
-                if delete_it == "yes":
-                    delete_config(name)
-                    print(f"Configuration '{name}' deleted.")
-                else:
-                    print(f"Configuration '{name}' saved (partial).")
-            return
-
-        # Show the completed config
-        show_config(name)
-
-        # Confirm
-        try:
-            ok = ask_choice(None, "Does that look ok?", ["yes", "no"], default="yes")
-        except UserQuit:
-            print(f"Configuration '{name}' saved.")
-            return
-
-        if ok == "no":
-            # Restart with current answers pre-populated
-            cfg = load_config(name)
-            try:
-                run_questions(name, cfg)
-                show_config(name)
-            except UserQuit:
-                print(f"Configuration '{name}' saved.")
-                return
-
-        command = f"/configurator {name}"
-        try:
-            subprocess.run(["pbcopy"], input=command.encode(), check=True)
-            print(f"To deploy, run '{command}' in Claude (command copied to clipboard)")
-        except (FileNotFoundError, subprocess.CalledProcessError):
-            print(f"To deploy, run '{command}' in Claude")
-    else:
-        # For new configs without a manifest, we need a name first
-        if name is None:
-            try:
-                repo = ask_text(1, "What is the name of the GitHub repo for this project?", required=True)
-            except UserQuit:
-                return
-            name = repo
-            cfg["repo"] = repo
-            save_config(name, cfg)
-
-        from configurator.web import serve_editor
-        action = serve_editor(name, cfg, deployed_keys=set())
+        deployed = _deployed_keys_from_manifest(manifest)
+        if cfg.get("org"):
+            deployed.add("org")
+        urls = _extract_urls_from_manifest(manifest)
+        live = _check_live_domains(manifest)
+        action = serve_editor(name, cfg, deployed_keys=deployed, urls=urls, live_domains=live)
         print(f"ACTION:{action}")
+        return
+
+    # No manifest — use cwd name or first saved config
+    name = cwd.name
+    cfg = load_config(name) or {}
+    action = serve_editor(name, cfg, deployed_keys=set())
+    print(f"ACTION:{action}")
 
 
 # ── Keychain credentials ───────────────────────────────────────────────────
@@ -884,7 +466,6 @@ def main() -> None:
     parser.add_argument("--show", nargs="?", const="", metavar="NAME", help="Show a configuration")
     parser.add_argument("--delete", nargs="?", const="", metavar="NAME", help="Delete a configuration")
     parser.add_argument("--set-credentials", action="store_true", help="Set deployment credentials in macOS Keychain")
-    parser.add_argument("--tui", action="store_true", help="Use terminal Q&A instead of web editor")
     parser.add_argument("--version", action="store_true", help="Show version")
     args = parser.parse_args()
 
@@ -904,4 +485,4 @@ def main() -> None:
         cmd_delete(args.delete or None)
         return
 
-    cmd_configure(tui=args.tui)
+    cmd_configure()

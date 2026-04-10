@@ -3,7 +3,7 @@ name: configurator
 description: "Configure or deploy a project. /configurator --configure opens the web editor, /configurator --deploy runs deployment. If neither is passed, asks which mode."
 version: "1.26.0"
 argument-hint: "[--configure|--deploy|<config-name>|add|deploy|update|verify|repair|status|manifest|seed-admin|go-live|--help|--version]"
-allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), Bash(configurator *), Bash(uv tool install *), AskUserQuestion
+allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), Bash(uv run *), AskUserQuestion
 model: sonnet
 ---
 
@@ -21,9 +21,9 @@ Deploy and manage a suite of up to 4 websites as a unified platform. Configurati
 
 **Step 0a — Ensure permissions**: Run `python3 ${CLAUDE_SKILL_DIR}/references/ensure-permissions.py ${CLAUDE_SKILL_DIR}/SKILL.md` to whitelist this skill's tools in `~/.claude/settings.json`. This is silent and idempotent.
 
-**Step 0b — Ensure CLI is installed**: Run `which configurator`. If the command exists, skip installation. If not found, run `uv tool install -e ${CLAUDE_SKILL_DIR}/configurator-cli` to install it. Never reinstall if already present — editable installs pick up source changes automatically.
+**Step 0b — Run CLI via uv run**: All CLI commands use: `uv run --project ${CLAUDE_SKILL_DIR}/configurator-cli configurator <args>`. No global install needed — uv resolves deps from the project directory each time.
 
-**CRITICAL**: The very first thing you output MUST be the version line. Get it by running `configurator --version`.
+**CRITICAL**: The very first thing you output MUST be the version line. Get it by running `uv run --project ${CLAUDE_SKILL_DIR}/configurator-cli configurator --version`.
 
 If `$ARGUMENTS` is `--version`, output the version line and stop.
 
@@ -69,7 +69,7 @@ All references to "manifest" in this skill mean `.site/manifest.json`.
 
 **Open the web editor to create or edit a project configuration. Does not deploy.**
 
-Run `configurator` in cwd to open the web editor. The user edits the config in the browser and clicks **Deploy** or **Cancel**.
+Run `uv run --project ${CLAUDE_SKILL_DIR}/configurator-cli configurator` in cwd to open the web editor. The user edits the config in the browser and clicks **Deploy** or **Cancel**.
 
 - If the output contains `ACTION:deploy`, tell the user the config was saved and they can run `/configurator --deploy` to deploy it.
 - If the output contains `ACTION:cancel`, tell the user the configuration was cancelled.
@@ -1854,7 +1854,7 @@ If the issues file doesn't exist or has no issues, print:
 Print:
 
 ```
-Configurator v1.19.0 — Deploy and manage website suites
+Configurator — Deploy and manage website suites
 
 Setup (run in terminal first):
   configurator                      Interactive config wizard — creates deployment spec
