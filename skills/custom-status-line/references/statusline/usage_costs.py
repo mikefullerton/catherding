@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from statusline.formatting import (
     ORANGE, RED, DIM, RST,
     visible_len, pad_right, pad_left,
+    extract_col_widths, reformat_columns,
 )
 
 USAGE_DB = os.path.expanduser("~/.claude/usage.db")
@@ -159,58 +160,35 @@ def run(claude_data: dict, lines: list) -> list:
     # Too early to project reliably
     too_early = elapsed_hours < 6
 
-    lbor = f"{ORANGE}|{RST} "
-    sep = f" {ORANGE}|{RST} "
+    lbor = "| "
+    sep = " | "
 
-    c1 = f"Today: {today_pct:.1f}%"
-    c2 = f"{remaining_days:.1f} days left"
+    c1 = f"weekly usage: {rate_7d:.1f}%"
+    c2 = f"today's usage: {today_pct:.1f}%"
+    c4 = f"{remaining_days:.1f}d left"
 
     if too_early:
-        c3 = f"{DIM}daily ave: --{RST}"
-        c4 = f"{DIM}projected: too early{RST}"
+        c3 = f"{DIM}daily usage ave: --{RST}"
+        c5 = f"{DIM}too early{RST}"
     else:
         daily_avg_pct = rate_7d / elapsed_days
         projected = daily_avg_pct * 7.0
+        c3 = f"daily usage ave: {daily_avg_pct:.1f}%"
+        c5 = f"{RED}{projected:.1f}%{RST} projected" if projected > 100.0 else f"{projected:.1f}% projected"
 
-        c3 = f"daily ave: {daily_avg_pct:.1f}%"
-
-        if projected > 100.0:
-            cost_per_pct = total_cost / rate_7d
-            proj_overage_api = (projected - 100.0) * cost_per_pct
-            proj_overage_actual = proj_overage_api * EXTENDED_USE_DISCOUNT
-            c4 = f"{RED}{projected:.1f}%{RST} projected (~${proj_overage_actual:.0f} extended use)"
-        else:
-            c4 = f"{projected:.1f}% projected"
-
-    # Match column widths from existing lines (base_info uses 4-column layout)
-    # Parse column widths by splitting an existing line on the separator
-    col_widths = _extract_col_widths(lines)
+    # Match column widths from existing lines, widen if usage content is wider
+    col_widths = extract_col_widths(lines)
     if col_widths and len(col_widths) >= 4:
-        c1 = pad_left(c1, col_widths[0])
-        c2 = pad_right(c2, col_widths[1])
-        c3 = pad_right(c3, col_widths[2])
+        uc_widths = [visible_len(c1), visible_len(c2), visible_len(c3), visible_len(c4)]
+        new_widths = [max(col_widths[i], uc_widths[i]) for i in range(4)]
 
-    lines.append(f"{lbor}{c1}{sep}{c2}{sep}{c3}{sep}{c4}")
+        if new_widths != col_widths[:4]:
+            reformat_columns(lines, col_widths, new_widths)
+
+        c1 = pad_left(c1, new_widths[0])
+        c2 = pad_right(c2, new_widths[1])
+        c3 = pad_right(c3, new_widths[2])
+        c4 = pad_right(c4, new_widths[3])
+
+    lines.append(f"{lbor}{c1}{sep}{c2}{sep}{c3}{sep}{c4}{sep}{c5}")
     return lines
-
-
-def _extract_col_widths(lines):
-    """Extract column visible widths from existing status lines.
-
-    Splits on the literal separator (' | ' with ANSI orange) used by
-    base_info.  The first part includes the leading '| ' border, so we
-    subtract 2 from its visible length to get the true column 1 width.
-    """
-    sep = f" {ORANGE}|{RST} "
-
-    # Prefer line index 3 (weekly usage) or 1 (model/stats) — both 4-col
-    for idx in (3, 1, 2):
-        if idx >= len(lines):
-            continue
-        parts = lines[idx].split(sep)
-        if len(parts) >= 4:
-            # Part 0 includes "| " border prefix (2 visible chars)
-            widths = [visible_len(parts[0]) - 2]
-            widths.extend(visible_len(p) for p in parts[1:])
-            return widths
-    return None

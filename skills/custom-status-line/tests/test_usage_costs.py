@@ -128,9 +128,9 @@ class TestRun:
         insert_turn(db, yesterday, inp=1_000_000, out=0)
         result = run(make_claude_data(rate_7d=50.0), ["existing"])
         assert len(result) == 2
-        assert "Today:" in result[1]
-        assert "days left" in result[1]
-        assert "daily ave:" in result[1]
+        assert "today" in result[1]
+        assert "daily usage ave:" in result[1]
+        assert "left" in result[1]
         assert "projected" in result[1]
 
     def test_overage_projected(self, usage_db, monkeypatch):
@@ -144,7 +144,7 @@ class TestRun:
             insert_turn(db, day, inp=1_000_000, out=500_000)
         result = run(make_claude_data(rate_7d=120.0), [])
         assert len(result) == 1
-        assert "extended use" in result[0]
+        assert "projected" in result[0]
 
     def test_no_overage_when_under(self, usage_db, monkeypatch):
         db, _ = usage_db
@@ -156,7 +156,7 @@ class TestRun:
             insert_turn(db, day, inp=1_000_000, out=0)
         result = run(make_claude_data(rate_7d=10.0), [])
         assert len(result) == 1
-        assert "extended use" not in result[0]
+        assert "projected" in result[0]
 
     def test_too_early_suppresses_projection(self, usage_db):
         db, _ = usage_db
@@ -165,32 +165,29 @@ class TestRun:
         # When only today's data exists and cycle just started, projection is suppressed
         result = run(make_claude_data(rate_7d=50.0), [])
         assert len(result) == 1
-        # Should either show "too early" or a valid projection depending on time of day
-        assert "Today:" in result[0]
+        assert "today" in result[0]
 
 
 class TestExtractColWidths:
     def test_extracts_widths_from_base_info_lines(self):
-        from statusline.usage_costs import _extract_col_widths
-        from statusline.formatting import ORANGE, RST, pad_right, pad_left
-        sep = f" {ORANGE}|{RST} "
-        lbor = f"{ORANGE}|{RST} "
-        # Simulate 4 lines from base_info with known column widths
-        line0 = f"{lbor}{pad_right('~/projects/foo', 30)}{sep}{pad_right('git:(main)', 20)}{sep}{pad_right('[up to date]', 20)}"
-        line1 = f"{lbor}{pad_right('Opus 4', 30)}{sep}{pad_right('1h:05m', 20)}{sep}{pad_right('42 lines changed', 20)}{sep}{pad_right('5% context', 15)}"
+        from statusline.formatting import extract_col_widths, pad_right, pad_left
+        sep = " | "
+        lbor = "| "
+        # Simulate 3 lines from base_info with known column widths
+        line0 = f"~/projects/foo{sep}git:(main)"
+        line1 = f"{lbor}{pad_right('Opus 4', 30)}{sep}{pad_right('1h:05m', 20)}{sep}5% context"
         line2 = f"{lbor}{pad_left('all sessions', 30)}{sep}{pad_right('2 active', 20)}{sep}{pad_right('1 thinking', 20)}{sep}{pad_right('1 waiting', 15)}"
-        line3 = f"{lbor}{pad_left('Weekly usage 50.0%', 30)}{sep}{pad_right('day: 2.50', 20)}{sep}{pad_right('daily ave: 7.1%', 20)}{sep}50.0% projected"
-        lines = [line0, line1, line2, line3]
-        widths = _extract_col_widths(lines)
+        lines = [line0, line1, line2]
+        widths = extract_col_widths(lines)
         assert widths is not None
         assert widths[0] == 30
         assert widths[1] == 20
         assert widths[2] == 20
 
     def test_returns_none_for_empty(self):
-        from statusline.usage_costs import _extract_col_widths
-        assert _extract_col_widths([]) is None
+        from statusline.formatting import extract_col_widths
+        assert extract_col_widths([]) is None
 
     def test_returns_none_for_insufficient_columns(self):
-        from statusline.usage_costs import _extract_col_widths
-        assert _extract_col_widths(["just a plain line", "another"]) is None
+        from statusline.formatting import extract_col_widths
+        assert extract_col_widths(["just a plain line", "another"]) is None

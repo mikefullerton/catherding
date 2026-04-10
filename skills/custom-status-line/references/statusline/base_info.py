@@ -133,84 +133,102 @@ def run(claude_data: dict, lines: list) -> list:
     lines_added = int((claude.get("cost") or {}).get("total_lines_added") or 0)
     lines_removed = int((claude.get("cost") or {}).get("total_lines_removed") or 0)
     session_name = claude.get("session_name") or ""
-    total_changes = lines_added + lines_removed
     rate_5h = float(((claude.get("rate_limits") or {}).get("five_hour") or {}).get("used_percentage") or 0)
     rate_7d = float(((claude.get("rate_limits") or {}).get("seven_day") or {}).get("used_percentage") or 0)
     session_id = claude.get("session_id") or ""
 
     duration = format_duration(duration_ms)
 
-    # Project path — strip worktree suffixes
+    # Project name — extract worktree name, then strip suffixes
     cwd = claude.get("cwd", "")
+    worktree_name = ""
     for suffix in ["/.claude/worktrees/", "/.worktrees/"]:
         if suffix in cwd:
+            worktree_name = cwd[cwd.index(suffix) + len(suffix):].split("/")[0]
             cwd = cwd[:cwd.index(suffix)]
+            break
     home = os.path.expanduser("~")
-    if cwd.startswith(home):
-        cwd = "~" + cwd[len(home):]
+    cwd = cwd.replace(home, "~") if cwd.startswith(home) else cwd
 
     # Git info
     branch = git_cmd("rev-parse", "--abbrev-ref", "HEAD")
 
-    sep = f" {ORANGE}|{RST} "
+    sep = " | "
 
-    # Detect worktree
-    is_worktree = False
-    git_dir = git_cmd("rev-parse", "--git-dir")
-    if git_dir and "/worktrees/" in git_dir:
-        is_worktree = True
+    # Detect worktree — prefer the field Claude provides, fall back to git
+    wt_field = (claude.get("workspace") or {}).get("git_worktree")
+    if wt_field is not None:
+        is_worktree = bool(wt_field)
+    else:
+        git_dir = git_cmd("rev-parse", "--git-dir")
+        is_worktree = bool(git_dir and "/worktrees/" in git_dir)
 
     # LINE 1
     l1c1 = f"{BLUE}{cwd}{RST}"
-    if session_name:
-        l1c1 += f" {DIM}({session_name}){RST}"
 
     l1c2 = ""
-    l1c3 = ""
+    gs1 = ""
+    gs2 = ""
+    gs3 = ""
+    gs4 = ""
     if branch:
-        dirty = git_cmd("status", "--porcelain")
-        dirty_count = len(dirty.splitlines()) if dirty else 0
+        porcelain = git_cmd("status", "--porcelain")
+        added = 0
+        deleted = 0
+        changed = 0
+        if porcelain:
+            for line in porcelain.splitlines():
+                code = line[:2]
+                if code == "??":
+                    added += 1
+                elif "D" in code:
+                    deleted += 1
+                else:
+                    changed += 1
 
-        if is_worktree:
-            l1c2 = f"{GREEN}git-worktree{RST}:({YELLOW}{branch}{RST})"
+        l1c2 = f"git:({YELLOW}{branch}{RST})"
+
+        UP = "\u2191"
+        DN = "\u2193"
+
+        def _c(n, sym):
+            s = f"{sym}{n}"
+            return f"{YELLOW}{s}{RST}" if n > 0 else s
+
+        gs1 = "git"
+        gs2 = f"files: {_c(changed, '~')} {_c(added, '+')} {_c(deleted, '-')}"
+
+        has_remote = bool(git_cmd("rev-parse", "--verify", f"origin/{branch}"))
+        if has_remote:
+            ahead_remote = git_cmd("rev-list", "--count", f"origin/{branch}..HEAD")
+            ahead_remote = int(ahead_remote) if ahead_remote else 0
+            behind_remote = git_cmd("rev-list", "--count", f"HEAD..origin/{branch}")
+            behind_remote = int(behind_remote) if behind_remote else 0
+            if ahead_remote == 0 and behind_remote == 0:
+                gs3 = f"remote: {DIM}in sync{RST}"
+            else:
+                gs3 = f"remote: {_c(ahead_remote, UP)}{_c(behind_remote, DN)}"
         else:
-            l1c2 = f"git:({YELLOW}{branch}{RST})"
-
-        stats_parts = []
-        if dirty_count > 0:
-            stats_parts.append(f"{dirty_count} files changed")
+            gs3 = f"remote: {DIM}none{RST}"
 
         if branch not in ("main", "master"):
             commits = git_cmd("rev-list", "--count", "main..HEAD")
-            if commits and int(commits) > 0:
-                stats_parts.append(f"{commits} commits")
-            behind = git_cmd("rev-list", "--count", "HEAD..main")
-            if behind and int(behind) > 0:
-                stats_parts.append(f"{behind} behind main")
+            commits = int(commits) if commits else 0
+            behind_main = git_cmd("rev-list", "--count", "HEAD..main")
+            behind_main = int(behind_main) if behind_main else 0
+            if commits == 0 and behind_main == 0:
+                gs4 = f"main: {DIM}in sync{RST}"
+            else:
+                gs4 = f"main: {_c(commits, UP)}{_c(behind_main, DN)}"
         else:
-            ahead = git_cmd("rev-list", "--count", "origin/main..HEAD")
-            if ahead and int(ahead) > 0:
-                stats_parts.append(f"{ahead} ahead of remote")
-            behind = git_cmd("rev-list", "--count", "HEAD..origin/main")
-            if behind and int(behind) > 0:
-                stats_parts.append(f"{behind} behind remote")
-
-        if not stats_parts:
-            stats_parts.append("up to date")
-        l1c3 = f"[{', '.join(stats_parts)}]"
+            gs4 = ""
 
     # LINE 2
-    settings_path = os.path.expanduser("~/.claude/settings.json")
-    effort = ""
-    try:
-        with open(settings_path) as f:
-            effort = json.load(f).get("effortLevel", "")
-    except (OSError, json.JSONDecodeError):
-        pass
+    ctx_size = int((claude.get("context_window") or {}).get("context_window_size") or 200000)
+    exceeds_200k = bool(claude.get("exceeds_200k_tokens"))
+    ctx_label = "1M" if ctx_size > 200000 else "200k"
 
     l2c1 = model_name
-    if effort:
-        l2c1 += f", {effort}"
 
     # YOLO indicator (appended as last column on line 2)
     yolo_col = ""
@@ -222,44 +240,22 @@ def run(claude_data: dict, lines: list) -> list:
                     yolo_data = json.load(f)
                 needs_restart = yolo_data.get("needs_restart", False)
                 if needs_restart:
-                    yolo_col = f"{RED}\U0001f525 YOLO{RST} {DIM}(needs restart){RST}"
+                    yolo_col = f"{RED}YOLO \U0001f525{RST} {DIM}(needs restart){RST}"
                 else:
-                    yolo_col = f"{RED}\U0001f525 YOLO{RST}"
+                    yolo_col = f"{RED}YOLO \U0001f525{RST}"
             except (OSError, json.JSONDecodeError):
-                yolo_col = f"{RED}\U0001f525 YOLO{RST}"
+                yolo_col = f"{RED}YOLO \U0001f525{RST}"
 
     l2c2 = duration
-    l2c3 = f"{total_changes} lines changed"
 
     used_pct = 100 - rem_pct
-    is_opus_1m = "opus" in model_name.lower() and "1m" in model_name.lower()
-    if is_opus_1m and used_pct > 20:
-        context_col = f"{RED}{used_pct}% context used (compact needed){RST}"
-    elif is_opus_1m and used_pct >= 18:
-        context_col = f"{YELLOW}{used_pct}% context used{RST}"
+
+    if exceeds_200k:
+        l2c3 = f"{RED}{used_pct}% of {ctx_label} context (extended){RST}"
+    elif ctx_size > 200000 and used_pct > 20:
+        l2c3 = f"{YELLOW}{used_pct}% of {ctx_label} context{RST}"
     else:
-        context_col = f"{used_pct}% context used"
-
-    # LINE 3
-    elapsed_hours, wed_10am = get_wed_10am_elapsed_hours()
-    proj = compute_projection(rate_7d, elapsed_hours)
-
-    too_early = elapsed_hours < 6
-
-    if too_early:
-        l3c4 = f"{DIM}projected: too early{RST}"
-        l3c3 = f"{DIM}daily ave: --{RST}"
-    elif proj["projected"] > 100.0:
-        l3c4 = f"{RED}{proj['projected']}%{RST} projected (~${proj['overage_dollars']} overage)"
-        l3c3 = f"daily ave: {proj['daily_avg']:.1f}%"
-    else:
-        l3c4 = f"{proj['projected']}% projected"
-        l3c3 = f"daily ave: {proj['daily_avg']:.1f}%"
-
-    l3c1 = f"Weekly usage {rate_7d:.1f}%"
-    l3c2 = f"day: {proj['elapsed_day']:.2f}"
-
-    l2c4 = context_col
+        l2c3 = f"{used_pct}% of {ctx_label} context"
 
     # SESSION LINE
     sessions_dir = os.path.expanduser("~/.claude-status-line/sessions")
@@ -289,27 +285,46 @@ def run(claude_data: dict, lines: list) -> list:
     sc3 = f"{s_thinking} thinking"
     sc4 = f"{s_waiting} waiting"
 
-    # Column alignment
-    col1_w = max(visible_len(l1c1), visible_len(l2c1), visible_len(sc1), visible_len(l3c1))
-    col2_w = max(visible_len(l1c2), visible_len(l2c2), visible_len(sc2), visible_len(l3c2))
-    col3_w = max(visible_len(l1c3), visible_len(l2c3), visible_len(sc3), visible_len(l3c3))
-    col4_w = max(visible_len(l2c4), visible_len(sc4), visible_len(l3c4))
+    # Column alignment — line 1 is free-form, align lines 2+ only
+    col1_w = max(visible_len(gs1), visible_len(l2c1), visible_len(sc1))
+    col2_w = max(visible_len(gs2), visible_len(l2c2), visible_len(sc2))
+    col3_w = max(visible_len(gs3), visible_len(l2c3), visible_len(sc3))
+    col4_w = max(visible_len(gs4), visible_len(sc4))
 
-    lbor = f"{ORANGE}|{RST} "
+    # Session name as col0 on model line only
+    col0_val = session_name + sep
 
-    line1 = f"{lbor}{pad_right(l1c1, col1_w)}"
+    lbor = "| "
+
+    # Pad path so git:(branch) aligns with col3 of rows below
+    path_w = col1_w + col2_w + 5  # accounts for lbor(2) + sep(3)
+    l1c1 = pad_right(l1c1, path_w)
+
+    line1 = f"{l1c1}"
     if branch:
-        line1 += f"{sep}{pad_right(l1c2, col2_w)}{sep}{pad_right(l1c3, col3_w)}"
+        line1 += f"{sep}{l1c2}"
+    if is_worktree and worktree_name:
+        line1 += f"{sep}{GREEN}worktree{RST}:({YELLOW}{worktree_name}{RST})"
 
-    line2 = f"{lbor}{pad_right(l2c1, col1_w)}{sep}{pad_right(l2c2, col2_w)}{sep}{pad_right(l2c3, col3_w)}{sep}{pad_right(l2c4, col4_w)}"
+    result = [line1]
+
+    if branch:
+        git_line = f"{lbor}{pad_left(gs1, col1_w)}{sep}{pad_right(gs2, col2_w)}{sep}{pad_right(gs3, col3_w)}"
+        if gs4:
+            git_line += f"{sep}{gs4}"
+        result.append(git_line)
+
+    line2 = f"{lbor}{col0_val}{pad_left(l2c1, col1_w)}{sep}{pad_right(l2c2, col2_w)}{sep}{pad_right(l2c3, col3_w)}"
     if yolo_col:
-        line2 += f"  {yolo_col}"
+        line2 += f"{sep}{yolo_col}"
 
     session_line = f"{lbor}{pad_left(sc1, col1_w)}{sep}{pad_right(sc2, col2_w)}{sep}{pad_right(sc3, col3_w)}{sep}{pad_right(sc4, col4_w)}"
 
-    line3 = f"{lbor}{pad_left(l3c1, col1_w)}{sep}{pad_right(l3c2, col2_w)}{sep}{pad_right(l3c3, col3_w)}{sep}{l3c4}"
+    result.extend([line2, session_line])
 
     # Log to SQLite (non-blocking)
+    elapsed_hours, wed_10am = get_wed_10am_elapsed_hours()
+    proj = compute_projection(rate_7d, elapsed_hours)
     log_to_db(claude, session_id, used_pct, proj, rate_5h, rate_7d, wed_10am, elapsed_hours)
 
-    return [line1, line2, session_line, line3]
+    return result

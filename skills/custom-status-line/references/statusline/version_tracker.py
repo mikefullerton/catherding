@@ -3,7 +3,11 @@
 import json
 import os
 
-from statusline.formatting import BLUE, YELLOW, GREEN, ORANGE, DIM, RST
+from statusline.formatting import (
+    YELLOW, GREEN, DIM, RST,
+    visible_len, pad_right, pad_left,
+    extract_col_widths, reformat_columns,
+)
 
 
 VERSION_FILE = os.path.expanduser("~/.claude-status-line/claude_version.json")
@@ -48,15 +52,29 @@ def run(claude_data: dict, lines: list) -> list:
     current_fields = set(extract_paths(claude_data))
     new_fields = sorted(current_fields - known_fields)
 
-    lbor = f"{ORANGE}|{RST} "
-    sep = f" {ORANGE}|{RST} "
+    lbor = "| "
+    sep = " | "
 
-    version_part = f"{YELLOW}claude updated to {current_version}{RST} (built against {built_against})"
+    v1 = "claude upgrade"
+    v2 = f"{YELLOW}{current_version}{RST} (from {built_against})"
     if new_fields:
         count = len(new_fields)
-        fields_part = f"{GREEN}{count} new field{'s' if count != 1 else ''}{RST}"
+        v3 = f"{GREEN}{count} new field{'s' if count != 1 else ''}{RST}"
     else:
-        fields_part = f"{DIM}no new fields{RST}"
+        v3 = f"{DIM}no new fields{RST}"
 
-    lines.append(f"{lbor}{version_part}{sep}{fields_part}")
+    # Match column widths from existing lines, widen if version content is wider
+    col_widths = extract_col_widths(lines)
+    if col_widths and len(col_widths) >= 3:
+        vc_widths = [visible_len(v1), visible_len(v2), visible_len(v3)]
+        new_widths = [max(col_widths[i], vc_widths[i]) for i in range(3)]
+
+        if new_widths != col_widths[:3]:
+            reformat_columns(lines, col_widths, new_widths)
+
+        v1 = pad_left(v1, new_widths[0])
+        v2 = pad_right(v2, new_widths[1])
+        v3 = pad_right(v3, new_widths[2])
+
+    lines.append(f"{lbor}{v1}{sep}{v2}{sep}{v3}")
     return lines
