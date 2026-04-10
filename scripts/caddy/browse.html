@@ -172,31 +172,21 @@ li:hover .site-title { color: var(--accent); }
   font-family: var(--mono);
   font-size: 0.72rem;
   color: var(--text-dim);
-  padding: 0.25rem 0;
-  border-bottom: 1px solid rgba(42, 42, 54, 0.5);
-}
-.log-row {
+  padding: 0.2rem 0;
   display: flex;
-  gap: 1rem;
+  gap: 0.8rem;
   align-items: baseline;
+  white-space: nowrap;
+  overflow: hidden;
 }
-.log-time { color: var(--text-dim); min-width: 7ch; flex-shrink: 0; }
-.log-action { min-width: 9ch; flex-shrink: 0; }
+.log-time { color: var(--text-dim); flex-shrink: 0; }
+.log-action { flex-shrink: 0; }
 .log-installed { color: var(--added); }
 .log-removed { color: var(--removed); }
 .log-present { color: var(--text-muted); }
-.log-name { color: var(--accent); }
-.log-detail {
-  font-size: 0.68rem;
-  color: var(--text-muted);
-  padding-left: calc(7ch + 1rem);
-  padding-top: 0.1rem;
-}
-.log-detail-desc {
-  font-size: 0.65rem;
-  color: var(--text-dim);
-  padding-left: calc(7ch + 1rem);
-}
+.log-name { color: var(--accent); flex-shrink: 0; }
+.log-file { color: var(--text-dim); flex-shrink: 0; }
+.log-desc { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; }
 .log-empty {
   font-family: var(--mono);
   font-size: 0.75rem;
@@ -448,47 +438,41 @@ function pollLog() {
           var div = document.createElement("div");
           div.className = "log-entry";
 
-          // Main row: time, action, name
-          var row = document.createElement("div");
-          row.className = "log-row";
-
           var time = document.createElement("span");
           time.className = "log-time";
           var d = new Date(entry.time);
           time.textContent = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-          row.appendChild(time);
+          div.appendChild(time);
 
           var action = document.createElement("span");
           action.className = "log-action log-" + entry.action;
           action.textContent = entry.action;
-          row.appendChild(action);
+          div.appendChild(action);
 
-          var displayName = entry.title || entry.name;
           var name = document.createElement("span");
           name.className = "log-name";
-          name.textContent = displayName;
-          row.appendChild(name);
+          name.textContent = entry.title || entry.name;
+          div.appendChild(name);
 
-          div.appendChild(row);
+          if (entry.title && entry.title !== entry.name) {
+            var file = document.createElement("span");
+            file.className = "log-file";
+            file.textContent = entry.name;
+            div.appendChild(file);
+          }
 
-          // Detail row: description or duration
           if (entry.description) {
-            var desc = document.createElement("div");
-            desc.className = "log-detail-desc";
+            var desc = document.createElement("span");
+            desc.className = "log-desc";
             desc.textContent = entry.description;
             div.appendChild(desc);
           }
+
           if (entry.duration) {
-            var dur = document.createElement("div");
-            dur.className = "log-detail";
-            dur.textContent = "ran for " + entry.duration;
+            var dur = document.createElement("span");
+            dur.className = "log-desc";
+            dur.textContent = "(" + entry.duration + ")";
             div.appendChild(dur);
-          }
-          if (entry.title && entry.title !== entry.name) {
-            var fileRow = document.createElement("div");
-            fileRow.className = "log-detail-desc";
-            fileRow.textContent = entry.name;
-            div.appendChild(fileRow);
           }
 
           logDiv.appendChild(div);
