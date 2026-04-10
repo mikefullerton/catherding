@@ -334,10 +334,10 @@ def run(claude_data: dict, lines: list) -> list:
 
     duration = format_duration(duration_ms)
 
-    # Path relative to ~
-    cwd = claude.get("cwd", "")
+    # Project path relative to ~ (stable across cd)
+    project_dir = (claude.get("workspace") or {}).get("project_dir") or claude.get("cwd", "")
     home = os.path.expanduser("~")
-    display_path = cwd.replace(home, "~") if cwd.startswith(home) else cwd
+    display_path = project_dir.replace(home, "~") if project_dir.startswith(home) else project_dir
 
     # Git info
     branch = git_cmd("rev-parse", "--abbrev-ref", "HEAD")
