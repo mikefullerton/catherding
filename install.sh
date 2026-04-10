@@ -60,15 +60,15 @@ CADDY_BLOCK=$(cat <<'CADDY_EOF'
 
 An always-on Caddy server is available for tools that need to serve web content locally. **Use it instead of spawning one-off HTTP servers** (`python -m http.server`, `npx serve`, etc.).
 
-Use `caddy_routes` (installed to `~/.local/bin/`) to publish and manage content:
+Drop content into `~/www/<name>/` — it's immediately live at `http://localhost:2080/<name>/`. The root page at `http://localhost:2080` auto-refreshes to list all published sites.
+
+Use `caddy_routes` (installed to `~/.local/bin/`):
 
 ```bash
 caddy_routes publish my-tool /path/to/output.html   # copy to ~/www/my-tool/, live at localhost:2080/my-tool/
 caddy_routes publish my-tool /path/to/output-dir/    # publish a directory
 caddy_routes unpublish my-tool                       # remove ~/www/my-tool/
-caddy_routes add /my-tool /path/to/dir --browse      # dynamic route (serves in-place, cleared on restart)
-caddy_routes remove /my-tool                         # remove dynamic route
-caddy_routes list                                    # show published sites and dynamic routes
+caddy_routes list                                    # show published sites
 caddy_routes status                                  # check if Caddy is running
 ```
 
@@ -79,10 +79,8 @@ url = publish("my-tool", "/path/to/output.html")  # returns live URL
 unpublish("my-tool")
 ```
 
-- **Publish** (`~/www/<name>/`) for generated HTML, reports, tool output — persists across restarts
-- **Dynamic routes** for large or frequently changing dirs — cleared on Caddy restart
 - **Service control**: `brew services start/stop/restart caddy`
-- **Caddyfile**: `/opt/homebrew/etc/Caddyfile` — for permanent routes
+- **Caddyfile**: `/opt/homebrew/etc/Caddyfile`
 <!-- END CADDY -->
 CADDY_EOF
 )
