@@ -32,7 +32,4 @@ for pyproject in "$REPO_DIR"/skills/*/*/pyproject.toml; do
 done
 
 echo ""
-"$REPO_DIR/devtools-local-web-server/uninstall.sh"
-
-echo ""
 echo "Done."

@@ -31,7 +31,4 @@ for pyproject in "$REPO_DIR"/skills/*/*/pyproject.toml; do
 done
 
 echo ""
-"$REPO_DIR/devtools-local-web-server/install.sh"
-
-echo ""
 echo "Done."
