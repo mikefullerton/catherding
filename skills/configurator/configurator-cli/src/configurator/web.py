@@ -329,6 +329,9 @@ input[type="checkbox"] {{ accent-color: var(--accent); }}
     white-space: pre-wrap; word-break: break-word;
     padding: 0.4rem 0; margin: 0;
 }}
+.manifest-dim {{ color: var(--fg-dim); }}
+.manifest-new {{ color: var(--green); }}
+.manifest-changed {{ color: var(--accent); }}
 
 /* Secrets */
 .secret-list {{ display: flex; flex-direction: column; gap: 0.5rem; }}
@@ -393,6 +396,7 @@ input[type="checkbox"] {{ accent-color: var(--accent); }}
 
 <script>
 const CONFIG = {config_json};
+const ORIGINAL_CONFIG = JSON.parse(JSON.stringify(CONFIG));
 const DEPLOYED = new Set({deployed_json});
 const URLS = {urls_json};
 const LIVE = new Set({live_json});
@@ -466,6 +470,37 @@ function filterConfig(obj) {{
     return obj;
 }}
 
+// Manifest diff renderer — escapes all user content before inserting
+function escHtml(s) {{
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}}
+
+function renderManifestDiff(current, original) {{
+    const lines = JSON.stringify(current, null, 2).split("\\n");
+    const origStr = JSON.stringify(filterConfig(original), null, 2) || "{{}}";
+    const hasDeployed = DEPLOYED.size > 0;
+
+    if (!hasDeployed) {{
+        return lines.map(l => escHtml(l)).join("\\n");
+    }}
+
+    return lines.map(line => {{
+        const m = line.match(/^(\\s*)"([^"]+)":\\s*(.+?)\\s*,?$/);
+        if (!m) return '<span class="manifest-dim">' + escHtml(line) + '</span>';
+
+        const key = m[2];
+        const valStr = m[3].replace(/,$/, "");
+
+        if (origStr.includes('"' + key + '"') && origStr.includes(valStr)) {{
+            return '<span class="manifest-dim">' + escHtml(line) + '</span>';
+        }}
+        if (origStr.includes('"' + key + '"')) {{
+            return '<span class="manifest-changed">' + escHtml(line) + '</span>';
+        }}
+        return '<span class="manifest-new">' + escHtml(line) + '</span>';
+    }}).join("\\n");
+}}
+
 // Nav switching
 function switchPanel(cat) {{
     for (const p of $$(".panel")) p.style.display = "none";
@@ -474,7 +509,10 @@ function switchPanel(cat) {{
     for (const a of $$("nav a")) a.classList.toggle("active", a.dataset.cat === cat);
     if (cat === "manifest") {{
         const cfg = filterConfig(readForm());
-        $("#manifest-json").textContent = JSON.stringify(cfg, null, 2);
+        const el = $("#manifest-json");
+        el.textContent = "";
+        // Safe: renderManifestDiff escapes all user content via escHtml
+        el.innerHTML = renderManifestDiff(cfg, ORIGINAL_CONFIG);  // nosec: content escaped via escHtml
     }}
 }}
 
