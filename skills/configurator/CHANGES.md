@@ -2,6 +2,13 @@
 
 Changes to what the configurator deploys. Each entry represents a new deployment option, improved template, or fix that affects deployed projects. The CLI shows relevant changes when a project's manifest version is behind the current configurator version.
 
+## 1.28.0
+
+- **Deploy skip**: Re-deploying now skips features where the manifest's per-feature version matches the current version and config is unchanged. Manifest gains a `feature_versions` field tracking each deployed feature's version.
+- **--deploy-plan**: New CLI flag outputs a JSON plan showing which features to skip, update, or add.
+- **--repair**: New CLI flag checks each deployed feature against current versions and reports status (`[ok]`, `[update]`, `[check]`). SKILL.md Repair section updated to use this.
+- **Manifest diff**: The web editor's Manifest panel now highlights changes — deployed-and-unchanged keys are dimmed, changed keys in gold, new keys in green.
+
 ## 1.27.0
 
 - **Simplified Caddy integration**: Web editor HTML is now a single file copied to `~/.local-server/sites/configurator.html` — no caddy_routes, no reverse proxy, no subdirectories. API calls go directly to the backend on port 4040 via CORS.
