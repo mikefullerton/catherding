@@ -218,7 +218,15 @@ The purpose is to verify every aspect of the deployment against the config AND t
 - The skill has been updated with improved templates, patterns, or best practices
 - Something drifted or broke in the live deployment
 
-**Procedure — walk through each config item and verify the deployment:**
+**Procedure — run the deploy plan, then verify areas that need work:**
+
+First, run the deploy plan to see what can be skipped:
+
+```bash
+uv run --project ${CLAUDE_SKILL_DIR}/configurator-cli configurator --deploy-plan
+```
+
+This outputs JSON with `skip`, `update`, and `add` arrays. Features in `skip` have the same version deployed and unchanged config — they don't need any work. Only verify and update features in `update` and `add`.
 
 Read the manifest and print a summary header:
 
@@ -229,9 +237,17 @@ Read the manifest and print a summary header:
   Type:          <type>
   Configurator:  v<configurator_version from manifest, or "unknown">
   Skill:         v<current skill version>
+
+  Skip (unchanged):
+    [skip] Website v1.0.1 — already deployed, config unchanged
+    [skip] Auth v1.0.0 — already deployed, config unchanged
+
+  Needs work:
+    [update] Backend v1.0.0 -> v1.1.0
+    [add] Dashboard v1.0.0 — not yet deployed
 ```
 
-Then verify each area in order. For each area, check the actual deployed state, compare against the config AND the latest skill patterns, and report status:
+Then verify each area that is NOT in the skip list. For each area, check the actual deployed state, compare against the config AND the latest skill patterns, and report status:
 
 **1. GitHub repo & secrets**
 - Verify repo exists: `gh repo view <org>/<repo>`
@@ -1083,6 +1099,7 @@ Update these fields:
 - `project.type` — set to the project type (`full`, `api`, or `worker`)
 - `configurator_version` — set to `CONFIG_VERSION` (the CLI version that wrote the config)
 - `_site_manager_version` — set to the current skill version (v1.20.0)
+- `feature_versions` — get by running `uv run --project ${CLAUDE_SKILL_DIR}/configurator-cli configurator --deploy-plan` and reading the versions from the output. Or construct manually: `{"project": "1.0.0", "website": "1.0.1", ...}` for each deployed feature. This enables future deploys to skip features that haven't changed.
 - All service URLs and statuses set to `"deployed"` (only services that exist for this project type)
 - `lastDeployed` timestamps
 - `features.auth.adminSeeded` set to `true` (full projects only)
@@ -1834,18 +1851,29 @@ If there are issues, apply the verify→repair loop (same as Init Step 13):
 
 ## Repair
 
-Read `.site/issues.json` and fix all issues. This is the same fix logic as the verify→repair loop but invoked directly.
+Run the configurator repair check to see per-feature deployment status:
 
 ```bash
-site-manager repair
+uv run --project ${CLAUDE_SKILL_DIR}/configurator-cli configurator --repair
 ```
 
-The CLI checks for developer mode (`~/.site-manager/developer`). If that file exists, issues are displayed but not fixed — the assumption is the tool developer is testing and fixes belong in the configurator templates/scripts, not the deployed project.
+This outputs each deployed feature with its version status (`[ok]`, `[update]`, or `[check]`).
 
-If developer mode is off (normal users), the CLI delegates to Claude to apply fixes. Apply fixes for each issue (see Init Step 13 for the fix list), then re-run verify to confirm.
+For each feature that needs attention:
+1. Re-run the deploy step for that feature (same as the corresponding Init step)
+2. Verify the service is working (DNS, HTTP health check, etc.)
+3. Update `.site/manifest.json` with the repaired feature's current version in `feature_versions`
 
-If the issues file doesn't exist or has no issues, print:
-> No issues to repair. Run `site-manager verify` first.
+If all features are `[ok]`, also run `site-manager verify` to check infrastructure-level issues (DNS, SSL, etc.):
+
+```bash
+site-manager verify
+```
+
+If that produces `.site/issues.json` with failures, apply fixes for each issue (see Init Step 13 for the fix list), then re-run verify to confirm.
+
+If everything is clean, print:
+> All features deployed and verified. No repairs needed.
 
 ---
 
