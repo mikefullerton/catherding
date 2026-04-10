@@ -291,8 +291,8 @@ def run(claude_data: dict, lines: list) -> list:
     col3_w = max(visible_len(gs3), visible_len(l2c3), visible_len(sc3))
     col4_w = max(visible_len(gs4), visible_len(sc4))
 
-    # Session name as col0 — only rendered when non-empty, on all tabular lines
-    col0_val = (session_name + sep) if session_name else ""
+    # Session name as col0 on all tabular lines (git, model, session)
+    col0_val = session_name + sep
     col0_w = visible_len(col0_val)
 
     lbor = "| "
