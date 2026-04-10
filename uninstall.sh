@@ -19,6 +19,26 @@ for skill in "$REPO_DIR"/skills/*/; do
 done
 
 echo ""
+echo "Removing scripts..."
+SCRIPTS_BIN="$HOME/.local/bin"
+for script in "$REPO_DIR"/scripts/*/; do
+    [ -d "$script" ] || continue
+    for py in "$script"*.py; do
+        [ -f "$py" ] || continue
+        name="$(basename "$py" .py)"
+        target="$SCRIPTS_BIN/$name"
+        if [ -L "$target" ] && [ "$(readlink "$target")" = "$py" ]; then
+            rm "$target"
+            echo "  $name"
+        elif [ -L "$target" ]; then
+            echo "  SKIP $name (symlink points elsewhere)"
+        else
+            echo "  SKIP $name (not installed)"
+        fi
+    done
+done
+
+echo ""
 echo "Removing CLIs..."
 for pyproject in "$REPO_DIR"/skills/*/*/pyproject.toml; do
     [ -f "$pyproject" ] || continue

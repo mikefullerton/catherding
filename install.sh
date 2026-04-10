@@ -21,6 +21,27 @@ for skill in "$REPO_DIR"/skills/*/; do
 done
 
 echo ""
+echo "Installing scripts..."
+SCRIPTS_BIN="$HOME/.local/bin"
+mkdir -p "$SCRIPTS_BIN"
+for script in "$REPO_DIR"/scripts/*/; do
+    [ -d "$script" ] || continue
+    for py in "$script"*.py; do
+        [ -f "$py" ] || continue
+        name="$(basename "$py" .py)"
+        target="$SCRIPTS_BIN/$name"
+        if [ -L "$target" ]; then
+            rm "$target"
+        elif [ -e "$target" ]; then
+            echo "  SKIP $name (non-symlink exists, remove manually)"
+            continue
+        fi
+        ln -s "$py" "$target"
+        echo "  $name -> $py"
+    done
+done
+
+echo ""
 echo "Installing CLIs..."
 for pyproject in "$REPO_DIR"/skills/*/*/pyproject.toml; do
     [ -f "$pyproject" ] || continue
