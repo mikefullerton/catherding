@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import urllib.request
 import webbrowser
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
@@ -12,8 +13,45 @@ from configurator import __version__
 from configurator.features import discover_features
 from configurator.features.base import Feature, RenderContext
 
+CADDY_ADMIN = "http://localhost:2019"
 CADDY_URL = "http://localhost:2080/configurator/"
 WWW_DIR = pathlib.Path.home() / "www" / "configurator"
+
+
+def _caddy_register(name: str, path_prefix: str, backend_port: int) -> None:
+    """Register a reverse proxy route with Caddy's admin API."""
+    route = {
+        "@id": name,
+        "match": [{"path": [f"{path_prefix}/api/*"]}],
+        "handle": [
+            {"handler": "rewrite", "strip_path_prefix": path_prefix},
+            {"handler": "reverse_proxy", "upstreams": [{"dial": f"localhost:{backend_port}"}]},
+        ],
+    }
+    data = json.dumps(route).encode()
+    # Prepend route so it matches before the file_server
+    req = urllib.request.Request(
+        f"{CADDY_ADMIN}/config/apps/http/servers/srv0/routes/0",
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="PUT",
+    )
+    try:
+        urllib.request.urlopen(req)
+    except Exception:
+        pass  # Caddy not running — fall back to direct backend
+
+
+def _caddy_deregister(name: str) -> None:
+    """Remove a previously registered Caddy route by ID."""
+    req = urllib.request.Request(
+        f"{CADDY_ADMIN}/id/{name}",
+        method="DELETE",
+    )
+    try:
+        urllib.request.urlopen(req)
+    except Exception:
+        pass
 
 # Category definitions: (id, label) in display order
 CATEGORIES = [
@@ -632,6 +670,10 @@ def serve_editor(
         live_domains=live_domains,
         port=port,
     )
+
+    # Register reverse proxy route with Caddy
+    _caddy_register("configurator", "/configurator", port)
+
     print(f"  Editing at {CADDY_URL} — press Ctrl+C to cancel")
     webbrowser.open(CADDY_URL)
     try:
@@ -639,5 +681,6 @@ def serve_editor(
     except KeyboardInterrupt:
         httpd.action = "cancel"
     finally:
+        _caddy_deregister("configurator")
         httpd.server_close()
     return httpd.action
