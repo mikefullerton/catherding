@@ -21,7 +21,7 @@ from urllib.parse import unquote
 SITES_DIR = Path.home() / ".local-server" / "sites"
 LOG_FILE = Path.home() / ".local-server" / "activity.log"
 API_PORT = 2081
-POLL_INTERVAL = 3
+POLL_INTERVAL = 1
 IGNORED = {".DS_Store", "activity.log"}
 
 _TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
