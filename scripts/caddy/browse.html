@@ -30,8 +30,9 @@ body {
   font-size: 15px;
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
-  display: flex; justify-content: center;
-  padding: 4rem 1.5rem;
+  display: flex;
+  padding: 2.5rem 3rem 0;
+  min-height: 100vh;
 }
 ::selection { background: var(--accent-dim); color: var(--accent); }
 .grain {
@@ -40,7 +41,12 @@ body {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   z-index: 9999;
 }
-.container { max-width: 640px; width: 100%; }
+.container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 2.5rem);
+}
 h1 {
   font-family: var(--serif);
   font-size: 2rem;
@@ -54,8 +60,27 @@ h1 {
   letter-spacing: 0.05em;
   margin-bottom: 2.5rem;
 }
+.section-frame {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.2rem;
+  background: var(--surface);
+}
+.section-frame h2 {
+  font-family: var(--serif);
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-bottom: 0.8rem;
+}
+.sites-frame {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 .sites-scroll {
-  max-height: 60vh;
+  flex: 1;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
@@ -65,7 +90,7 @@ h1 {
 .sites-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ul { list-style: none; }
 ul li {
-  background: var(--surface);
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
   margin-bottom: 0.6rem;
@@ -80,20 +105,24 @@ ul li a {
   padding: 1rem 1.2rem;
   color: var(--text);
   text-decoration: none;
-  position: relative;
+}
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 .site-ago {
-  position: absolute;
-  top: 1rem;
-  right: 1.2rem;
   font-family: var(--mono);
   font-size: 0.7rem;
-  color: var(--text-dim);
+  color: var(--accent);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .site-title {
   font-size: 0.95rem;
   font-weight: 500;
+  color: var(--accent);
 }
 li:hover .site-title { color: var(--accent); }
 .site-desc {
@@ -119,22 +148,18 @@ li:hover .site-title { color: var(--accent); }
   color: var(--text-dim);
   font-family: var(--mono);
   font-size: 0.85rem;
-  padding: 1rem 0;
+  padding: 1.5rem 1.2rem;
 }
-.log-section {
-  margin-top: 2.5rem;
-  border-top: 1px solid var(--border);
-  padding-top: 1.5rem;
-}
-.log-section h2 {
-  font-family: var(--serif);
-  font-size: 1.2rem;
-  font-weight: 400;
-  margin-bottom: 0.8rem;
-  color: var(--text-muted);
+.log-frame {
+  margin-top: 1rem;
+  margin-bottom: 1.5rem;
+  height: 360px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
 }
 .log-scroll {
-  max-height: 200px;
+  flex: 1;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
@@ -146,16 +171,20 @@ li:hover .site-title { color: var(--accent); }
   font-family: var(--mono);
   font-size: 0.72rem;
   color: var(--text-dim);
-  padding: 0.15rem 0;
+  padding: 0.2rem 0;
   display: flex;
-  gap: 1rem;
+  gap: 0.8rem;
+  align-items: baseline;
+  white-space: nowrap;
 }
-.log-time { color: var(--text-dim); min-width: 7ch; }
-.log-action { min-width: 8ch; }
-.log-added { color: var(--added); }
+.log-time { color: var(--text-dim); width: 8ch; flex-shrink: 0; }
+.log-action { width: 9ch; flex-shrink: 0; }
+.log-installed { color: var(--added); }
 .log-removed { color: var(--removed); }
 .log-present { color: var(--text-muted); }
-.log-name { color: var(--text-muted); }
+.log-name { color: var(--accent); width: 20ch; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; }
+.log-file { color: var(--text-dim); width: 20ch; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; }
+.log-desc { color: var(--text-muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .log-empty {
   font-family: var(--mono);
   font-size: 0.75rem;
@@ -169,17 +198,20 @@ li:hover .site-title { color: var(--accent); }
 <div class="container">
   <h1>Local Sites</h1>
   <p class="subtitle">~/.local-server/sites</p>
-  <div class="sites-scroll">
-    <ul id="sites">
-      {{range .Items}}{{if and (ne .Name ".DS_Store") (ne .Name "activity.log")}}
-      <li><a href="{{.URL}}" data-file="{{.Name}}" data-mod="{{.ModTime.Format "2006-01-02T15:04:05Z07:00"}}"><div class="site-title">{{.Name}}</div></a></li>
-      {{end}}{{end}}
-      {{if eq (len .Items) 0}}
-      <li class="empty">No sites. Drop .html files or directories into ~/.local-server/sites/</li>
-      {{end}}
-    </ul>
+  <div class="section-frame sites-frame">
+    <h2>Sites</h2>
+    <div class="sites-scroll">
+      <ul id="sites">
+        {{range .Items}}{{if and (ne .Name ".DS_Store") (ne .Name "activity.log")}}
+        <li><a href="{{.URL}}" data-file="{{.Name}}" data-mod="{{.ModTime.Format "2006-01-02T15:04:05Z07:00"}}"><div class="site-header"><span class="site-title">{{.Name}}</span></div></a></li>
+        {{end}}{{end}}
+        {{if eq (len .Items) 0}}
+        <li class="empty">No sites. Drop .html files or directories into ~/.local-server/sites/</li>
+        {{end}}
+      </ul>
+    </div>
   </div>
-  <div class="log-section" id="log-section" style="display:none">
+  <div class="section-frame log-frame" id="log-section" style="display:none">
     <h2>Activity</h2>
     <div class="log-scroll" id="log"></div>
   </div>
@@ -188,14 +220,15 @@ li:hover .site-title { color: var(--accent); }
 var IGNORED = {".DS_Store": 1, "activity.log": 1};
 
 function timeAgo(date) {
-  var s = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (s < 60) return s + "s";
-  var m = Math.floor(s / 60);
-  if (m < 60) return m + "m";
-  var h = Math.floor(m / 60);
-  if (h < 24) return h + "h " + (m % 60) + "m";
-  var d = Math.floor(h / 24);
-  return d + "d " + (h % 24) + "h";
+  var total = Math.floor((Date.now() - date.getTime()) / 1000);
+  var s = total % 60;
+  var m = Math.floor(total / 60) % 60;
+  var h = Math.floor(total / 3600) % 24;
+  var d = Math.floor(total / 86400);
+  if (d > 0) return d + "d " + h + "h " + m + "m " + s + "s";
+  if (h > 0) return h + "h " + m + "m " + s + "s";
+  if (m > 0) return m + "m " + s + "s";
+  return s + "s";
 }
 
 function formatDate(date) {
@@ -240,18 +273,21 @@ function enrichLink(link) {
     .catch(function() {});
 }
 
-// Add installed-date row and live ago badge to a link
+// Add live ago badge (in header row) and installed-date row
 function addMeta(link) {
   var mod = link.getAttribute("data-mod");
   if (!mod) return;
   var date = new Date(mod);
   if (isNaN(date)) return;
 
-  // Live-ticking badge in upper right
-  var ago = document.createElement("span");
-  ago.className = "site-ago";
-  ago.textContent = timeAgo(date);
-  link.appendChild(ago);
+  // Live-ticking badge in the header flex row
+  var header = link.querySelector(".site-header");
+  if (header) {
+    var ago = document.createElement("span");
+    ago.className = "site-ago";
+    ago.textContent = timeAgo(date);
+    header.appendChild(ago);
+  }
 
   // Installed date row at bottom
   var metaDiv = document.createElement("div");
@@ -270,10 +306,13 @@ function createSiteItem(name, url, mod) {
   a.setAttribute("data-file", name);
   a.setAttribute("data-mod", mod);
 
-  var titleDiv = document.createElement("div");
-  titleDiv.className = "site-title";
-  titleDiv.textContent = name;
-  a.appendChild(titleDiv);
+  var header = document.createElement("div");
+  header.className = "site-header";
+  var titleSpan = document.createElement("span");
+  titleSpan.className = "site-title";
+  titleSpan.textContent = name;
+  header.appendChild(titleSpan);
+  a.appendChild(header);
 
   li.appendChild(a);
   return li;
@@ -390,8 +429,8 @@ function pollLog() {
       while (logDiv.firstChild) logDiv.removeChild(logDiv.firstChild);
 
       var lines = text.trim().split("\n").filter(Boolean);
-      // Show last 50, newest first
-      lines.slice(-50).reverse().forEach(function(line) {
+      // Show last 50, oldest to newest (newest at bottom)
+      lines.slice(-50).forEach(function(line) {
         try {
           var entry = JSON.parse(line);
           var div = document.createElement("div");
@@ -400,7 +439,7 @@ function pollLog() {
           var time = document.createElement("span");
           time.className = "log-time";
           var d = new Date(entry.time);
-          time.textContent = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+          time.textContent = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
           div.appendChild(time);
 
           var action = document.createElement("span");
@@ -410,12 +449,35 @@ function pollLog() {
 
           var name = document.createElement("span");
           name.className = "log-name";
-          name.textContent = entry.name;
+          name.textContent = entry.title || entry.name;
           div.appendChild(name);
+
+          if (entry.title && entry.title !== entry.name) {
+            var file = document.createElement("span");
+            file.className = "log-file";
+            file.textContent = entry.name;
+            div.appendChild(file);
+          }
+
+          if (entry.description) {
+            var desc = document.createElement("span");
+            desc.className = "log-desc";
+            desc.textContent = entry.description;
+            div.appendChild(desc);
+          }
+
+          if (entry.duration) {
+            var dur = document.createElement("span");
+            dur.className = "log-desc";
+            dur.textContent = "(" + entry.duration + ")";
+            div.appendChild(dur);
+          }
 
           logDiv.appendChild(div);
         } catch(e) {}
       });
+      // Auto-scroll to bottom (newest entries)
+      logDiv.scrollTop = logDiv.scrollHeight;
     })
     .catch(function() {});
 }
