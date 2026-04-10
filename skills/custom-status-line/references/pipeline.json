@@ -4,8 +4,6 @@
     {"name": "base-info", "module": "base_info"},
     {"name": "repo-cleanup", "module": "repo_cleanup"},
     {"name": "progress-display", "module": "progress_display"},
-    {"name": "yolo-indicator", "script": "~/.claude-status-line/scripts/yolo-indicator.sh"},
-    {"name": "usage-costs", "module": "usage_costs"},
-    {"name": "version-tracker", "module": "version_tracker"}
+    {"name": "yolo-indicator", "script": "~/.claude-status-line/scripts/yolo-indicator.sh"}
   ]
 }
