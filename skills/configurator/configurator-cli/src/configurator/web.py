@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import json
-import pathlib
-import urllib.request
+from pathlib import Path
 import webbrowser
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
@@ -13,45 +12,8 @@ from configurator import __version__
 from configurator.features import discover_features
 from configurator.features.base import Feature, RenderContext
 
-CADDY_ADMIN = "http://localhost:2019"
-CADDY_URL = "http://localhost:2080/configurator/"
-WWW_DIR = pathlib.Path.home() / "www" / "configurator"
-
-
-def _caddy_register(name: str, path_prefix: str, backend_port: int) -> None:
-    """Register a reverse proxy route with Caddy's admin API."""
-    route = {
-        "@id": name,
-        "match": [{"path": [f"{path_prefix}/api/*"]}],
-        "handle": [
-            {"handler": "rewrite", "strip_path_prefix": path_prefix},
-            {"handler": "reverse_proxy", "upstreams": [{"dial": f"localhost:{backend_port}"}]},
-        ],
-    }
-    data = json.dumps(route).encode()
-    # Prepend route so it matches before the file_server
-    req = urllib.request.Request(
-        f"{CADDY_ADMIN}/config/apps/http/servers/srv0/routes/0",
-        data=data,
-        headers={"Content-Type": "application/json"},
-        method="PUT",
-    )
-    try:
-        urllib.request.urlopen(req)
-    except Exception:
-        pass  # Caddy not running — fall back to direct backend
-
-
-def _caddy_deregister(name: str) -> None:
-    """Remove a previously registered Caddy route by ID."""
-    req = urllib.request.Request(
-        f"{CADDY_ADMIN}/id/{name}",
-        method="DELETE",
-    )
-    try:
-        urllib.request.urlopen(req)
-    except Exception:
-        pass
+SITES_DIR = Path.home() / ".local-server" / "sites"
+CADDY_URL = "http://localhost:2080/configurator.html"
 
 # Category definitions: (id, label) in display order
 CATEGORIES = [
@@ -174,6 +136,7 @@ def build_page(
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Configurator</title>
+<meta name="description" content="Project deployment configurator — domain, backend, auth, and service settings">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -560,23 +523,17 @@ document.addEventListener("DOMContentLoaded", () => {{
 
 
 class _Handler(BaseHTTPRequestHandler):
-    """Handles GET /, PATCH /api/config, POST /api/deploy, POST /api/cancel."""
+    """Handles PATCH /api/config, POST /api/deploy, POST /api/cancel."""
 
-    def do_GET(self):
-        if self.path == "/":
-            html = build_page(
-                self.server.cfg,
-                deployed_keys=self.server.deployed_keys,
-                urls=self.server.urls,
-                live_domains=self.server.live_domains,
-            )
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
-            self.wfile.write(html.encode())
-        else:
-            self.send_error(404)
+    def _cors_headers(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, PATCH, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self._cors_headers()
+        self.end_headers()
 
     def do_PATCH(self):
         if self.path == "/api/config":
@@ -587,6 +544,7 @@ class _Handler(BaseHTTPRequestHandler):
             save_config(self.server.config_name, self.server.cfg)
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
+            self._cors_headers()
             self.end_headers()
             self.wfile.write(b'{"ok":true}')
         else:
@@ -598,6 +556,7 @@ class _Handler(BaseHTTPRequestHandler):
             self.server.action = action
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
+            self._cors_headers()
             self.end_headers()
             self.wfile.write(b'{"ok":true}')
             import threading
@@ -651,18 +610,7 @@ def serve_editor(
     if port is None:
         port = 4040
 
-    # Write HTML to ~/www/configurator/ for Caddy to serve
-    html = build_page(
-        cfg,
-        deployed_keys=deployed_keys,
-        urls=urls,
-        live_domains=live_domains,
-        api_base="/configurator",
-    )
-    WWW_DIR.mkdir(parents=True, exist_ok=True)
-    (WWW_DIR / "index.html").write_text(html, encoding="utf-8")
-
-    # Start API-only backend
+    # Start API server first so we know the port
     httpd, port = start_server(
         name, cfg,
         deployed_keys=deployed_keys,
@@ -671,8 +619,20 @@ def serve_editor(
         port=port,
     )
 
-    # Register reverse proxy route with Caddy
-    _caddy_register("configurator", "/configurator", port)
+    # Build HTML with API base pointing directly at the API server
+    api_base = f"http://localhost:{port}"
+    html = build_page(
+        cfg,
+        deployed_keys=deployed_keys,
+        urls=urls,
+        live_domains=live_domains,
+        api_base=api_base,
+    )
+
+    # Copy to Caddy sites directory
+    html_file = SITES_DIR / "configurator.html"
+    SITES_DIR.mkdir(parents=True, exist_ok=True)
+    html_file.write_text(html, encoding="utf-8")
 
     print(f"  Editing at {CADDY_URL} — press Ctrl+C to cancel")
     webbrowser.open(CADDY_URL)
@@ -681,6 +641,6 @@ def serve_editor(
     except KeyboardInterrupt:
         httpd.action = "cancel"
     finally:
-        _caddy_deregister("configurator")
+        html_file.unlink(missing_ok=True)
         httpd.server_close()
     return httpd.action

@@ -48,22 +48,6 @@ class TestBuildPage:
 
 
 class TestServer:
-    def test_serves_html_on_get(self, monkeypatch, tmp_path):
-        monkeypatch.setattr("configurator.cli.CONFIG_DIR", tmp_path)
-        cfg = {"repo": "test-project", "domain": "test.com"}
-        httpd, port = start_server("test-project", cfg, deployed_keys=set(), port=0)
-        t = threading.Thread(target=httpd.handle_request)
-        t.start()
-        try:
-            url = f"http://localhost:{port}/"
-            resp = urllib.request.urlopen(url)
-            html = resp.read().decode()
-            assert "test-project" in html
-            assert resp.status == 200
-        finally:
-            httpd.server_close()
-            t.join(timeout=2)
-
     def test_patch_updates_config(self, monkeypatch, tmp_path):
         monkeypatch.setattr("configurator.cli.CONFIG_DIR", tmp_path)
         cfg = {"repo": "test-project"}

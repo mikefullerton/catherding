@@ -2,6 +2,11 @@
 
 Changes to what the configurator deploys. Each entry represents a new deployment option, improved template, or fix that affects deployed projects. The CLI shows relevant changes when a project's manifest version is behind the current configurator version.
 
+## 1.27.0
+
+- **Simplified Caddy integration**: Web editor HTML is now a single file copied to `~/.local-server/sites/configurator.html` — no caddy_routes, no reverse proxy, no subdirectories. API calls go directly to the backend on port 4040 via CORS.
+- **Page metadata**: Added `<meta name="description">` so the Caddy home page listing shows a description.
+
 ## 1.26.0
 
 - **Caddy integration**: Web editor HTML is now served via the always-on Caddy server at `localhost:2080/configurator/`. The configurator backend only handles API calls, proxied through Caddy. No more one-off HTTP servers.
