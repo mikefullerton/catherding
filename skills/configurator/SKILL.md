@@ -1,7 +1,7 @@
 ---
 name: configurator
 description: "Configure or deploy a project. /configurator --configure opens the web editor, /configurator --deploy runs deployment. If neither is passed, asks which mode."
-version: "1.25.0"
+version: "1.26.0"
 argument-hint: "[--configure|--deploy|<config-name>|add|deploy|update|verify|repair|status|manifest|seed-admin|go-live|--help|--version]"
 allowed-tools: Read, Write, Edit, Bash(bash *), Bash(python3 *), Bash(brew *), Bash(npm *), Bash(wrangler *), Bash(railway *), Bash(curl *), Bash(which *), Bash(chmod *), Bash(cat *), Bash(test *), Bash(mkdir *), Bash(jq *), Bash(ls *), Bash(head *), Bash(tail *), Bash(sort *), Bash(column *), Bash(wc *), Bash(grep *), Bash(date *), Bash(docker *), Bash(cd *), Bash(gh *), Bash(dig *), Bash(open *), Bash(site-manager *), Bash(configurator *), Bash(uv tool install *), AskUserQuestion
 model: sonnet

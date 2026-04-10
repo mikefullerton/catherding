@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import pathlib
 import webbrowser
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
@@ -10,6 +11,9 @@ from configurator.cli import save_config
 from configurator import __version__
 from configurator.features import discover_features
 from configurator.features.base import Feature, RenderContext
+
+CADDY_URL = "http://localhost:2080/configurator/"
+WWW_DIR = pathlib.Path.home() / "www" / "configurator"
 
 # Category definitions: (id, label) in display order
 CATEGORIES = [
@@ -72,6 +76,7 @@ def build_page(
     deployed_keys: set[str],
     urls: dict[str, str] | None = None,
     live_domains: set[str] | None = None,
+    api_base: str = "",
 ) -> str:
     """Build the HTML page by composing feature fragments."""
     features = discover_features()
@@ -401,7 +406,7 @@ function debounceSave() {{
 
 function saveConfig() {{
     const cfg = readForm();
-    fetch("/api/config", {{
+    fetch("{api_base}/api/config", {{
         method: "PATCH",
         headers: {{"Content-Type": "application/json"}},
         body: JSON.stringify(cfg),
@@ -493,21 +498,21 @@ document.addEventListener("DOMContentLoaded", () => {{
     // Cancel/Deploy
     $("#btn-cancel").addEventListener("click", () => {{
         const cfg = readForm();
-        fetch("/api/config", {{
+        fetch("{api_base}/api/config", {{
             method: "PATCH",
             headers: {{"Content-Type": "application/json"}},
             body: JSON.stringify(cfg),
-        }}).then(() => fetch("/api/cancel", {{ method: "POST" }}))
+        }}).then(() => fetch("{api_base}/api/cancel", {{ method: "POST" }}))
           .then(() => {{ document.body.textContent = "Cancelled. You can close this tab."; }});
     }});
 
     $("#btn-deploy").addEventListener("click", () => {{
         const cfg = readForm();
-        fetch("/api/config", {{
+        fetch("{api_base}/api/config", {{
             method: "PATCH",
             headers: {{"Content-Type": "application/json"}},
             body: JSON.stringify(cfg),
-        }}).then(() => fetch("/api/deploy", {{ method: "POST" }}))
+        }}).then(() => fetch("{api_base}/api/deploy", {{ method: "POST" }}))
           .then(() => {{ document.body.textContent = "Deploying... check your terminal."; }});
     }});
 }});
@@ -606,7 +611,20 @@ def serve_editor(
     if deployed_keys is None:
         deployed_keys = set()
     if port is None:
-        port = cfg.get("port", 4040)
+        port = 4040
+
+    # Write HTML to ~/www/configurator/ for Caddy to serve
+    html = build_page(
+        cfg,
+        deployed_keys=deployed_keys,
+        urls=urls,
+        live_domains=live_domains,
+        api_base="/configurator",
+    )
+    WWW_DIR.mkdir(parents=True, exist_ok=True)
+    (WWW_DIR / "index.html").write_text(html, encoding="utf-8")
+
+    # Start API-only backend
     httpd, port = start_server(
         name, cfg,
         deployed_keys=deployed_keys,
@@ -614,9 +632,8 @@ def serve_editor(
         live_domains=live_domains,
         port=port,
     )
-    url = f"http://localhost:{port}/"
-    print(f"  Editing at {url} — press Ctrl+C to cancel")
-    webbrowser.open(url)
+    print(f"  Editing at {CADDY_URL} — press Ctrl+C to cancel")
+    webbrowser.open(CADDY_URL)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

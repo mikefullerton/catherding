@@ -2,6 +2,10 @@
 
 Changes to what the configurator deploys. Each entry represents a new deployment option, improved template, or fix that affects deployed projects. The CLI shows relevant changes when a project's manifest version is behind the current configurator version.
 
+## 1.26.0
+
+- **Caddy integration**: Web editor HTML is now served via the always-on Caddy server at `localhost:2080/configurator/`. The configurator backend only handles API calls, proxied through Caddy. No more one-off HTTP servers.
+
 ## 1.25.0
 
 - **Sidebar nav categories**: Reorganized web editor categories — added "Website" section, moved logging to "Analytics & Flags", renamed "Operations" to "Secrets".
