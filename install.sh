@@ -31,6 +31,61 @@ for pyproject in "$REPO_DIR"/skills/*/*/pyproject.toml; do
 done
 
 echo ""
+echo "Setting up local Caddy server..."
+# Install Caddy if missing
+if ! command -v caddy &>/dev/null; then
+    if command -v brew &>/dev/null; then
+        echo "  Installing Caddy via Homebrew..."
+        brew install caddy 2>&1 | sed 's/^/    /'
+    else
+        echo "  ERROR: Caddy not found and Homebrew not available. Install Caddy manually."
+    fi
+fi
+
+# Create sites directory
+mkdir -p "$HOME/.local-server/sites"
+
+# Write Caddyfile
+CADDY_ETC="/opt/homebrew/etc"
+if [ -d "$CADDY_ETC" ]; then
+    cat > "$CADDY_ETC/Caddyfile" <<'CADDYFILE'
+{
+	admin localhost:2019
+}
+
+:2080 {
+	root * {$HOME}/.local-server/sites
+	file_server {
+		browse {$HOME}/.local-server/browse.html
+	}
+	encode gzip
+
+	log {
+		output file /opt/homebrew/var/log/caddy-access.log
+		format console
+	}
+}
+CADDYFILE
+    # Expand $HOME in the Caddyfile
+    sed -i '' "s|\{\\$HOME\}|$HOME|g" "$CADDY_ETC/Caddyfile"
+    echo "  Wrote $CADDY_ETC/Caddyfile"
+fi
+
+# Copy browse template
+cp "$REPO_DIR/scripts/caddy/browse.html" "$HOME/.local-server/browse.html"
+echo "  Wrote ~/.local-server/browse.html"
+
+# Start or reload Caddy
+if command -v caddy &>/dev/null; then
+    if brew services list 2>/dev/null | grep -q 'caddy.*started'; then
+        caddy reload --config "$CADDY_ETC/Caddyfile" 2>/dev/null
+        echo "  Caddy reloaded"
+    else
+        brew services start caddy 2>&1 | sed 's/^/  /'
+    fi
+fi
+
+echo ""
 echo "Updating global CLAUDE.md..."
 CLAUDE_MD="$HOME/.claude/CLAUDE.md"
 CADDY_BLOCK=$(cat <<'CADDY_EOF'
@@ -53,7 +108,14 @@ To remove it:
 rm ~/.local-server/sites/my-page.html
 ```
 
-The home page auto-refreshes every 5 seconds to show whatever is in the directory.
+The home page auto-refreshes every 5 seconds to show whatever is in the directory. It reads metadata from each HTML file to build the listing:
+
+\`\`\`html
+<title>My Dashboard</title>
+<meta name="description" content="Real-time metrics for the auth service">
+\`\`\`
+
+Both tags are optional — the home page falls back to the filename. Always include them for a readable listing.
 
 - **Service control**: `brew services start/stop/restart caddy`
 - **Caddyfile**: `/opt/homebrew/etc/Caddyfile`
