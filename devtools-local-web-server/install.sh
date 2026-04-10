@@ -22,30 +22,9 @@ mkdir -p "$HOME/.local-server/sites"
 # Write Caddyfile
 CADDY_ETC="/opt/homebrew/etc"
 if [ -d "$CADDY_ETC" ]; then
-    cat > "$CADDY_ETC/Caddyfile" <<'CADDYFILE'
-{
-	admin localhost:2019
-}
-
-:2080 {
-	handle_path /_api/* {
-		reverse_proxy localhost:2081
-	}
-
-	root * {$HOME}/.local-server/sites
-	file_server {
-		browse {$HOME}/.local-server/browse.html
-	}
-	encode gzip
-
-	log {
-		output file /opt/homebrew/var/log/caddy-access.log
-		format console
-	}
-}
-CADDYFILE
-    # Expand $HOME in the Caddyfile
-    sed -i '' "s|\{\\$HOME\}|$HOME|g" "$CADDY_ETC/Caddyfile"
+    sed -e "s|__HOME__|$HOME|g" \
+        -e "s|__CADDY_LOG__|/opt/homebrew/var/log|g" \
+        "$TEMPLATE_DIR/Caddyfile" > "$CADDY_ETC/Caddyfile"
     echo "  Wrote $CADDY_ETC/Caddyfile"
 fi
 

@@ -1,0 +1,20 @@
+{
+	admin localhost:2019
+}
+
+:2080 {
+	handle_path /_api/* {
+		reverse_proxy localhost:2081
+	}
+
+	root * __HOME__/.local-server/sites
+	file_server {
+		browse __HOME__/.local-server/browse.html
+	}
+	encode gzip
+
+	log {
+		output file __CADDY_LOG__/caddy-access.log
+		format console
+	}
+}
