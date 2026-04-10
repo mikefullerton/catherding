@@ -87,6 +87,13 @@ li:hover .site-title { color: var(--accent); }
   font-size: 0.7rem;
   margin-top: 0.3rem;
 }
+.site-meta {
+  display: flex; gap: 1.5rem;
+  font-family: var(--mono);
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  margin-top: 0.25rem;
+}
 .empty {
   color: var(--text-dim);
   font-family: var(--mono);
@@ -102,7 +109,7 @@ li:hover .site-title { color: var(--accent); }
   <p class="subtitle">~/.local-server/sites</p>
   <ul id="sites">
     {{range .Items}}{{if ne .Name ".DS_Store"}}
-    <li><a href="{{.URL}}" data-file="{{.Name}}"><div class="site-title">{{.Name}}</div></a></li>
+    <li><a href="{{.URL}}" data-file="{{.Name}}" data-mod="{{.ModTime.Format "2006-01-02T15:04:05Z07:00"}}"><div class="site-title">{{.Name}}</div></a></li>
     {{end}}{{end}}
     {{if eq (len .Items) 0}}
     <li class="empty">No sites. Drop .html files or directories into ~/.local-server/sites/</li>
@@ -147,6 +154,55 @@ document.querySelectorAll("#sites a[data-file]").forEach(function(link) {
     })
     .catch(function() {});
 });
+
+function timeAgo(date) {
+  var s = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (s < 60) return s + "s";
+  var m = Math.floor(s / 60);
+  if (m < 60) return m + "m";
+  var h = Math.floor(m / 60);
+  if (h < 24) return h + "h " + (m % 60) + "m";
+  var d = Math.floor(h / 24);
+  return d + "d " + (h % 24) + "h";
+}
+
+function formatDate(date) {
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+document.querySelectorAll("#sites a[data-mod]").forEach(function(link) {
+  var mod = link.getAttribute("data-mod");
+  if (!mod) return;
+  var date = new Date(mod);
+  if (isNaN(date)) return;
+
+  var metaDiv = document.createElement("div");
+  metaDiv.className = "site-meta";
+
+  var installed = document.createElement("span");
+  installed.textContent = "installed " + formatDate(date);
+  metaDiv.appendChild(installed);
+
+  var ago = document.createElement("span");
+  ago.textContent = timeAgo(date) + " ago";
+  metaDiv.appendChild(ago);
+
+  link.appendChild(metaDiv);
+});
+
+// Update ago counters every minute
+setInterval(function() {
+  document.querySelectorAll("#sites a[data-mod]").forEach(function(link) {
+    var mod = link.getAttribute("data-mod");
+    if (!mod) return;
+    var date = new Date(mod);
+    if (isNaN(date)) return;
+    var metaDiv = link.querySelector(".site-meta");
+    if (metaDiv && metaDiv.children.length >= 2) {
+      metaDiv.children[1].textContent = timeAgo(date) + " ago";
+    }
+  });
+}, 60000);
 
 setTimeout(function() { location.reload(); }, 5000);
 </script>
