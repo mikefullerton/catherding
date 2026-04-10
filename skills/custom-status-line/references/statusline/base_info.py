@@ -291,7 +291,7 @@ def run(claude_data: dict, lines: list) -> list:
     col3_w = max(visible_len(gs3), visible_len(l2c3), visible_len(sc3))
     col4_w = max(visible_len(gs4), visible_len(sc4))
 
-    # Session name as col0 on model line only
+    # Session name as col0 on model line and session line
     col0_val = session_name + sep
 
     lbor = "| "
@@ -318,7 +318,7 @@ def run(claude_data: dict, lines: list) -> list:
     if yolo_col:
         line2 += f"{sep}{yolo_col}"
 
-    session_line = f"{lbor}{pad_left(sc1, col1_w)}{sep}{pad_right(sc2, col2_w)}{sep}{pad_right(sc3, col3_w)}{sep}{pad_right(sc4, col4_w)}"
+    session_line = f"{lbor}{col0_val}{pad_left(sc1, col1_w)}{sep}{pad_right(sc2, col2_w)}{sep}{pad_right(sc3, col3_w)}{sep}{pad_right(sc4, col4_w)}"
 
     result.extend([line2, session_line])
 
