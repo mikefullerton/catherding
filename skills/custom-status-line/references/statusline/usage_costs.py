@@ -177,30 +177,48 @@ def run(claude_data: dict, lines: list) -> list:
 
     # Match column widths from existing lines, widen if usage content is wider
     col_widths = _extract_col_widths(lines)
+    col0_prefix = ""
     if col_widths and len(col_widths) >= 4:
+        # Detect session name column (col0) — present when 5+ columns
+        col0_offset = 1 if len(col_widths) >= 5 else 0
+
         uc_widths = [visible_len(c1), visible_len(c2), visible_len(c3), visible_len(c4)]
-        new_widths = [max(col_widths[i], uc_widths[i]) for i in range(4)]
+        new_widths = list(col_widths[:col0_offset])
+        new_widths.extend(max(col_widths[col0_offset + i], uc_widths[i]) for i in range(4))
+
+        # Padding functions per column: col0 left-aligned, col1 right-aligned, rest left-aligned
+        pad_fns = []
+        if col0_offset:
+            pad_fns.append(pad_right)
+        pad_fns.append(pad_left)
+        while len(pad_fns) < len(new_widths):
+            pad_fns.append(pad_right)
 
         # Reformat existing aligned lines if any column got wider
-        if new_widths != col_widths[:4]:
+        if new_widths != col_widths[:col0_offset + 4]:
             for i, line in enumerate(lines):
                 if not line.startswith(lbor):
                     continue
                 parts = line.split(sep)
                 if len(parts) < 3:
                     continue
-                rebuilt = lbor + pad_left(parts[0][len(lbor):], new_widths[0])
+                rebuilt = lbor + pad_fns[0](parts[0][len(lbor):], new_widths[0])
                 for j in range(1, len(parts)):
-                    col = pad_right(parts[j], new_widths[j]) if j < len(new_widths) else parts[j]
-                    rebuilt += sep + col
+                    if j < len(new_widths):
+                        rebuilt += sep + pad_fns[j](parts[j], new_widths[j])
+                    else:
+                        rebuilt += sep + parts[j]
                 lines[i] = rebuilt
 
-        c1 = pad_left(c1, new_widths[0])
-        c2 = pad_right(c2, new_widths[1])
-        c3 = pad_right(c3, new_widths[2])
-        c4 = pad_right(c4, new_widths[3])
+        c1 = pad_left(c1, new_widths[col0_offset])
+        c2 = pad_right(c2, new_widths[col0_offset + 1])
+        c3 = pad_right(c3, new_widths[col0_offset + 2])
+        c4 = pad_right(c4, new_widths[col0_offset + 3])
 
-    lines.append(f"{lbor}{c1}{sep}{c2}{sep}{c3}{sep}{c4}{sep}{c5}")
+        if col0_offset:
+            col0_prefix = pad_right("", new_widths[0]) + sep
+
+    lines.append(f"{lbor}{col0_prefix}{c1}{sep}{c2}{sep}{c3}{sep}{c4}{sep}{c5}")
     return lines
 
 
