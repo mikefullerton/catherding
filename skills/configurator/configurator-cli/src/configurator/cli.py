@@ -460,11 +460,84 @@ def cmd_set_credentials() -> None:
 # ── Entry point ─────────────────────────────────────────────────────────────
 
 
+def cmd_deploy_plan() -> None:
+    """Output a JSON deploy plan showing what to skip/update/add."""
+    from configurator.deploy import deploy_plan
+
+    cwd = Path.cwd()
+    manifest = _load_manifest(cwd)
+    if not manifest:
+        print(json.dumps({"error": "no manifest found at .site/manifest.json"}))
+        return
+
+    project_name = manifest.get("project", {}).get("name", cwd.name)
+    cfg = load_config(project_name)
+    if not cfg:
+        print(json.dumps({"error": f"no config found for '{project_name}'"}))
+        return
+
+    plan = deploy_plan(cfg, manifest)
+    print(json.dumps(plan, indent=2))
+
+
+def cmd_repair() -> None:
+    """Check each deployed feature and report status."""
+    from configurator.deploy import feature_versions
+    from configurator.features import discover_features
+
+    cwd = Path.cwd()
+    manifest = _load_manifest(cwd)
+    if not manifest:
+        print("No manifest found at .site/manifest.json")
+        print("Run this from a project directory with an existing deployment.")
+        return
+
+    project_name = manifest.get("project", {}).get("name", cwd.name)
+    manifest_versions = manifest.get("feature_versions", {})
+    current_versions = feature_versions()
+    features = discover_features()
+
+    print()
+    print(f"  Repair check: {project_name}")
+    print()
+
+    issues: list[dict] = []
+
+    for feature in features:
+        meta = feature.meta()
+        deployed = feature.deployed_keys(manifest)
+
+        if not deployed:
+            continue
+
+        mv = manifest_versions.get(meta.id)
+        cv = current_versions[meta.id]
+
+        if mv == cv:
+            print(f"  [ok]     {meta.label:20s} v{cv}")
+        elif mv:
+            print(f"  [update] {meta.label:20s} v{mv} -> v{cv}")
+            issues.append({"id": meta.id, "action": "update", "from": mv, "to": cv})
+        else:
+            print(f"  [check]  {meta.label:20s} v{cv} (no version in manifest)")
+            issues.append({"id": meta.id, "action": "verify", "version": cv})
+
+    print()
+    if issues:
+        print(f"  {len(issues)} feature(s) need attention.")
+        print(json.dumps(issues, indent=2))
+    else:
+        print("  All deployed features are up to date.")
+    print()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Interactive project configurator")
     parser.add_argument("--configure", action="store_true", default=True, help="Configure a project (default)")
     parser.add_argument("--show", nargs="?", const="", metavar="NAME", help="Show a configuration")
     parser.add_argument("--delete", nargs="?", const="", metavar="NAME", help="Delete a configuration")
+    parser.add_argument("--deploy-plan", action="store_true", help="Output deploy plan as JSON")
+    parser.add_argument("--repair", action="store_true", help="Check deployed features and report status")
     parser.add_argument("--set-credentials", action="store_true", help="Set deployment credentials in macOS Keychain")
     parser.add_argument("--version", action="store_true", help="Show version")
     args = parser.parse_args()
@@ -475,6 +548,14 @@ def main() -> None:
 
     if args.set_credentials:
         cmd_set_credentials()
+        return
+
+    if args.deploy_plan:
+        cmd_deploy_plan()
+        return
+
+    if args.repair:
+        cmd_repair()
         return
 
     if args.show is not None:
