@@ -2,6 +2,11 @@
 
 Changes to what the configurator deploys. Each entry represents a new deployment option, improved template, or fix that affects deployed projects. The CLI shows relevant changes when a project's manifest version is behind the current configurator version.
 
+## 1.28.1
+
+- **Data Model panel**: New read-only section displays SQL tables parsed from migration files (CREATE TABLE) or Drizzle schema.ts. Shows table name, columns, types, and constraints. Displays "No backend configured" when backend is disabled.
+- **API panel**: New read-only section shows backend API endpoints with method, path, auth requirement, description, and parameters. Reads Hono route files or generates defaults from config (health, auth, admin endpoints). Groups endpoints by URL prefix.
+
 ## 1.28.0
 
 - **Deploy skip**: Re-deploying now skips features where the manifest's per-feature version matches the current version and config is unchanged. Manifest gains a `feature_versions` field tracking each deployed feature's version.

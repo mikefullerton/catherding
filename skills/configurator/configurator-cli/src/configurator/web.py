@@ -20,6 +20,8 @@ CATEGORIES = [
     ("project", "Project"),
     ("website", "Website"),
     ("backend", "Backend"),
+    ("data-model", "Data Model"),
+    ("api-view", "API"),
     ("auth", "Auth & Access"),
     ("ux", "User Experience"),
     ("comms", "Communications"),
@@ -321,6 +323,71 @@ input[type="checkbox"] {{ accent-color: var(--accent); }}
     letter-spacing: 0.05em;
 }}
 .saved-indicator.visible {{ opacity: 1; }}
+
+/* Data Model */
+.db-table {{ margin-bottom: 1.2rem; }}
+.db-table-name {{
+    font-family: var(--mono); font-size: 0.85rem; font-weight: 600;
+    color: var(--accent); margin-bottom: 0.4rem;
+}}
+.db-columns {{
+    width: 100%; border-collapse: collapse; font-size: 0.8rem;
+}}
+.db-columns th {{
+    text-align: left; padding: 0.3rem 0.6rem;
+    font-family: var(--mono); font-size: 0.7rem; color: var(--fg-dim);
+    border-bottom: 1px solid var(--border); font-weight: 500;
+    letter-spacing: 0.04em; text-transform: uppercase;
+}}
+.db-columns td {{
+    padding: 0.3rem 0.6rem; border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+}}
+.db-col-name {{ color: var(--fg); }}
+.db-col-type {{ color: var(--fg-muted); }}
+.db-col-constraints {{ color: var(--fg-dim); font-size: 0.75rem; }}
+
+/* API */
+.api-base-url {{
+    font-size: 0.8rem; color: var(--fg-muted); margin-bottom: 1rem;
+}}
+.api-base-url code {{
+    font-family: var(--mono); color: var(--accent); font-size: 0.8rem;
+}}
+.api-group {{ margin-bottom: 1.2rem; }}
+.api-group-name {{
+    font-family: var(--mono); font-size: 0.8rem; font-weight: 600;
+    color: var(--fg-muted); margin-bottom: 0.4rem;
+}}
+.api-endpoints {{
+    width: 100%; border-collapse: collapse; font-size: 0.8rem;
+}}
+.api-endpoints th {{
+    text-align: left; padding: 0.3rem 0.6rem;
+    font-family: var(--mono); font-size: 0.7rem; color: var(--fg-dim);
+    border-bottom: 1px solid var(--border); font-weight: 500;
+    letter-spacing: 0.04em; text-transform: uppercase;
+}}
+.api-endpoints td {{
+    padding: 0.3rem 0.6rem; border-bottom: 1px solid var(--border);
+}}
+.api-path {{ font-family: var(--mono); color: var(--fg); }}
+.api-auth {{ font-family: var(--mono); font-size: 0.75rem; color: var(--fg-dim); }}
+.api-method-get {{ font-family: var(--mono); color: var(--green); font-weight: 600; font-size: 0.75rem; }}
+.api-method-post {{ font-family: var(--mono); color: var(--accent); font-weight: 600; font-size: 0.75rem; }}
+.api-method-put, .api-method-patch {{ font-family: var(--mono); color: #5a8fd4; font-weight: 600; font-size: 0.75rem; }}
+.api-method-delete {{ font-family: var(--mono); color: var(--red); font-weight: 600; font-size: 0.75rem; }}
+.api-params {{
+    padding: 0.2rem 0.6rem 0.4rem; font-size: 0.75rem;
+    color: var(--fg-dim); border-bottom: 1px solid var(--border);
+}}
+.api-params-label {{ color: var(--fg-dim); font-style: italic; }}
+.api-param {{
+    display: inline-block; margin-right: 0.8rem;
+}}
+.api-param code {{ font-family: var(--mono); color: var(--fg-muted); font-size: 0.75rem; }}
+.api-param-type {{ color: var(--fg-dim); font-size: 0.7rem; }}
+.api-required {{ color: var(--red); font-size: 0.65rem; font-weight: 500; }}
 
 /* Manifest */
 .manifest-pre {{

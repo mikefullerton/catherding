@@ -27,6 +27,8 @@ def discover_features() -> list[Feature]:
     from configurator.features.text_size import TextSizeFeature
     from configurator.features.user_settings import UserSettingsFeature
     from configurator.features.feedback import FeedbackFeature
+    from configurator.features.data_model import DataModelFeature
+    from configurator.features.api_view import ApiViewFeature
 
     features = [
         ProjectFeature(),
@@ -48,6 +50,8 @@ def discover_features() -> list[Feature]:
         AbTestingFeature(),
         FeatureFlagsFeature(),
         LoggingFeature(),
+        DataModelFeature(),
+        ApiViewFeature(),
         CredentialsFeature(),
     ]
     return _topo_sort(features)
