@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""repo-tools clean — discover repos, process in parallel, report results.
+"""repo-cleaner clean — discover repos, process in parallel, report results.
 
 Usage:
     python3 clean.py [--depth N] [--dry-run] [--workers N] [ROOT]
@@ -490,7 +490,7 @@ def process_repo(repo, dry_run):
 # ── main ────────────────────────────────────────────────────────────────
 
 def main():
-    parser = argparse.ArgumentParser(description="repo-tools clean")
+    parser = argparse.ArgumentParser(description="repo-cleaner clean")
     parser.add_argument("root", nargs="?", default=".")
     parser.add_argument("--depth", type=int, default=3)
     parser.add_argument("--dry-run", action="store_true")

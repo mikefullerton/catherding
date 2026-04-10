@@ -1,5 +1,5 @@
 ---
-name: repo-tools
+name: repo-cleaner
 description: "Recursive repository cleanup — auto-fixes obvious issues, interactively resolves the rest"
 version: "5.0.0"
 argument-hint: "<clean|--help> [--depth N] [--dry-run] [--version]"
@@ -7,20 +7,20 @@ allowed-tools: Read, Glob, Grep, Bash(python3 *, git *, gh *, ls *, rm *, test *
 model: sonnet
 ---
 
-# Repo Tools v5.0.0
+# Repo Cleaner v5.0.0
 
 Recursive repository cleanup — auto-fixes obvious issues, interactively resolves the rest.
 
 ## Startup
 
 If `$ARGUMENTS` is `--version`, respond with exactly:
-> repo-tools v5.0.0
+> repo-cleaner v5.0.0
 
 Then stop.
 
 **CRITICAL**: Print the version line first:
 
-repo-tools v5.0.0
+repo-cleaner v5.0.0
 
 ## Route by argument
 
@@ -30,7 +30,7 @@ repo-tools v5.0.0
 | `clean --dry-run` | Go to **Clean** section in dry-run mode |
 | `clean --depth N` | Go to **Clean** section with custom depth |
 | `--help` | Go to **Help** section |
-| *(empty or anything else)* | Print usage and stop: `Usage: /repo-tools <clean\|--help> [--depth N] [--dry-run] [--version]` |
+| *(empty or anything else)* | Print usage and stop: `Usage: /repo-cleaner <clean\|--help> [--depth N] [--dry-run] [--version]` |
 
 ---
 
@@ -42,11 +42,11 @@ Print the following exactly, then stop:
 >
 > Recursive repository cleanup — auto-fixes obvious issues, interactively resolves the rest.
 >
-> **Usage:** `/repo-tools <clean|--help> [--depth N] [--dry-run] [--version]`
+> **Usage:** `/repo-cleaner <clean|--help> [--depth N] [--dry-run] [--version]`
 >
 > ### Commands
 >
-> **`/repo-tools clean`** — Discover and clean git repos
+> **`/repo-cleaner clean`** — Discover and clean git repos
 >
 > Recursively discovers git repositories from the current directory (default depth 3), then walks each one:
 >
@@ -67,11 +67,11 @@ Print the following exactly, then stop:
 >
 > After processing all repos, prints a final dashboard summarizing everything done.
 >
-> **`/repo-tools clean --dry-run`** — Preview without changing anything
+> **`/repo-cleaner clean --dry-run`** — Preview without changing anything
 >
 > Walks the full tree and reports what would be auto-fixed and what would need input, but makes no changes.
 >
-> **`/repo-tools clean --depth N`** — Set discovery depth (default: 3)
+> **`/repo-cleaner clean --depth N`** — Set discovery depth (default: 3)
 >
 > Controls how many directory levels deep to search for git repositories.
 
@@ -330,7 +330,7 @@ Worktree: <path>
 Use AskUserQuestion:
 > **[<repo-name>]** Worktree at `<path>` has uncommitted changes. Stash, skip, or chat?
 >
-> - **Stash** — `git -C <path> stash push -m "repo-tools stash <date>"`
+> - **Stash** — `git -C <path> stash push -m "repo-cleaner stash <date>"`
 > - **Skip** — leave it
 > - **Chat** — show me the changes
 > - **Stop** — stop cleaning this repo

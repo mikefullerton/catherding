@@ -8,7 +8,7 @@ Cat Herding functions as a local plugin marketplace for Claude Code. It provides
 
 ## Key Features
 
-- 6 installable Claude Code plugins (yolo, custom-status-line, repo-tools, show-project-setup, site-manager, webinator)
+- 6 installable Claude Code plugins (yolo, custom-status-line, repo-cleaner, show-project-setup, site-manager, webinator)
 - 11 local skills (lint-skill, lint-rule, lint-agent, optimize-rules, install-worktree-rule, and more)
 - site-manager CLI v0.3.0 — multi-site web deployment manager (8 commands)
 - webinator CLI v0.1.0 — web infrastructure manager (11+ commands)
