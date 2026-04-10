@@ -134,22 +134,30 @@ def main():
         served_log.symlink_to(LOG_FILE)
 
     known = current_sites()
-    # Track when each site was first seen (for duration on removal)
-    install_times: dict[str, float] = {name: time.time() for name in known}
+    # Track install time and cached metadata per site
+    install_times: dict[str, float] = {}
+    cached_meta: dict[str, dict] = {}
+    for name in known:
+        install_times[name] = time.time()
+        cached_meta[name] = read_metadata(name)
 
     # Log initial state with metadata
     for name in sorted(known):
-        log_event("present", name, read_metadata(name))
+        log_event("present", name, cached_meta[name])
 
     while True:
         time.sleep(POLL_INTERVAL)
         now = current_sites()
         for name in sorted(now - known):
             install_times[name] = time.time()
-            log_event("installed", name, read_metadata(name))
+            meta = read_metadata(name)
+            cached_meta[name] = meta
+            log_event("installed", name, meta)
         for name in sorted(known - now):
             duration = time.time() - install_times.pop(name, time.time())
-            log_event("removed", name, {"duration": format_duration(duration)})
+            extra = dict(cached_meta.pop(name, {}))
+            extra["duration"] = format_duration(duration)
+            log_event("removed", name, extra)
         known = now
 
 
