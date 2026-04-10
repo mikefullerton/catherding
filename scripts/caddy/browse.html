@@ -31,7 +31,8 @@ body {
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
   display: flex; justify-content: center;
-  padding: 4rem 1.5rem;
+  padding: 2.5rem 1.5rem 0;
+  min-height: 100vh;
 }
 ::selection { background: var(--accent-dim); color: var(--accent); }
 .grain {
@@ -40,7 +41,13 @@ body {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   z-index: 9999;
 }
-.container { max-width: 640px; width: 100%; }
+.container {
+  max-width: 640px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 2.5rem);
+}
 h1 {
   font-family: var(--serif);
   font-size: 2rem;
@@ -54,8 +61,27 @@ h1 {
   letter-spacing: 0.05em;
   margin-bottom: 2.5rem;
 }
+.section-frame {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.2rem;
+  background: var(--surface);
+}
+.section-frame h2 {
+  font-family: var(--serif);
+  font-size: 1.1rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-bottom: 0.8rem;
+}
+.sites-frame {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 .sites-scroll {
-  max-height: 60vh;
+  flex: 1;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
@@ -65,7 +91,7 @@ h1 {
 .sites-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ul { list-style: none; }
 ul li {
-  background: var(--surface);
+  background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 8px;
   margin-bottom: 0.6rem;
@@ -121,20 +147,16 @@ li:hover .site-title { color: var(--accent); }
   font-size: 0.85rem;
   padding: 1rem 0;
 }
-.log-section {
-  margin-top: 2.5rem;
-  border-top: 1px solid var(--border);
-  padding-top: 1.5rem;
-}
-.log-section h2 {
-  font-family: var(--serif);
-  font-size: 1.2rem;
-  font-weight: 400;
-  margin-bottom: 0.8rem;
-  color: var(--text-muted);
+.log-frame {
+  margin-top: 1rem;
+  margin-bottom: 1.5rem;
+  height: 180px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
 }
 .log-scroll {
-  max-height: 200px;
+  flex: 1;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
@@ -169,17 +191,20 @@ li:hover .site-title { color: var(--accent); }
 <div class="container">
   <h1>Local Sites</h1>
   <p class="subtitle">~/.local-server/sites</p>
-  <div class="sites-scroll">
-    <ul id="sites">
-      {{range .Items}}{{if and (ne .Name ".DS_Store") (ne .Name "activity.log")}}
-      <li><a href="{{.URL}}" data-file="{{.Name}}" data-mod="{{.ModTime.Format "2006-01-02T15:04:05Z07:00"}}"><div class="site-title">{{.Name}}</div></a></li>
-      {{end}}{{end}}
-      {{if eq (len .Items) 0}}
-      <li class="empty">No sites. Drop .html files or directories into ~/.local-server/sites/</li>
-      {{end}}
-    </ul>
+  <div class="section-frame sites-frame">
+    <h2>Sites</h2>
+    <div class="sites-scroll">
+      <ul id="sites">
+        {{range .Items}}{{if and (ne .Name ".DS_Store") (ne .Name "activity.log")}}
+        <li><a href="{{.URL}}" data-file="{{.Name}}" data-mod="{{.ModTime.Format "2006-01-02T15:04:05Z07:00"}}"><div class="site-title">{{.Name}}</div></a></li>
+        {{end}}{{end}}
+        {{if eq (len .Items) 0}}
+        <li class="empty">No sites. Drop .html files or directories into ~/.local-server/sites/</li>
+        {{end}}
+      </ul>
+    </div>
   </div>
-  <div class="log-section" id="log-section" style="display:none">
+  <div class="section-frame log-frame" id="log-section" style="display:none">
     <h2>Activity</h2>
     <div class="log-scroll" id="log"></div>
   </div>
