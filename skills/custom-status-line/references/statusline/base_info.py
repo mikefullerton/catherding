@@ -291,16 +291,14 @@ def run(claude_data: dict, lines: list) -> list:
     col3_w = max(visible_len(gs3), visible_len(l2c3), visible_len(sc3))
     col4_w = max(visible_len(gs4), visible_len(sc4))
 
-    # Session name as col0 — prepended to all aligned lines
-    if session_name:
-        col0_w = visible_len(session_name)
-        col0_val = pad_right(session_name, col0_w) + sep
-        col0_pad = pad_right("", col0_w) + sep
-    else:
-        col0_val = ""
-        col0_pad = ""
+    # Session name as col0 on model line only
+    col0_val = session_name + sep if session_name else ""
 
     lbor = "| "
+
+    # Pad path so git:(branch) aligns with col3 of rows below
+    path_w = col1_w + col2_w + 5  # accounts for lbor(2) + sep(3)
+    l1c1 = pad_right(l1c1, path_w)
 
     line1 = f"{l1c1}"
     if branch:
@@ -311,7 +309,7 @@ def run(claude_data: dict, lines: list) -> list:
     result = [line1]
 
     if branch:
-        git_line = f"{lbor}{col0_pad}{pad_left(gs1, col1_w)}{sep}{pad_right(gs2, col2_w)}{sep}{pad_right(gs3, col3_w)}"
+        git_line = f"{lbor}{pad_left(gs1, col1_w)}{sep}{pad_right(gs2, col2_w)}{sep}{pad_right(gs3, col3_w)}"
         if gs4:
             git_line += f"{sep}{gs4}"
         result.append(git_line)
@@ -320,7 +318,7 @@ def run(claude_data: dict, lines: list) -> list:
     if yolo_col:
         line2 += f"{sep}{yolo_col}"
 
-    session_line = f"{lbor}{col0_pad}{pad_left(sc1, col1_w)}{sep}{pad_right(sc2, col2_w)}{sep}{pad_right(sc3, col3_w)}{sep}{pad_right(sc4, col4_w)}"
+    session_line = f"{lbor}{pad_left(sc1, col1_w)}{sep}{pad_right(sc2, col2_w)}{sep}{pad_right(sc3, col3_w)}{sep}{pad_right(sc4, col4_w)}"
 
     result.extend([line2, session_line])
 
