@@ -381,7 +381,7 @@ document.querySelectorAll("#sites li").forEach(function(li) {
 
 // Poll server for directory changes and diff the DOM
 function pollSites() {
-  fetch("/", { headers: { "Accept": "text/html" } })
+  fetch("/?_t=" + Date.now(), { cache: "no-store", headers: { "Accept": "text/html" } })
     .then(function(r) { if (!r.ok) throw r; return r.text(); })
     .then(function(html) {
       var doc = new DOMParser().parseFromString(html, "text/html");
@@ -461,7 +461,7 @@ setInterval(pollSites, 5000);
 var lastLogLength = 0;
 
 function pollLog() {
-  fetch("/activity.log")
+  fetch("/activity.log?_t=" + Date.now(), { cache: "no-store" })
     .then(function(r) {
       if (!r.ok) throw r;
       return r.text();
