@@ -16,6 +16,8 @@
   --text-dim: #5a5a6a;
   --accent: #c4a35a;
   --accent-dim: rgba(196, 163, 90, 0.15);
+  --added: #4a9;
+  --removed: #c55;
   --mono: 'DM Mono', monospace;
   --serif: 'Instrument Serif', serif;
   --sans: 'Manrope', sans-serif;
@@ -52,6 +54,15 @@ h1 {
   letter-spacing: 0.05em;
   margin-bottom: 2.5rem;
 }
+.sites-scroll {
+  max-height: 60vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.sites-scroll::-webkit-scrollbar { width: 6px; }
+.sites-scroll::-webkit-scrollbar-track { background: transparent; }
+.sites-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ul { list-style: none; }
 ul li {
   background: var(--surface);
@@ -69,6 +80,16 @@ ul li a {
   padding: 1rem 1.2rem;
   color: var(--text);
   text-decoration: none;
+  position: relative;
+}
+.site-ago {
+  position: absolute;
+  top: 1rem;
+  right: 1.2rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  white-space: nowrap;
 }
 .site-title {
   font-size: 0.95rem;
@@ -100,6 +121,47 @@ li:hover .site-title { color: var(--accent); }
   font-size: 0.85rem;
   padding: 1rem 0;
 }
+.log-section {
+  margin-top: 2.5rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1.5rem;
+}
+.log-section h2 {
+  font-family: var(--serif);
+  font-size: 1.2rem;
+  font-weight: 400;
+  margin-bottom: 0.8rem;
+  color: var(--text-muted);
+}
+.log-scroll {
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.log-scroll::-webkit-scrollbar { width: 6px; }
+.log-scroll::-webkit-scrollbar-track { background: transparent; }
+.log-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.log-entry {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  padding: 0.15rem 0;
+  display: flex;
+  gap: 1rem;
+}
+.log-time { color: var(--text-dim); min-width: 7ch; }
+.log-action { min-width: 8ch; }
+.log-added { color: var(--added); }
+.log-removed { color: var(--removed); }
+.log-present { color: var(--text-muted); }
+.log-name { color: var(--text-muted); }
+.log-empty {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  padding: 0.5rem 0;
+}
 </style>
 </head>
 <body>
@@ -107,19 +169,42 @@ li:hover .site-title { color: var(--accent); }
 <div class="container">
   <h1>Local Sites</h1>
   <p class="subtitle">~/.local-server/sites</p>
-  <ul id="sites">
-    {{range .Items}}{{if ne .Name ".DS_Store"}}
-    <li><a href="{{.URL}}" data-file="{{.Name}}" data-mod="{{.ModTime.Format "2006-01-02T15:04:05Z07:00"}}"><div class="site-title">{{.Name}}</div></a></li>
-    {{end}}{{end}}
-    {{if eq (len .Items) 0}}
-    <li class="empty">No sites. Drop .html files or directories into ~/.local-server/sites/</li>
-    {{end}}
-  </ul>
+  <div class="sites-scroll">
+    <ul id="sites">
+      {{range .Items}}{{if and (ne .Name ".DS_Store") (ne .Name "activity.log")}}
+      <li><a href="{{.URL}}" data-file="{{.Name}}" data-mod="{{.ModTime.Format "2006-01-02T15:04:05Z07:00"}}"><div class="site-title">{{.Name}}</div></a></li>
+      {{end}}{{end}}
+      {{if eq (len .Items) 0}}
+      <li class="empty">No sites. Drop .html files or directories into ~/.local-server/sites/</li>
+      {{end}}
+    </ul>
+  </div>
+  <div class="log-section" id="log-section" style="display:none">
+    <h2>Activity</h2>
+    <div class="log-scroll" id="log"></div>
+  </div>
 </div>
 <script>
-document.querySelectorAll("#sites a[data-file]").forEach(function(link) {
+var IGNORED = {".DS_Store": 1, "activity.log": 1};
+
+function timeAgo(date) {
+  var s = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (s < 60) return s + "s";
+  var m = Math.floor(s / 60);
+  if (m < 60) return m + "m";
+  var h = Math.floor(m / 60);
+  if (h < 24) return h + "h " + (m % 60) + "m";
+  var d = Math.floor(h / 24);
+  return d + "d " + (h % 24) + "h";
+}
+
+function formatDate(date) {
+  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+// Enrich a link element with title/description fetched from the file
+function enrichLink(link) {
   var name = link.getAttribute("data-file");
-  // Determine fetch URL: .html files directly, directories via index.html
   var fetchUrl;
   if (name.endsWith(".html")) {
     fetchUrl = "/" + name;
@@ -153,58 +238,191 @@ document.querySelectorAll("#sites a[data-file]").forEach(function(link) {
       link.appendChild(fileDiv);
     })
     .catch(function() {});
-});
-
-function timeAgo(date) {
-  var s = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (s < 60) return s + "s";
-  var m = Math.floor(s / 60);
-  if (m < 60) return m + "m";
-  var h = Math.floor(m / 60);
-  if (h < 24) return h + "h " + (m % 60) + "m";
-  var d = Math.floor(h / 24);
-  return d + "d " + (h % 24) + "h";
 }
 
-function formatDate(date) {
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
-document.querySelectorAll("#sites a[data-mod]").forEach(function(link) {
+// Add installed-date row and live ago badge to a link
+function addMeta(link) {
   var mod = link.getAttribute("data-mod");
   if (!mod) return;
   var date = new Date(mod);
   if (isNaN(date)) return;
 
+  // Live-ticking badge in upper right
+  var ago = document.createElement("span");
+  ago.className = "site-ago";
+  ago.textContent = timeAgo(date);
+  link.appendChild(ago);
+
+  // Installed date row at bottom
   var metaDiv = document.createElement("div");
   metaDiv.className = "site-meta";
-
   var installed = document.createElement("span");
   installed.textContent = "installed " + formatDate(date);
   metaDiv.appendChild(installed);
-
-  var ago = document.createElement("span");
-  ago.textContent = timeAgo(date) + " ago";
-  metaDiv.appendChild(ago);
-
   link.appendChild(metaDiv);
+}
+
+// Create a new <li> for a site
+function createSiteItem(name, url, mod) {
+  var li = document.createElement("li");
+  var a = document.createElement("a");
+  a.href = url;
+  a.setAttribute("data-file", name);
+  a.setAttribute("data-mod", mod);
+
+  var titleDiv = document.createElement("div");
+  titleDiv.className = "site-title";
+  titleDiv.textContent = name;
+  a.appendChild(titleDiv);
+
+  li.appendChild(a);
+  return li;
+}
+
+// Get map of current sites in DOM: name -> mod
+function domSites() {
+  var sites = {};
+  document.querySelectorAll("#sites a[data-file]").forEach(function(a) {
+    sites[a.getAttribute("data-file")] = a.getAttribute("data-mod");
+  });
+  return sites;
+}
+
+// Enrich initial server-rendered items
+document.querySelectorAll("#sites a[data-file]").forEach(function(link) {
+  enrichLink(link);
+  addMeta(link);
 });
 
-// Update ago counters every minute
+// Poll server for directory changes and diff the DOM
+function pollSites() {
+  fetch("/", { headers: { "Accept": "text/html" } })
+    .then(function(r) { if (!r.ok) throw r; return r.text(); })
+    .then(function(html) {
+      var doc = new DOMParser().parseFromString(html, "text/html");
+      var serverEntries = {};
+      doc.querySelectorAll("#sites a[data-file]").forEach(function(a) {
+        var name = a.getAttribute("data-file");
+        if (!IGNORED[name]) {
+          serverEntries[name] = {
+            url: a.getAttribute("href"),
+            mod: a.getAttribute("data-mod")
+          };
+        }
+      });
+
+      var current = domSites();
+      var ul = document.getElementById("sites");
+
+      // Remove items no longer on server
+      var toRemove = [];
+      ul.querySelectorAll("li").forEach(function(li) {
+        var a = li.querySelector("a[data-file]");
+        if (a && !serverEntries[a.getAttribute("data-file")]) {
+          toRemove.push(li);
+        }
+      });
+      toRemove.forEach(function(li) { ul.removeChild(li); });
+
+      // Add new items
+      var keys = Object.keys(serverEntries);
+      keys.forEach(function(name) {
+        if (!current[name]) {
+          // Remove empty message if present
+          var empty = ul.querySelector(".empty");
+          if (empty) ul.removeChild(empty);
+
+          var info = serverEntries[name];
+          var li = createSiteItem(name, info.url, info.mod);
+          ul.appendChild(li);
+          var link = li.querySelector("a");
+          enrichLink(link);
+          addMeta(link);
+        }
+      });
+
+      // Show empty message if no sites
+      if (keys.length === 0 && !ul.querySelector(".empty")) {
+        var emptyLi = document.createElement("li");
+        emptyLi.className = "empty";
+        emptyLi.textContent = "No sites. Drop .html files or directories into ~/.local-server/sites/";
+        ul.appendChild(emptyLi);
+      }
+    })
+    .catch(function() {});
+}
+
+// Live-tick ago badges every second
 setInterval(function() {
   document.querySelectorAll("#sites a[data-mod]").forEach(function(link) {
     var mod = link.getAttribute("data-mod");
     if (!mod) return;
     var date = new Date(mod);
     if (isNaN(date)) return;
-    var metaDiv = link.querySelector(".site-meta");
-    if (metaDiv && metaDiv.children.length >= 2) {
-      metaDiv.children[1].textContent = timeAgo(date) + " ago";
-    }
+    var ago = link.querySelector(".site-ago");
+    if (ago) ago.textContent = timeAgo(date);
   });
-}, 60000);
+}, 1000);
 
-setTimeout(function() { location.reload(); }, 5000);
+// Poll for directory changes every 5 seconds (no page reload)
+setInterval(pollSites, 5000);
+
+// Activity log
+var lastLogLength = 0;
+
+function pollLog() {
+  fetch("/activity.log")
+    .then(function(r) {
+      if (!r.ok) throw r;
+      return r.text();
+    })
+    .then(function(text) {
+      if (!text.trim()) return;
+      // Only update if content changed
+      if (text.length === lastLogLength) return;
+      lastLogLength = text.length;
+
+      var section = document.getElementById("log-section");
+      section.style.display = "";
+      var logDiv = document.getElementById("log");
+
+      // Clear and rebuild (log is small)
+      while (logDiv.firstChild) logDiv.removeChild(logDiv.firstChild);
+
+      var lines = text.trim().split("\n").filter(Boolean);
+      // Show last 50, newest first
+      lines.slice(-50).reverse().forEach(function(line) {
+        try {
+          var entry = JSON.parse(line);
+          var div = document.createElement("div");
+          div.className = "log-entry";
+
+          var time = document.createElement("span");
+          time.className = "log-time";
+          var d = new Date(entry.time);
+          time.textContent = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+          div.appendChild(time);
+
+          var action = document.createElement("span");
+          action.className = "log-action log-" + entry.action;
+          action.textContent = entry.action;
+          div.appendChild(action);
+
+          var name = document.createElement("span");
+          name.className = "log-name";
+          name.textContent = entry.name;
+          div.appendChild(name);
+
+          logDiv.appendChild(div);
+        } catch(e) {}
+      });
+    })
+    .catch(function() {});
+}
+
+// Poll log every 5 seconds
+pollLog();
+setInterval(pollLog, 5000);
 </script>
 </body>
 </html>
