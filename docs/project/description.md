@@ -1,26 +1,21 @@
 # Cat Herding
 
-A personal collection of Claude Code plugins, skills, CLI tools, and configuration rules that augment development workflows.
+Personal collection of Claude Code skills, plugins, hooks, and workflow extensions.
 
 ## Purpose
 
-Cat Herding functions as a local plugin marketplace for Claude Code. It provides installable plugins, reusable skills, and two Python CLIs (site-manager and webinator) for managing web infrastructure. Everything is designed for zero or minimal external dependencies.
+Cat Herding provides personal workflow extensions for Claude Code: YOLO mode for auto-approving tool calls, a composable status line pipeline, internal linting/authoring skills, and configuration rules.
 
 ## Key Features
 
-- 6 installable Claude Code plugins (yolo, custom-status-line, repo-cleaner, show-project-setup, site-manager, webinator)
-- 11 local skills (lint-skill, lint-rule, lint-agent, optimize-rules, install-worktree-rule, and more)
-- site-manager CLI v0.3.0 — multi-site web deployment manager (8 commands)
-- webinator CLI v0.1.0 — web infrastructure manager (11+ commands)
-- Configuration rules for CLI versioning and plugin development workflows
-- Research documents on Claude Code capabilities
+- 2 distributable skills (yolo, custom-status-line)
+- Internal skills for linting and authoring (lint-skill, lint-rule, lint-agent, optimize-rules, etc.)
+- Configuration rules for CLI versioning and plugin development
 
 ## Tech Stack
 
-- **Language:** Python 3.11+ (CLIs — zero external dependencies, stdlib only)
-- **Testing:** pytest, Vitest (JavaScript test harness)
-- **Plugins:** Bash shell scripts, YAML manifests
-- **Build:** `uv` (Python tool installer)
+- **Language:** Python 3.11+
+- **Testing:** pytest
 
 ## Status
 
@@ -28,5 +23,4 @@ Active development.
 
 ## Related Projects
 
-- [Roadmaps](../../roadmaps/docs/project/description.md) — feature planning system (also a Claude Code extension)
-- [Tools](../../tools/docs/project/description.md) — agentic-cookbook skills and rules
+- [dev-tools](../../../tools/dev-tools/docs/project/description.md) — project scaffolding, deployment, and infrastructure skills (moved from this repo)

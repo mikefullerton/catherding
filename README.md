@@ -1,3 +1,23 @@
 # Cat Herding
 
-Personal collection of tools, scripts, Claude Code rules, skills, plugins, hooks, and other extensions that augment my development workflow.
+Personal collection of Claude Code skills, plugins, hooks, and workflow extensions.
+
+## Skills
+
+| Skill | Purpose |
+|-------|---------|
+| `/custom-status-line install` | Install composable status line pipeline |
+| `/custom-status-line uninstall` | Remove status line pipeline |
+| `/yolo` | Toggle per-session YOLO mode |
+
+## Install
+
+```bash
+./install.sh
+```
+
+## Uninstall
+
+```bash
+./uninstall.sh
+```
