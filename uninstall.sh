@@ -52,4 +52,19 @@ for pyproject in "$REPO_DIR"/skills/*/*/pyproject.toml; do
 done
 
 echo ""
+echo "Updating global CLAUDE.md..."
+CLAUDE_MD="$HOME/.claude/CLAUDE.md"
+if [ -f "$CLAUDE_MD" ] && grep -q '<!-- BEGIN CADDY -->' "$CLAUDE_MD"; then
+    python3 -c "
+import re
+text = open('$CLAUDE_MD').read()
+text = re.sub(r'\n*<!-- BEGIN CADDY -->.*?<!-- END CADDY -->\n*', '\n\n', text, flags=re.DOTALL)
+open('$CLAUDE_MD', 'w').write(text.strip() + '\n')
+"
+    echo "  Removed Caddy section"
+else
+    echo "  SKIP (no Caddy section found)"
+fi
+
+echo ""
 echo "Done."
