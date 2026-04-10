@@ -76,7 +76,7 @@ CADDYFILE
 fi
 
 # Copy browse template
-cp "$REPO_DIR/scripts/caddy/browse.html" "$HOME/.local-server/browse.html"
+cp "$REPO_DIR/devtools-local-web-server/site-template/browse.html" "$HOME/.local-server/browse.html"
 echo "  Wrote ~/.local-server/browse.html"
 
 # Start or reload Caddy
@@ -92,7 +92,7 @@ fi
 # Install site watcher daemon
 echo ""
 echo "Setting up site watcher..."
-WATCHER_SRC="$REPO_DIR/scripts/caddy/site_watcher.py"
+WATCHER_SRC="$REPO_DIR/devtools-local-web-server/site-template/site_watcher.py"
 WATCHER_DST="$HOME/.local-server/site_watcher.py"
 cp "$WATCHER_SRC" "$WATCHER_DST"
 chmod +x "$WATCHER_DST"
@@ -111,7 +111,7 @@ fi
 sed -e "s|__PYTHON3__|$PYTHON3|g" \
     -e "s|__SITE_WATCHER__|$WATCHER_DST|g" \
     -e "s|__HOME__|$HOME|g" \
-    "$REPO_DIR/scripts/caddy/com.local-server.site-watcher.plist" > "$PLIST_DST"
+    "$REPO_DIR/devtools-local-web-server/site-template/com.local-server.site-watcher.plist" > "$PLIST_DST"
 
 launchctl load "$PLIST_DST"
 echo "  Site watcher started ($PLIST_LABEL)"
