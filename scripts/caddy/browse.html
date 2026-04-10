@@ -106,20 +106,24 @@ ul li a {
   padding: 1rem 1.2rem;
   color: var(--text);
   text-decoration: none;
-  position: relative;
+}
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
 }
 .site-ago {
-  position: absolute;
-  top: 1rem;
-  right: 1.2rem;
   font-family: var(--mono);
   font-size: 0.7rem;
-  color: var(--text-dim);
+  color: var(--accent);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .site-title {
   font-size: 0.95rem;
   font-weight: 500;
+  color: var(--accent);
 }
 li:hover .site-title { color: var(--accent); }
 .site-desc {
@@ -177,7 +181,7 @@ li:hover .site-title { color: var(--accent); }
 .log-added { color: var(--added); }
 .log-removed { color: var(--removed); }
 .log-present { color: var(--text-muted); }
-.log-name { color: var(--text-muted); }
+.log-name { color: var(--accent); }
 .log-empty {
   font-family: var(--mono);
   font-size: 0.75rem;
@@ -196,7 +200,7 @@ li:hover .site-title { color: var(--accent); }
     <div class="sites-scroll">
       <ul id="sites">
         {{range .Items}}{{if and (ne .Name ".DS_Store") (ne .Name "activity.log")}}
-        <li><a href="{{.URL}}" data-file="{{.Name}}" data-mod="{{.ModTime.Format "2006-01-02T15:04:05Z07:00"}}"><div class="site-title">{{.Name}}</div></a></li>
+        <li><a href="{{.URL}}" data-file="{{.Name}}" data-mod="{{.ModTime.Format "2006-01-02T15:04:05Z07:00"}}"><div class="site-header"><span class="site-title">{{.Name}}</span></div></a></li>
         {{end}}{{end}}
         {{if eq (len .Items) 0}}
         <li class="empty">No sites. Drop .html files or directories into ~/.local-server/sites/</li>
@@ -213,14 +217,15 @@ li:hover .site-title { color: var(--accent); }
 var IGNORED = {".DS_Store": 1, "activity.log": 1};
 
 function timeAgo(date) {
-  var s = Math.floor((Date.now() - date.getTime()) / 1000);
-  if (s < 60) return s + "s";
-  var m = Math.floor(s / 60);
-  if (m < 60) return m + "m";
-  var h = Math.floor(m / 60);
-  if (h < 24) return h + "h " + (m % 60) + "m";
-  var d = Math.floor(h / 24);
-  return d + "d " + (h % 24) + "h";
+  var total = Math.floor((Date.now() - date.getTime()) / 1000);
+  var s = total % 60;
+  var m = Math.floor(total / 60) % 60;
+  var h = Math.floor(total / 3600) % 24;
+  var d = Math.floor(total / 86400);
+  if (d > 0) return d + "d " + h + "h " + m + "m " + s + "s";
+  if (h > 0) return h + "h " + m + "m " + s + "s";
+  if (m > 0) return m + "m " + s + "s";
+  return s + "s";
 }
 
 function formatDate(date) {
@@ -265,18 +270,21 @@ function enrichLink(link) {
     .catch(function() {});
 }
 
-// Add installed-date row and live ago badge to a link
+// Add live ago badge (in header row) and installed-date row
 function addMeta(link) {
   var mod = link.getAttribute("data-mod");
   if (!mod) return;
   var date = new Date(mod);
   if (isNaN(date)) return;
 
-  // Live-ticking badge in upper right
-  var ago = document.createElement("span");
-  ago.className = "site-ago";
-  ago.textContent = timeAgo(date);
-  link.appendChild(ago);
+  // Live-ticking badge in the header flex row
+  var header = link.querySelector(".site-header");
+  if (header) {
+    var ago = document.createElement("span");
+    ago.className = "site-ago";
+    ago.textContent = timeAgo(date);
+    header.appendChild(ago);
+  }
 
   // Installed date row at bottom
   var metaDiv = document.createElement("div");
@@ -295,10 +303,13 @@ function createSiteItem(name, url, mod) {
   a.setAttribute("data-file", name);
   a.setAttribute("data-mod", mod);
 
-  var titleDiv = document.createElement("div");
-  titleDiv.className = "site-title";
-  titleDiv.textContent = name;
-  a.appendChild(titleDiv);
+  var header = document.createElement("div");
+  header.className = "site-header";
+  var titleSpan = document.createElement("span");
+  titleSpan.className = "site-title";
+  titleSpan.textContent = name;
+  header.appendChild(titleSpan);
+  a.appendChild(header);
 
   li.appendChild(a);
   return li;
