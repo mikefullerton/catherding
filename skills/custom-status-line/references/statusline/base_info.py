@@ -292,7 +292,7 @@ def run(claude_data: dict, lines: list) -> list:
     col4_w = max(visible_len(gs4), visible_len(sc4))
 
     # Session name as col0 on model line only
-    col0_val = session_name + sep if session_name else ""
+    col0_val = session_name + sep
 
     lbor = "| "
 

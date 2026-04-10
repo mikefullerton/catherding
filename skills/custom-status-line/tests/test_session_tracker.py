@@ -141,8 +141,11 @@ def test_columns_aligned(mock_log, mock_git, sessions_dir):
     model_pipes = pipe_positions(lines[1])
     session_pipes = pipe_positions(lines[2])
 
-    # First few pipe positions should match
-    for i in range(min(len(model_pipes), len(session_pipes))):
-        assert model_pipes[i] == session_pipes[i], (
-            f"Pipe {i} misaligned: model={model_pipes[i]}, session={session_pipes[i]}"
+    # Model line has col0 (session name) that shifts all columns right.
+    # Verify column widths (inter-pipe spacing) match after col0.
+    model_spacings = [model_pipes[i+1] - model_pipes[i] for i in range(1, len(model_pipes)-1)]
+    session_spacings = [session_pipes[i+1] - session_pipes[i] for i in range(len(session_pipes)-1)]
+    for i in range(min(len(model_spacings), len(session_spacings))):
+        assert model_spacings[i] == session_spacings[i], (
+            f"Column {i} width mismatch: model={model_spacings[i]}, session={session_spacings[i]}"
         )
