@@ -3,7 +3,7 @@ name: quick-ref
 version: "1.0.0"
 description: "Generate a searchable quick-reference page and open it in the browser. Defaults to Claude Code slash commands. Pass a topic or preset (e.g. claude-flags) to generate a reference."
 argument-hint: "[topic | claude-flags | help]"
-allowed-tools: Read, Write, Bash(open *), Bash(date *), Bash(python3 *), Glob, Grep
+allowed-tools: Read, Write, Bash(cp *), Bash(date *), Bash(python3 *), Glob, Grep
 model: sonnet
 ---
 
@@ -40,11 +40,9 @@ If `$ARGUMENTS` is `claude-flags`:
 
 1. Run the generator script to produce the HTML with live env var values:
    ```
-   mkdir -p /tmp/quick-ref
-   python3 ${CLAUDE_SKILL_DIR}/references/claude-flags-generator.py > /tmp/quick-ref/claude-flags.html
+   python3 ${CLAUDE_SKILL_DIR}/references/claude-flags-generator.py > ~/.local-server/sites/claude-flags.html
    ```
-2. Open with `open /tmp/quick-ref/claude-flags.html`
-3. Tell the user the page is open. Mention how many env vars are currently set vs unset.
+2. Tell the user the page is live at `http://localhost:2080/claude-flags.html`. Mention how many env vars are currently set vs unset.
 
 The generator reads `claude-flags-template.html` (a static reference of all ~70 CLI flags and ~120 env vars), scans the current environment for each env var's value, and injects color-coded badges:
 - **green** (`= value`) for set variables
@@ -61,7 +59,7 @@ If `$ARGUMENTS` is empty or blank:
 2. For each skill, gather: command name, description, source plugin, source marketplace
 3. Group skills by marketplace (h2) then by plugin (h3)
 4. Generate the HTML page using the template below
-5. Write to `/tmp/quick-ref/slash-commands.html` and open with `open /tmp/quick-ref/slash-commands.html`
+5. Write to `~/.local-server/sites/slash-commands.html`
 
 ### Custom topic
 
@@ -71,7 +69,7 @@ If `$ARGUMENTS` contains a topic:
 2. Organize items into logical groups (h2) and sub-groups (h3)
 3. Generate the HTML page using the template below
 4. Slugify the topic (lowercase, spaces/special chars → hyphens, e.g. "HTTP Status Codes" → `http-status-codes`)
-5. Write to `/tmp/quick-ref/<slug>.html` and open with `open /tmp/quick-ref/<slug>.html`
+5. Write to `~/.local-server/sites/<slug>.html`
 
 ## HTML Template
 
@@ -235,7 +233,5 @@ Same pattern for h3.
 
 ## Output
 
-1. Run `mkdir -p /tmp/quick-ref`
-2. Write the complete HTML to `/tmp/quick-ref/<slug>.html` (slug derived from the topic/preset name)
-3. Run `open /tmp/quick-ref/<slug>.html`
-4. Tell the user the page is open and briefly describe what's on it
+1. Write the complete HTML to `~/.local-server/sites/<slug>.html` (slug derived from the topic/preset name)
+2. Tell the user the page is live at `http://localhost:2080/<slug>.html` and briefly describe what's on it

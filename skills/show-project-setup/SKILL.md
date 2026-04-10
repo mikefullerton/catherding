@@ -6,7 +6,7 @@ argument-hint: "[--version]"
 disable-model-invocation: true
 context: fork
 model: opus
-allowed-tools: Read, Glob, Grep, Bash(which *), Bash(node *), Bash(python3 *), Bash(swift *), Bash(git *), Bash(gh *), Bash(npm *), Bash(docker *), Bash(go *), Bash(rustc *), Bash(java *), Bash(dotnet *), Bash(kubectl *), Bash(terraform *), Bash(wrangler *), Bash(code *), Bash(ls *), Bash(cat *), Bash(jq *), Bash(open *), Bash(uname *), Bash(sw_vers *), Bash(bun *), Bash(bash *), Write
+allowed-tools: Read, Glob, Grep, Bash(which *), Bash(node *), Bash(python3 *), Bash(swift *), Bash(git *), Bash(gh *), Bash(npm *), Bash(docker *), Bash(go *), Bash(rustc *), Bash(java *), Bash(dotnet *), Bash(kubectl *), Bash(terraform *), Bash(wrangler *), Bash(code *), Bash(ls *), Bash(cat *), Bash(jq *), Bash(uname *), Bash(sw_vers *), Bash(bun *), Bash(bash *), Write
 ---
 
 # Show Project Setup v2.0.0
@@ -21,7 +21,7 @@ Otherwise, print `show-project-setup v2.0.0` as the first line of output, then p
 
 ## Overview
 
-Generates a self-contained HTML dashboard that shows the complete Claude Code environment for the current project. Writes to `/tmp/claude-project-setup.html` and opens it in the browser.
+Generates a self-contained HTML dashboard that shows the complete Claude Code environment for the current project. Writes to `~/.local-server/sites/project-setup.html` and serves it via the local Caddy server.
 
 ## Step 1: Gather All Data
 
@@ -330,11 +330,10 @@ document.querySelectorAll('.card-header').forEach(header => {
 });
 ```
 
-## Step 3: Write and Open
+## Step 3: Write and Serve
 
-1. Write the complete HTML string to `/tmp/claude-project-setup.html` using the Write tool
-2. Run: `open /tmp/claude-project-setup.html`
-3. Print: `Dashboard opened at /tmp/claude-project-setup.html`
+1. Write the complete HTML string to `~/.local-server/sites/project-setup.html` using the Write tool
+2. Print: `Dashboard live at http://localhost:2080/project-setup.html`
 
 ## Important rules
 
@@ -353,7 +352,7 @@ document.querySelectorAll('.card-header').forEach(header => {
 show-project-setup v2.0.0
 Gathering data... rules, skills, plugins, MCP servers, dev tools...
 Detected project types: Web frontend, Web backend, Cloudflare Workers
-Dashboard opened at /tmp/claude-project-setup.html
+Dashboard live at http://localhost:2080/project-setup.html
 ```
 
 A dark-themed HTML dashboard opens in your browser with sections organized by scope:
