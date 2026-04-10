@@ -3,11 +3,13 @@
 
 Polls every 3 seconds, writes timestamped JSON lines to
 ~/.local-server/activity.log. Designed to run as a launchd daemon.
+Extracts <title> and <meta description> from HTML files for rich log entries.
 """
 
 from __future__ import annotations
 
 import json
+import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,6 +19,33 @@ LOG_FILE = Path.home() / ".local-server" / "activity.log"
 POLL_INTERVAL = 3
 IGNORED = {".DS_Store", "activity.log"}
 
+_TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
+_DESC_RE = re.compile(
+    r'<meta\s+name=["\']description["\']\s+content=["\'](.*?)["\']',
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def read_metadata(name: str) -> dict:
+    """Extract title and description from a site's HTML."""
+    path = SITES_DIR / name
+    if path.is_dir():
+        path = path / "index.html"
+    elif not name.endswith(".html"):
+        return {}
+    try:
+        html = path.read_text(errors="ignore")[:8192]
+    except (OSError, UnicodeDecodeError):
+        return {}
+    meta = {}
+    m = _TITLE_RE.search(html)
+    if m:
+        meta["title"] = m.group(1).strip()
+    m = _DESC_RE.search(html)
+    if m:
+        meta["description"] = m.group(1).strip()
+    return meta
+
 
 def current_sites() -> set:
     if not SITES_DIR.exists():
@@ -24,12 +53,29 @@ def current_sites() -> set:
     return {p.name for p in SITES_DIR.iterdir() if p.name not in IGNORED}
 
 
-def log_event(action: str, name: str):
+def format_duration(seconds: float) -> str:
+    """Format seconds into a human-readable duration string."""
+    s = int(seconds)
+    if s < 60:
+        return f"{s}s"
+    m = s // 60
+    if m < 60:
+        return f"{m}m {s % 60}s"
+    h = m // 60
+    if h < 24:
+        return f"{h}h {m % 60}m"
+    d = h // 24
+    return f"{d}d {h % 24}h {m % 60}m"
+
+
+def log_event(action: str, name: str, extra: dict | None = None):
     entry = {
         "time": datetime.now(timezone.utc).isoformat(),
         "action": action,
         "name": name,
     }
+    if extra:
+        entry.update(extra)
     with open(LOG_FILE, "a") as f:
         f.write(json.dumps(entry) + "\n")
 
@@ -44,18 +90,22 @@ def main():
         served_log.symlink_to(LOG_FILE)
 
     known = current_sites()
+    # Track when each site was first seen (for duration on removal)
+    install_times: dict[str, float] = {name: time.time() for name in known}
 
-    # Log initial state
+    # Log initial state with metadata
     for name in sorted(known):
-        log_event("present", name)
+        log_event("present", name, read_metadata(name))
 
     while True:
         time.sleep(POLL_INTERVAL)
         now = current_sites()
         for name in sorted(now - known):
-            log_event("added", name)
+            install_times[name] = time.time()
+            log_event("installed", name, read_metadata(name))
         for name in sorted(known - now):
-            log_event("removed", name)
+            duration = time.time() - install_times.pop(name, time.time())
+            log_event("removed", name, {"duration": format_duration(duration)})
         known = now
 
 

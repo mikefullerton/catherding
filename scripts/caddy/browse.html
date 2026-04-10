@@ -172,16 +172,31 @@ li:hover .site-title { color: var(--accent); }
   font-family: var(--mono);
   font-size: 0.72rem;
   color: var(--text-dim);
-  padding: 0.15rem 0;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(42, 42, 54, 0.5);
+}
+.log-row {
   display: flex;
   gap: 1rem;
+  align-items: baseline;
 }
-.log-time { color: var(--text-dim); min-width: 7ch; }
-.log-action { min-width: 8ch; }
-.log-added { color: var(--added); }
+.log-time { color: var(--text-dim); min-width: 7ch; flex-shrink: 0; }
+.log-action { min-width: 9ch; flex-shrink: 0; }
+.log-installed { color: var(--added); }
 .log-removed { color: var(--removed); }
 .log-present { color: var(--text-muted); }
 .log-name { color: var(--accent); }
+.log-detail {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  padding-left: calc(7ch + 1rem);
+  padding-top: 0.1rem;
+}
+.log-detail-desc {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  padding-left: calc(7ch + 1rem);
+}
 .log-empty {
   font-family: var(--mono);
   font-size: 0.75rem;
@@ -426,32 +441,61 @@ function pollLog() {
       while (logDiv.firstChild) logDiv.removeChild(logDiv.firstChild);
 
       var lines = text.trim().split("\n").filter(Boolean);
-      // Show last 50, newest first
-      lines.slice(-50).reverse().forEach(function(line) {
+      // Show last 50, oldest to newest (newest at bottom)
+      lines.slice(-50).forEach(function(line) {
         try {
           var entry = JSON.parse(line);
           var div = document.createElement("div");
           div.className = "log-entry";
 
+          // Main row: time, action, name
+          var row = document.createElement("div");
+          row.className = "log-row";
+
           var time = document.createElement("span");
           time.className = "log-time";
           var d = new Date(entry.time);
           time.textContent = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-          div.appendChild(time);
+          row.appendChild(time);
 
           var action = document.createElement("span");
           action.className = "log-action log-" + entry.action;
           action.textContent = entry.action;
-          div.appendChild(action);
+          row.appendChild(action);
 
+          var displayName = entry.title || entry.name;
           var name = document.createElement("span");
           name.className = "log-name";
-          name.textContent = entry.name;
-          div.appendChild(name);
+          name.textContent = displayName;
+          row.appendChild(name);
+
+          div.appendChild(row);
+
+          // Detail row: description or duration
+          if (entry.description) {
+            var desc = document.createElement("div");
+            desc.className = "log-detail-desc";
+            desc.textContent = entry.description;
+            div.appendChild(desc);
+          }
+          if (entry.duration) {
+            var dur = document.createElement("div");
+            dur.className = "log-detail";
+            dur.textContent = "ran for " + entry.duration;
+            div.appendChild(dur);
+          }
+          if (entry.title && entry.title !== entry.name) {
+            var fileRow = document.createElement("div");
+            fileRow.className = "log-detail-desc";
+            fileRow.textContent = entry.name;
+            div.appendChild(fileRow);
+          }
 
           logDiv.appendChild(div);
         } catch(e) {}
       });
+      // Auto-scroll to bottom (newest entries)
+      logDiv.scrollTop = logDiv.scrollHeight;
     })
     .catch(function() {});
 }
