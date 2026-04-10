@@ -10,12 +10,17 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import time
+import threading
 from datetime import datetime, timezone
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
+from urllib.parse import unquote
 
 SITES_DIR = Path.home() / ".local-server" / "sites"
 LOG_FILE = Path.home() / ".local-server" / "activity.log"
+API_PORT = 2081
 POLL_INTERVAL = 3
 IGNORED = {".DS_Store", "activity.log"}
 
@@ -80,9 +85,48 @@ def log_event(action: str, name: str, extra: dict | None = None):
         f.write(json.dumps(entry) + "\n")
 
 
+class APIHandler(BaseHTTPRequestHandler):
+    """Handles DELETE requests to remove sites."""
+
+    def do_DELETE(self):
+        name = unquote(self.path.lstrip("/"))
+        if not name or "/" in name or name in IGNORED:
+            self._respond(400, {"error": "invalid name"})
+            return
+        target = SITES_DIR / name
+        if not target.exists():
+            self._respond(404, {"error": "not found"})
+            return
+        if target.is_dir():
+            shutil.rmtree(target)
+        else:
+            target.unlink()
+        self._respond(200, {"deleted": name})
+
+    def _respond(self, code: int, body: dict):
+        data = json.dumps(body).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def log_message(self, format, *args):
+        pass  # suppress request logs
+
+
+def start_api_server():
+    server = HTTPServer(("127.0.0.1", API_PORT), APIHandler)
+    server.serve_forever()
+
+
 def main():
     SITES_DIR.mkdir(parents=True, exist_ok=True)
     LOG_FILE.touch(exist_ok=True)
+
+    # Start API server in background thread
+    api_thread = threading.Thread(target=start_api_server, daemon=True)
+    api_thread.start()
 
     # Symlink log into sites dir so Caddy serves it
     served_log = SITES_DIR / "activity.log"

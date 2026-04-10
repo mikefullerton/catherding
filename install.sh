@@ -54,6 +54,10 @@ if [ -d "$CADDY_ETC" ]; then
 }
 
 :2080 {
+	handle_path /_api/* {
+		reverse_proxy localhost:2081
+	}
+
 	root * {$HOME}/.local-server/sites
 	file_server {
 		browse {$HOME}/.local-server/browse.html
