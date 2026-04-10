@@ -85,6 +85,33 @@ if command -v caddy &>/dev/null; then
     fi
 fi
 
+# Install site watcher daemon
+echo ""
+echo "Setting up site watcher..."
+WATCHER_SRC="$REPO_DIR/scripts/caddy/site_watcher.py"
+WATCHER_DST="$HOME/.local-server/site_watcher.py"
+cp "$WATCHER_SRC" "$WATCHER_DST"
+chmod +x "$WATCHER_DST"
+echo "  Wrote ~/.local-server/site_watcher.py"
+
+PLIST_LABEL="com.local-server.site-watcher"
+PLIST_DST="$HOME/Library/LaunchAgents/$PLIST_LABEL.plist"
+PYTHON3="$(command -v python3)"
+
+# Unload existing if running
+if launchctl list 2>/dev/null | grep -q "$PLIST_LABEL"; then
+    launchctl unload "$PLIST_DST" 2>/dev/null || true
+fi
+
+# Write plist with paths substituted
+sed -e "s|__PYTHON3__|$PYTHON3|g" \
+    -e "s|__SITE_WATCHER__|$WATCHER_DST|g" \
+    -e "s|__HOME__|$HOME|g" \
+    "$REPO_DIR/scripts/caddy/com.local-server.site-watcher.plist" > "$PLIST_DST"
+
+launchctl load "$PLIST_DST"
+echo "  Site watcher started ($PLIST_LABEL)"
+
 echo ""
 echo "Updating global CLAUDE.md..."
 CLAUDE_MD="$HOME/.claude/CLAUDE.md"
@@ -113,7 +140,7 @@ rm ~/.local-server/sites/my-page.html
 rm -rf ~/.local-server/sites/my-app
 ```
 
-The home page auto-refreshes every 5 seconds. It reads metadata from each file (or directory's \`index.html\`) to build the listing:
+The home page polls for changes every 5 seconds without reloading (no blink). It reads metadata from each file (or directory's \`index.html\`) to build the listing:
 
 \`\`\`html
 <title>My Dashboard</title>

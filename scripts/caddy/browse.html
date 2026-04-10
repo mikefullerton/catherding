@@ -80,6 +80,16 @@ ul li a {
   padding: 1rem 1.2rem;
   color: var(--text);
   text-decoration: none;
+  position: relative;
+}
+.site-ago {
+  position: absolute;
+  top: 1rem;
+  right: 1.2rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  white-space: nowrap;
 }
 .site-title {
   font-size: 0.95rem;
@@ -230,24 +240,25 @@ function enrichLink(link) {
     .catch(function() {});
 }
 
-// Add installed-date and ago counter to a link
+// Add installed-date row and live ago badge to a link
 function addMeta(link) {
   var mod = link.getAttribute("data-mod");
   if (!mod) return;
   var date = new Date(mod);
   if (isNaN(date)) return;
 
+  // Live-ticking badge in upper right
+  var ago = document.createElement("span");
+  ago.className = "site-ago";
+  ago.textContent = timeAgo(date);
+  link.appendChild(ago);
+
+  // Installed date row at bottom
   var metaDiv = document.createElement("div");
   metaDiv.className = "site-meta";
-
   var installed = document.createElement("span");
   installed.textContent = "installed " + formatDate(date);
   metaDiv.appendChild(installed);
-
-  var ago = document.createElement("span");
-  ago.textContent = timeAgo(date) + " ago";
-  metaDiv.appendChild(ago);
-
   link.appendChild(metaDiv);
 }
 
@@ -341,19 +352,17 @@ function pollSites() {
     .catch(function() {});
 }
 
-// Update ago counters every 30 seconds
+// Live-tick ago badges every second
 setInterval(function() {
   document.querySelectorAll("#sites a[data-mod]").forEach(function(link) {
     var mod = link.getAttribute("data-mod");
     if (!mod) return;
     var date = new Date(mod);
     if (isNaN(date)) return;
-    var metaDiv = link.querySelector(".site-meta");
-    if (metaDiv && metaDiv.children.length >= 2) {
-      metaDiv.children[1].textContent = timeAgo(date) + " ago";
-    }
+    var ago = link.querySelector(".site-ago");
+    if (ago) ago.textContent = timeAgo(date);
   });
-}, 30000);
+}, 1000);
 
 // Poll for directory changes every 5 seconds (no page reload)
 setInterval(pollSites, 5000);
