@@ -15,92 +15,60 @@ brew services start caddy
 
 | Port | Purpose |
 |------|---------|
-| 2080 | HTTP file server — serves `~/www` with directory browsing |
-| 2019 | Admin API — tools register/remove routes at runtime |
+| 2080 | HTTP file server — serves `~/www` |
+| 2019 | Admin API (Caddy internal) |
 
 ## Configuration
 
 - **Caddyfile**: `/opt/homebrew/etc/Caddyfile`
 - **Access log**: `/opt/homebrew/var/log/caddy-access.log`
 - **Reload after edit**: `caddy reload --config /opt/homebrew/etc/Caddyfile`
+- **Service control**: `brew services start/stop/restart caddy`
 
-## Service Control
+## How It Works
 
-```
-brew services start caddy
-brew services stop caddy
-brew services restart caddy
-```
+Everything lives under `~/www`. Each subdirectory is a site, immediately served by Caddy at `http://localhost:2080/<name>/`. The root `index.html` auto-refreshes every 5 seconds to show all published sites.
 
-## Static Files
+No dynamic routing, no API calls — just files in a directory.
 
-Drop anything into `~/www` and browse it at `http://localhost:2080`.
+## caddy_routes
 
-## caddy_routes.py
+CLI and Python API for publishing content.
 
-Manages published sites and dynamic routes. Two approaches depending on your needs:
-
-### Publishing (recommended for most tools)
-
-Copies content into `~/www/<name>/` where Caddy serves it immediately. No API calls needed — files are served by the catch-all file server. Content survives Caddy restarts.
+### CLI
 
 ```bash
-# Publish an HTML file — copied as index.html
-python3 caddy_routes.py publish my-tool /path/to/output.html
-
-# Publish a directory of files
-python3 caddy_routes.py publish my-tool /path/to/output-dir/
-
-# Remove published content
-python3 caddy_routes.py unpublish my-tool
+caddy_routes publish my-tool /path/to/output.html    # single file -> ~/www/my-tool/
+caddy_routes publish my-tool /path/to/output-dir/     # directory -> ~/www/my-tool/
+caddy_routes unpublish my-tool                        # remove ~/www/my-tool/
+caddy_routes list                                     # show all published sites
+caddy_routes status                                   # check if Caddy is running
 ```
 
+### Python
+
 ```python
-from caddy_routes import publish, unpublish
+from caddy_routes import publish, unpublish, list_sites, status
 
-# Publish — returns the live URL
-url = publish("my-tool", "/path/to/output.html")
-# → http://localhost:2080/my-tool/
-
-# Clean up
+url = publish("my-tool", "/path/to/output.html")  # returns live URL
 unpublish("my-tool")
+list_sites()
+status()
 ```
 
-### Dynamic Routes (for serving in-place)
+### What publish Does
 
-Registers a Caddy route pointing at an existing directory without copying. Useful when content changes frequently or is large. Routes are cleared on Caddy restart.
+1. Copies the file or directory into `~/www/<name>/`
+2. If a single file, also copies it as `index.html`
+3. Rebuilds `~/www/index.html` with links to all sites
+4. Prints the live URL
+
+### Manual Publishing
+
+You don't even need the script. Just:
 
 ```bash
-# Serve a directory at a URL path
-python3 caddy_routes.py add /my-tool /path/to/output
-
-# With directory listing
-python3 caddy_routes.py add /my-tool /path/to/output --browse
-
-# Remove a route
-python3 caddy_routes.py remove /my-tool
+mkdir -p ~/www/my-tool
+cp output.html ~/www/my-tool/index.html
+# Live at http://localhost:2080/my-tool/
 ```
-
-```python
-from caddy_routes import add_route, remove_route
-
-add_route("/my-tool", "/tmp/my-tool-output", browse=True)
-remove_route("/my-tool")
-```
-
-### Inspection
-
-```bash
-# Show published sites and dynamic routes
-python3 caddy_routes.py list
-
-# Check if Caddy is running
-python3 caddy_routes.py status
-```
-
-### When to Use Which
-
-| Approach | Content persists across restart | Copies files | Best for |
-|----------|-------------------------------|-------------|----------|
-| `publish` | Yes | Yes | Generated HTML, reports, tool output |
-| `add` (dynamic route) | No | No | Large dirs, frequently changing content |

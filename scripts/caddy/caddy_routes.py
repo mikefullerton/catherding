@@ -1,73 +1,146 @@
 #!/usr/bin/env python3
-"""Manage Caddy routes for local tools.
+"""Publish and manage local sites served by Caddy at ~/www.
 
-Provides a CLI and importable API for registering, removing, and listing
-routes on the always-on local Caddy server (localhost:2019 admin API).
+Tools drop content into ~/www/<name>/ and it's immediately live at
+http://localhost:2080/<name>/. A root index.html auto-refreshes to
+show all published sites.
 
 CLI usage:
-    caddy_routes.py publish <name> <file_or_dir>      # copy to ~/www/<name>/, immediately live
-    caddy_routes.py unpublish <name>                   # remove ~/www/<name>/
-    caddy_routes.py add   <path> <root_dir>            # serve a directory (dynamic route)
-    caddy_routes.py add   <path> <root_dir> --browse   # with directory listing
-    caddy_routes.py remove <path>                      # remove a dynamic route
-    caddy_routes.py list
-    caddy_routes.py status
+    caddy_routes publish <name> <file_or_dir>   # copy to ~/www/<name>/
+    caddy_routes unpublish <name>                # remove ~/www/<name>/
+    caddy_routes list                            # show published sites
+    caddy_routes status                          # check if Caddy is running
 
 Python usage:
-    from caddy_routes import publish, unpublish, add_route, remove_route, list_routes, status
+    from caddy_routes import publish, unpublish, list_sites, status
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import shutil
 import sys
 import urllib.error
 import urllib.request
+from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 WWW_ROOT = Path.home() / "www"
+CADDY_ADMIN = "http://localhost:2019"
 
-ADMIN_API = "http://localhost:2019"
-ROUTES_PATH = "/config/apps/http/servers/srv0/routes"
+INDEX_TEMPLATE = """\
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Local Sites</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+    background: #1a1a2e; color: #e0e0e0;
+    display: flex; justify-content: center;
+    padding: 3rem 1rem;
+  }
+  .container { max-width: 640px; width: 100%%; }
+  h1 { font-size: 1.4rem; color: #8888cc; margin-bottom: 0.5rem; }
+  .subtitle { color: #666; font-size: 0.85rem; margin-bottom: 2rem; }
+  .sites { list-style: none; }
+  .sites li {
+    border: 1px solid #2a2a4a; border-radius: 6px;
+    margin-bottom: 0.5rem; transition: border-color 0.15s;
+  }
+  .sites li:hover { border-color: #8888cc; }
+  .sites a {
+    display: block; padding: 0.8rem 1rem;
+    color: #c0c0e0; text-decoration: none;
+    font-size: 0.95rem;
+  }
+  .sites a:hover { color: #fff; }
+  .meta { color: #555; font-size: 0.75rem; float: right; }
+  .empty { color: #555; font-style: italic; padding: 0.8rem 0; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Local Sites</h1>
+  <p class="subtitle">~/www &middot; auto-refreshes every 5s</p>
+  <ul class="sites" id="sites">
+%s
+  </ul>
+</div>
+<script>
+// Site data embedded as JSON for safe DOM rebuilding
+var siteData = %s;
+function buildList(data) {
+  var ul = document.getElementById("sites");
+  while (ul.firstChild) ul.removeChild(ul.firstChild);
+  if (data.length === 0) {
+    var li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = "No sites published. Use: caddy_routes publish <name> <path>";
+    ul.appendChild(li);
+    return;
+  }
+  data.forEach(function(site) {
+    var li = document.createElement("li");
+    var a = document.createElement("a");
+    a.href = "/" + site.name + "/";
+    a.textContent = site.name;
+    var span = document.createElement("span");
+    span.className = "meta";
+    span.textContent = site.modified;
+    a.appendChild(span);
+    li.appendChild(a);
+    ul.appendChild(li);
+  });
+}
+function poll() {
+  fetch(location.href)
+    .then(function(r) { return r.text(); })
+    .then(function(html) {
+      var match = html.match(/var siteData = (\\[.*?\\]);/);
+      if (match) {
+        var newData = JSON.parse(match[1]);
+        if (JSON.stringify(newData) !== JSON.stringify(siteData)) {
+          siteData = newData;
+          buildList(siteData);
+        }
+      }
+    })
+    .catch(function() {})
+    .finally(function() { setTimeout(poll, 5000); });
+}
+setTimeout(poll, 5000);
+</script>
+</body>
+</html>
+"""
 
 
-def _request(method: str, path: str, data: Optional[dict] = None):
-    url = f"{ADMIN_API}{path}"
-    body = json.dumps(data).encode() if data else None
-    req = urllib.request.Request(url, data=body, method=method)
-    req.add_header("Content-Type", "application/json")
-    try:
-        with urllib.request.urlopen(req) as resp:
-            raw = resp.read()
-            return json.loads(raw) if raw else None
-    except urllib.error.HTTPError as e:
-        body = e.read().decode()
-        print(f"Error: {e.code} from Caddy API: {body}", file=sys.stderr)
-        sys.exit(1)
-    except urllib.error.URLError as e:
-        print(f"Error: cannot reach Caddy admin API at {ADMIN_API}", file=sys.stderr)
-        print(f"  Is Caddy running? Try: brew services start caddy", file=sys.stderr)
-        print(f"  Detail: {e}", file=sys.stderr)
-        sys.exit(1)
+def _rebuild_index():
+    """Regenerate ~/www/index.html with links to all published sites."""
+    WWW_ROOT.mkdir(parents=True, exist_ok=True)
+    sites = sorted(p for p in WWW_ROOT.iterdir() if p.is_dir())
 
+    site_data = []
+    html_items = []
+    for s in sites:
+        mtime = datetime.fromtimestamp(s.stat().st_mtime).strftime("%b %d %H:%M")
+        site_data.append({"name": s.name, "modified": mtime})
+        html_items.append(
+            f'    <li><a href="/{s.name}/">{s.name}'
+            f'<span class="meta">{mtime}</span></a></li>'
+        )
 
-def _get_routes() -> list:
-    result = _request("GET", ROUTES_PATH)
-    return result if isinstance(result, list) else []
+    if html_items:
+        site_list_html = "\n".join(html_items)
+    else:
+        site_list_html = '    <li class="empty">No sites published. Use: caddy_routes publish &lt;name&gt; &lt;path&gt;</li>'
 
-
-def _find_route_index(path_prefix: str) -> Optional[int]:
-    routes = _get_routes()
-    normalized = path_prefix.rstrip("/") + "/*" if not path_prefix.endswith("/*") else path_prefix
-    for i, route in enumerate(routes):
-        for matcher in route.get("match", []):
-            if normalized in matcher.get("path", []):
-                return i
-    return None
+    site_data_json = json.dumps(site_data)
+    (WWW_ROOT / "index.html").write_text(INDEX_TEMPLATE % (site_list_html, site_data_json))
 
 
 def publish(name: str, source: str) -> str:
@@ -91,15 +164,13 @@ def publish(name: str, source: str) -> str:
     dest.mkdir(parents=True)
 
     if src.is_file():
-        # Single file → copy as index.html (unless it already has that name)
-        target_name = src.name if src.name != "index.html" else "index.html"
-        shutil.copy2(src, dest / target_name)
-        if target_name != "index.html":
+        shutil.copy2(src, dest / src.name)
+        if src.name != "index.html":
             shutil.copy2(src, dest / "index.html")
     else:
-        # Directory → copy contents
         shutil.copytree(src, dest, dirs_exist_ok=True)
 
+    _rebuild_index()
     url = f"http://localhost:2080/{name}/"
     print(f"Published: {url}")
     return url
@@ -119,106 +190,25 @@ def unpublish(name: str) -> bool:
         print(f"Nothing published at {name}", file=sys.stderr)
         return False
     shutil.rmtree(dest)
+    _rebuild_index()
     print(f"Unpublished: {name}")
     return True
 
 
-def add_route(path_prefix: str, root_dir: str, browse: bool = False) -> bool:
-    """Register a file_server route with Caddy.
-
-    Args:
-        path_prefix: URL path prefix, e.g. "/my-tool" (auto-appended with /*)
-        root_dir: Absolute path to the directory to serve
-        browse: Enable directory listing
+def list_sites() -> list:
+    """List all published sites in ~/www.
 
     Returns:
-        True if the route was added successfully
+        List of site directory names
     """
-    normalized = path_prefix.rstrip("/")
-    match_path = normalized + "/*"
-
-    # Remove existing route for same path
-    existing = _find_route_index(match_path)
-    if existing is not None:
-        _request("DELETE", f"{ROUTES_PATH}/{existing}")
-
-    handler: dict = {
-        "handler": "file_server",
-        "root": root_dir,
-    }
-    if browse:
-        handler["browse"] = {}
-
-    route = {
-        "match": [{"path": [match_path]}],
-        "handle": [
-            {"handler": "rewrite", "strip_path_prefix": normalized},
-            handler,
-        ],
-    }
-    # Insert before catch-all routes: remove catch-alls, add new route, re-add catch-alls
-    routes = _get_routes()
-    catchall_indices = [i for i, r in enumerate(routes) if not r.get("match")]
-    catchalls = [routes[i] for i in catchall_indices]
-    # Delete catch-alls from end to preserve indices
-    for i in sorted(catchall_indices, reverse=True):
-        _request("DELETE", f"{ROUTES_PATH}/{i}")
-    # Append new route, then re-append catch-alls
-    _request("POST", ROUTES_PATH, route)
-    for ca in catchalls:
-        _request("POST", ROUTES_PATH, ca)
-    print(f"Route added: http://localhost:2080{normalized}/")
-    return True
-
-
-def remove_route(path_prefix: str) -> bool:
-    """Remove a route by its path prefix.
-
-    Returns:
-        True if a route was found and removed
-    """
-    normalized = path_prefix.rstrip("/") + "/*" if not path_prefix.endswith("/*") else path_prefix
-    idx = _find_route_index(normalized)
-    if idx is None:
-        print(f"No route found matching {path_prefix}", file=sys.stderr)
-        return False
-    _request("DELETE", f"{ROUTES_PATH}/{idx}")
-    print(f"Route removed: {path_prefix}")
-    return True
-
-
-def list_routes() -> list:
-    """List all registered routes and published sites.
-
-    Returns:
-        List of route dicts from Caddy config
-    """
-    # Published sites in ~/www
-    published = sorted(p for p in WWW_ROOT.iterdir() if p.is_dir()) if WWW_ROOT.exists() else []
-    if published:
-        print("Published sites (~/www):")
-        for p in published:
-            print(f"  http://localhost:2080/{p.name}/")
+    sites = sorted(p.name for p in WWW_ROOT.iterdir() if p.is_dir()) if WWW_ROOT.exists() else []
+    if sites:
+        print("Published sites:")
+        for name in sites:
+            print(f"  http://localhost:2080/{name}/")
     else:
         print("No published sites.")
-
-    # Dynamic routes
-    routes = _get_routes()
-    if routes:
-        print("Dynamic routes:")
-        for i, route in enumerate(routes):
-            paths = []
-            for m in route.get("match", []):
-                paths.extend(m.get("path", []))
-            roots = []
-            for h in route.get("handle", []):
-                if h.get("handler") == "file_server" and "root" in h:
-                    roots.append(h["root"])
-            path_str = ", ".join(paths) if paths else "(catch-all)"
-            root_str = " -> ".join(roots) if roots else ""
-            print(f"  [{i}] {path_str}  {root_str}")
-
-    return routes
+    return sites
 
 
 def status() -> bool:
@@ -228,16 +218,16 @@ def status() -> bool:
         True if Caddy is responsive
     """
     try:
-        url = f"{ADMIN_API}/config/"
-        with urllib.request.urlopen(url) as resp:
+        with urllib.request.urlopen(f"{CADDY_ADMIN}/config/") as resp:
             config = json.loads(resp.read())
             servers = config.get("apps", {}).get("http", {}).get("servers", {})
             listen = []
             for srv in servers.values():
                 listen.extend(srv.get("listen", []))
-            print(f"Caddy is running")
-            print(f"  Admin API: {ADMIN_API}")
+            print("Caddy is running")
+            print(f"  Admin API: {CADDY_ADMIN}")
             print(f"  Listening: {', '.join(listen)}")
+            print(f"  Root:      {WWW_ROOT}")
             return True
     except Exception as e:
         print(f"Caddy is not reachable: {e}", file=sys.stderr)
@@ -245,25 +235,17 @@ def status() -> bool:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Manage local Caddy routes")
+    parser = argparse.ArgumentParser(description="Publish and manage local sites served by Caddy")
     sub = parser.add_subparsers(dest="command", required=True)
 
-    pub_p = sub.add_parser("publish", help="Copy content to ~/www/<name>/ for instant serving")
-    pub_p.add_argument("name", help="URL path name (e.g. my-tool)")
+    pub_p = sub.add_parser("publish", help="Copy content to ~/www/<name>/")
+    pub_p.add_argument("name", help="Site name (e.g. my-tool)")
     pub_p.add_argument("source", help="HTML file or directory to publish")
 
     unpub_p = sub.add_parser("unpublish", help="Remove ~/www/<name>/")
-    unpub_p.add_argument("name", help="Name to unpublish")
+    unpub_p.add_argument("name", help="Site name to remove")
 
-    add_p = sub.add_parser("add", help="Add a dynamic file server route")
-    add_p.add_argument("path", help="URL path prefix (e.g. /my-tool)")
-    add_p.add_argument("root", help="Directory to serve (absolute path)")
-    add_p.add_argument("--browse", action="store_true", help="Enable directory listing")
-
-    rm_p = sub.add_parser("remove", help="Remove a dynamic route")
-    rm_p.add_argument("path", help="URL path prefix to remove")
-
-    sub.add_parser("list", help="List all routes and published sites")
+    sub.add_parser("list", help="Show published sites")
     sub.add_parser("status", help="Check Caddy status")
 
     args = parser.parse_args()
@@ -272,12 +254,8 @@ def main():
         publish(args.name, args.source)
     elif args.command == "unpublish":
         unpublish(args.name)
-    elif args.command == "add":
-        add_route(args.path, args.root, args.browse)
-    elif args.command == "remove":
-        remove_route(args.path)
     elif args.command == "list":
-        list_routes()
+        list_sites()
     elif args.command == "status":
         status()
 
