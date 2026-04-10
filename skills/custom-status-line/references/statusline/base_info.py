@@ -147,7 +147,8 @@ def run(claude_data: dict, lines: list) -> list:
             worktree_name = cwd[cwd.index(suffix) + len(suffix):].split("/")[0]
             cwd = cwd[:cwd.index(suffix)]
             break
-    cwd = os.path.basename(cwd) or cwd
+    home = os.path.expanduser("~")
+    cwd = cwd.replace(home, "~") if cwd.startswith(home) else cwd
 
     # Git info
     branch = git_cmd("rev-parse", "--abbrev-ref", "HEAD")
