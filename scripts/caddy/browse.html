@@ -95,6 +95,7 @@ ul li {
   border-radius: 8px;
   margin-bottom: 0.6rem;
   transition: border-color 0.2s, background 0.2s;
+  position: relative;
 }
 ul li:hover {
   border-color: var(--accent);
@@ -144,6 +145,22 @@ li:hover .site-title { color: var(--accent); }
   font-size: 0.7rem;
   margin-top: 0.25rem;
 }
+.site-delete {
+  position: absolute;
+  bottom: 0.8rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s, background 0.2s;
+}
+li:hover .site-delete { opacity: 1; }
+.site-delete:hover { color: var(--removed); background: rgba(204, 85, 85, 0.1); }
 .empty {
   color: var(--text-dim);
   font-family: var(--mono);
@@ -182,7 +199,7 @@ li:hover .site-title { color: var(--accent); }
 .log-installed { color: var(--added); }
 .log-removed { color: var(--removed); }
 .log-present { color: var(--text-muted); }
-.log-name { color: var(--accent); width: 20ch; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; }
+.log-name { color: var(--accent); width: 30ch; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; }
 .log-file { color: var(--text-dim); width: 20ch; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; }
 .log-desc { color: var(--text-muted); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .log-empty {
@@ -298,6 +315,31 @@ function addMeta(link) {
   link.appendChild(metaDiv);
 }
 
+// Add a trash button to a list item
+function addDeleteButton(li) {
+  var a = li.querySelector("a[data-file]");
+  if (!a) return;
+  var name = a.getAttribute("data-file");
+  var btn = document.createElement("button");
+  btn.className = "site-delete";
+  btn.textContent = "\uD83D\uDDD1";
+  btn.title = "Remove " + name;
+  btn.addEventListener("click", function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var displayName = a.querySelector(".site-title").textContent || name;
+    if (!confirm("Remove \"" + displayName + "\" from local sites?")) return;
+    fetch("/_api/" + encodeURIComponent(name), { method: "DELETE" })
+      .then(function(r) {
+        if (!r.ok) throw r;
+        li.parentNode.removeChild(li);
+        setTimeout(pollLog, 1500);
+      })
+      .catch(function() { alert("Failed to remove " + name); });
+  });
+  li.appendChild(btn);
+}
+
 // Create a new <li> for a site
 function createSiteItem(name, url, mod) {
   var li = document.createElement("li");
@@ -315,6 +357,7 @@ function createSiteItem(name, url, mod) {
   a.appendChild(header);
 
   li.appendChild(a);
+  addDeleteButton(li);
   return li;
 }
 
@@ -328,14 +371,17 @@ function domSites() {
 }
 
 // Enrich initial server-rendered items
-document.querySelectorAll("#sites a[data-file]").forEach(function(link) {
+document.querySelectorAll("#sites li").forEach(function(li) {
+  var link = li.querySelector("a[data-file]");
+  if (!link) return;
   enrichLink(link);
   addMeta(link);
+  addDeleteButton(li);
 });
 
 // Poll server for directory changes and diff the DOM
 function pollSites() {
-  fetch("/", { headers: { "Accept": "text/html" } })
+  fetch("/?_t=" + Date.now(), { cache: "no-store", headers: { "Accept": "text/html" } })
     .then(function(r) { if (!r.ok) throw r; return r.text(); })
     .then(function(html) {
       var doc = new DOMParser().parseFromString(html, "text/html");
@@ -354,6 +400,7 @@ function pollSites() {
       var ul = document.getElementById("sites");
 
       // Remove items no longer on server
+      var changed = false;
       var toRemove = [];
       ul.querySelectorAll("li").forEach(function(li) {
         var a = li.querySelector("a[data-file]");
@@ -361,7 +408,7 @@ function pollSites() {
           toRemove.push(li);
         }
       });
-      toRemove.forEach(function(li) { ul.removeChild(li); });
+      toRemove.forEach(function(li) { ul.removeChild(li); changed = true; });
 
       // Add new items
       var keys = Object.keys(serverEntries);
@@ -377,6 +424,7 @@ function pollSites() {
           var link = li.querySelector("a");
           enrichLink(link);
           addMeta(link);
+          changed = true;
         }
       });
 
@@ -387,6 +435,9 @@ function pollSites() {
         emptyLi.textContent = "No sites. Drop .html files or directories into ~/.local-server/sites/";
         ul.appendChild(emptyLi);
       }
+
+      // Refresh log immediately when sites changed
+      if (changed) setTimeout(pollLog, 1500);
     })
     .catch(function() {});
 }
@@ -410,7 +461,7 @@ setInterval(pollSites, 5000);
 var lastLogLength = 0;
 
 function pollLog() {
-  fetch("/activity.log")
+  fetch("/activity.log?_t=" + Date.now(), { cache: "no-store" })
     .then(function(r) {
       if (!r.ok) throw r;
       return r.text();
@@ -484,7 +535,7 @@ function pollLog() {
 
 // Poll log every 5 seconds
 pollLog();
-setInterval(pollLog, 5000);
+setInterval(pollLog, 2000);
 </script>
 </body>
 </html>
