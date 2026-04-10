@@ -21,27 +21,6 @@ for skill in "$REPO_DIR"/skills/*/; do
 done
 
 echo ""
-echo "Installing scripts..."
-SCRIPTS_BIN="$HOME/.local/bin"
-mkdir -p "$SCRIPTS_BIN"
-for script in "$REPO_DIR"/scripts/*/; do
-    [ -d "$script" ] || continue
-    for py in "$script"*.py; do
-        [ -f "$py" ] || continue
-        name="$(basename "$py" .py)"
-        target="$SCRIPTS_BIN/$name"
-        if [ -L "$target" ]; then
-            rm "$target"
-        elif [ -e "$target" ]; then
-            echo "  SKIP $name (non-symlink exists, remove manually)"
-            continue
-        fi
-        ln -s "$py" "$target"
-        echo "  $name -> $py"
-    done
-done
-
-echo ""
 echo "Installing CLIs..."
 for pyproject in "$REPO_DIR"/skills/*/*/pyproject.toml; do
     [ -f "$pyproject" ] || continue
@@ -58,26 +37,23 @@ CADDY_BLOCK=$(cat <<'CADDY_EOF'
 <!-- BEGIN CADDY -->
 ## Local Web Server (Caddy) — MANDATORY
 
-An always-on Caddy server is available for tools that need to serve web content locally. **Use it instead of spawning one-off HTTP servers** (`python -m http.server`, `npx serve`, etc.).
+An always-on Caddy server serves `~/.local-server/sites/` at `http://localhost:2080`. **Use it instead of spawning one-off HTTP servers** (`python -m http.server`, `npx serve`, etc.).
 
-Drop content into `~/www/<name>/` — it's immediately live at `http://localhost:2080/<name>/`. The root page at `http://localhost:2080` auto-refreshes to list all published sites.
-
-Use `caddy_routes` (installed to `~/.local/bin/`):
+To serve a page, just copy the HTML file:
 
 ```bash
-caddy_routes publish my-tool /path/to/output.html   # copy to ~/www/my-tool/, live at localhost:2080/my-tool/
-caddy_routes publish my-tool /path/to/output-dir/    # publish a directory
-caddy_routes unpublish my-tool                       # remove ~/www/my-tool/
-caddy_routes list                                    # show published sites
-caddy_routes status                                  # check if Caddy is running
+cp my-page.html ~/.local-server/sites/
+# Live at http://localhost:2080/my-page.html
+# Listed on the home page at http://localhost:2080/
 ```
 
-```python
-from caddy_routes import publish, unpublish
+To remove it:
 
-url = publish("my-tool", "/path/to/output.html")  # returns live URL
-unpublish("my-tool")
+```bash
+rm ~/.local-server/sites/my-page.html
 ```
+
+The home page auto-refreshes every 5 seconds to show whatever is in the directory.
 
 - **Service control**: `brew services start/stop/restart caddy`
 - **Caddyfile**: `/opt/homebrew/etc/Caddyfile`
