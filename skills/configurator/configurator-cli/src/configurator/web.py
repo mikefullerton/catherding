@@ -129,14 +129,16 @@ def build_page(
     urls_json = json.dumps(urls or {})
     live_json = json.dumps(sorted(live_domains or set()))
     version = __version__
+    project_name = cfg.get("repo") or cfg.get("display_name") or "Untitled"
+    page_title = f"Configurator — {project_name}"
 
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Configurator</title>
-<meta name="description" content="Project deployment configurator — domain, backend, auth, and service settings">
+<title>{page_title}</title>
+<meta name="description" content="Deployment config for {project_name} — domain, backend, auth, and service settings">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Instrument+Serif:ital@0;1&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
