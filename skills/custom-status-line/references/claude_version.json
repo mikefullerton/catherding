@@ -1,5 +1,5 @@
 {
-  "built_against": "2.1.96",
+  "built_against": "2.1.101",
   "acknowledged": true,
   "fields": [
     "context_window",
@@ -34,11 +34,14 @@
     "rate_limits.seven_day.resets_at",
     "rate_limits.seven_day.used_percentage",
     "session_id",
+    "session_name",
     "transcript_path",
     "version",
     "workspace",
     "workspace.added_dirs",
     "workspace.current_dir",
-    "workspace.project_dir"
+    "workspace.git_worktree",
+    "workspace.project_dir",
+    "worktree"
   ]
 }
