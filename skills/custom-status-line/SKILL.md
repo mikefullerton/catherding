@@ -11,7 +11,7 @@ model: haiku
 
 Install or remove a composable status line pipeline for Claude Code. Multiple plugins can contribute to the status line without knowing about each other.
 
-Built for Claude Code 2.1.101.
+Built for Claude Code 2.1.104.
 
 ## Startup
 
