@@ -78,7 +78,8 @@ def run(claude_data, lines):
         detail = r.get("detail", "")
         info = r.get("info", "")
 
-        name = "{}{}{}".format(DIM, r["name"], RST)
+        short_name = r["name"].rsplit("/", 1)[-1]
+        name = "{}{}{}".format(DIM, short_name, RST)
         if status == "saving":
             label = "{}{}{}".format(GREEN, label_text, RST)
         elif status == "worse":
