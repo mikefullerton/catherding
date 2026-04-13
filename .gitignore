@@ -9,3 +9,6 @@ uv.lock
 .superpowers/
 .wrangler/
 skills/configurator/configurator-cli/tests/test_web.py
+
+# graphify output (generated)
+graphify-out/
