@@ -418,7 +418,7 @@ def run(claude_data: dict, lines: list) -> list:
     used_pct = 100 - rem_pct
 
     mc1 = session_name
-    mc2 = model_name
+    mc2 = f"{GREEN}{model_name}{RST}" if "opus" in model_name.lower() else f"{RED}{model_name}{RST}"
     mc3 = duration
 
     if exceeds_200k:
