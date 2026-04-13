@@ -207,7 +207,7 @@ def query_daily_costs(db: sqlite3.Connection, since_str: str) -> dict:
 
 
 def get_usage_columns(claude_data: dict) -> tuple:
-    """Compute usage line columns. Returns (c1, c2, c3, c4, c5) or None if no data."""
+    """Compute usage line columns. Returns (c1, c2, c3, c4, c5, c6) or None if no data."""
     maybe_run_scanner()
 
     rate_7d = float(
@@ -217,6 +217,12 @@ def get_usage_columns(claude_data: dict) -> tuple:
     )
     if rate_7d <= 0:
         return None
+
+    rate_5h = float(
+        ((claude_data.get("rate_limits") or {})
+         .get("five_hour") or {})
+        .get("used_percentage") or 0
+    )
 
     if not os.path.exists(USAGE_DB):
         return None
@@ -260,19 +266,20 @@ def get_usage_columns(claude_data: dict) -> tuple:
     too_early = elapsed_hours < 6
 
     c1 = f"weekly usage: {rate_7d:.1f}%"
-    c2 = f"today's usage: {today_pct:.1f}%"
-    c4 = f"{remaining_days:.1f}d left"
+    c2 = f"5h: {rate_5h:.1f}%"
+    c3 = f"today's usage: {today_pct:.1f}%"
+    c5 = f"{remaining_days:.1f}d left"
 
     if too_early:
-        c3 = f"{DIM}daily usage ave: --{RST}"
-        c5 = f"{DIM}too early{RST}"
+        c4 = f"{DIM}daily usage ave: --{RST}"
+        c6 = f"{DIM}too early{RST}"
     else:
         daily_avg_pct = rate_7d / elapsed_days
         projected = daily_avg_pct * 7.0
-        c3 = f"daily usage ave: {daily_avg_pct:.1f}%"
-        c5 = f"{RED}{projected:.1f}%{RST} projected" if projected > 100.0 else f"{projected:.1f}% projected"
+        c4 = f"daily usage ave: {daily_avg_pct:.1f}%"
+        c6 = f"{RED}{projected:.1f}%{RST} projected" if projected > 100.0 else f"{projected:.1f}% projected"
 
-    return (c1, c2, c3, c4, c5)
+    return (c1, c2, c3, c4, c5, c6)
 
 
 # --- Version tracker helpers ---
@@ -473,16 +480,17 @@ def run(claude_data: dict, lines: list) -> list:
 
     # --- Column alignment across all lines ---
     # col1 (right-aligned): git, session_name, all sessions, weekly usage, claude upgrade
-    # col2 (left-aligned):  files, model, N active, today's usage, version string
-    # col3 (left-aligned):  remote, duration, N thinking, daily usage ave, new fields
-    # col4 (left-aligned):  main, context%, N waiting, Xd left
+    # col2 (left-aligned):  files, model, N active, 5h quota, version string
+    # col3 (left-aligned):  remote, duration, N thinking, today's usage, new fields
+    # col4 (left-aligned):  main, context%, N waiting, daily usage ave
+    # col5 (left-aligned):  yolo, Xd left
     col1_vals = [gs1, mc1, sc1]
     col2_vals = [gs2, mc2, sc2]
     col3_vals = [gs3, mc3, sc3]
     col4_vals = [gs4, mc4, sc4]
 
     if usage_cols:
-        uc1, uc2, uc3, uc4, uc5 = usage_cols
+        uc1, uc2, uc3, uc4, uc5, uc6 = usage_cols
         col1_vals.append(uc1)
         col2_vals.append(uc2)
         col3_vals.append(uc3)
@@ -521,7 +529,7 @@ def run(claude_data: dict, lines: list) -> list:
 
     # LINE 5 — usage (optional)
     if usage_cols:
-        usage_line = f"{lbor}{pad_left(uc1, col1_w)}{sep}{pad_right(uc2, col2_w)}{sep}{pad_right(uc3, col3_w)}{sep}{pad_right(uc4, col4_w)}{sep}{uc5}"
+        usage_line = f"{lbor}{pad_left(uc1, col1_w)}{sep}{pad_right(uc2, col2_w)}{sep}{pad_right(uc3, col3_w)}{sep}{pad_right(uc4, col4_w)}{sep}{pad_right(uc5, 0)}{sep}{uc6}"
         result.append(usage_line)
 
     # LINE 6 — version (optional, only on upgrade)
