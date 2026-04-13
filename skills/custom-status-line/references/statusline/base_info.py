@@ -266,7 +266,19 @@ def get_usage_columns(claude_data: dict) -> tuple:
     too_early = elapsed_hours < 6
 
     c1 = f"weekly usage: {rate_7d:.1f}%"
-    c2 = f"5h: {rate_5h:.1f}%"
+    resets_at = int(
+        ((claude_data.get("rate_limits") or {})
+         .get("five_hour") or {})
+        .get("resets_at") or 0
+    )
+    countdown = ""
+    if resets_at > 0:
+        remaining_s = resets_at - now.timestamp()
+        if remaining_s > 0:
+            remaining_m = int(remaining_s // 60)
+            h, m = divmod(remaining_m, 60)
+            countdown = f" (-{h}h {m:02d}m)" if h >= 1 else f" (-{m}m)"
+    c2 = f"5h: {rate_5h:.1f}%{countdown}"
     c3 = f"today's usage: {today_pct:.1f}%"
     c5 = f"{remaining_days:.1f}d left"
 

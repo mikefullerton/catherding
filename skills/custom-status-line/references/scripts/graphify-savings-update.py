@@ -173,7 +173,7 @@ def main():
                     "name": display_name,
                     "status": "collecting",
                     "label": "collecting",
-                    "detail": "baseline: {} explore/session".format(format_tokens(avg(pre))),
+                    "detail": "baseline: {}".format(format_tokens(avg(pre))),
                     "info": "{} pre".format(n_pre),
                     "sort": 99,
                 })
@@ -187,7 +187,7 @@ def main():
                 "name": display_name,
                 "status": "no_baseline",
                 "label": "no baseline",
-                "detail": "{} explore/session".format(format_tokens(post_avg)),
+                "detail": "{}".format(format_tokens(post_avg)),
                 "info": "{} post".format(n_post),
                 "sort": 98,
             })
@@ -212,7 +212,7 @@ def main():
             "name": display_name,
             "status": status,
             "label": label,
-            "detail": "{} \u2192 {} explore/session".format(
+            "detail": "{} \u2192 {}".format(
                 format_tokens(pre_avg), format_tokens(post_avg)
             ),
             "info": "{} pre \xb7 {} post".format(n_pre, n_post),

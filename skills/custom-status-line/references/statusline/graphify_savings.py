@@ -10,7 +10,7 @@ import subprocess
 import sys
 import time
 
-from statusline.formatting import GREEN, DIM, ORANGE, RST
+from statusline.formatting import GREEN, DIM, ORANGE, RST, extract_col_widths, pad_left, pad_right
 
 CACHE_FILE = os.path.expanduser("~/.claude-status-line/graphify-savings-cache.json")
 UPDATER = os.path.expanduser("~/.claude-status-line/scripts/graphify-savings-update.py")
@@ -66,15 +66,20 @@ def run(claude_data, lines):
     if not rows:
         return lines
 
-    max_name = max(len(r["name"]) for r in rows)
+    # Build column values for each row
+    sep = " | "
+    lbor = "| "
+    col_widths = extract_col_widths(lines)
 
+    row_cols = []
     for r in rows:
-        padded = r["name"].ljust(max_name)
         status = r["status"]
         label_text = r["label"]
         detail = r.get("detail", "")
         info = r.get("info", "")
 
+        short_name = r["name"].rsplit("/", 1)[-1]
+        name = "{}{}{}".format(DIM, short_name, RST)
         if status == "saving":
             label = "{}{}{}".format(GREEN, label_text, RST)
         elif status == "worse":
@@ -82,9 +87,7 @@ def run(claude_data, lines):
         else:
             label = "{}{}{}".format(DIM, label_text, RST)
 
-        lines.append("| {}graphify{} | {}{}{} | {} | {} | {}{}{}".format(
-            DIM, RST, DIM, padded, RST, label, detail, DIM, info, RST
-        ))
+        row_cols.append((name, label, detail, "{}{}{}".format(DIM, info, RST)))
 
     # Summary line: weighted net savings across all projects with data
     total_pre = 0.0
@@ -97,7 +100,6 @@ def run(claude_data, lines):
         post = r.get("post_avg", 0)
         n_post = r.get("n_post", 0)
         if pre > 0 and n_post > 0:
-            # Weight by post session count so active projects matter more
             total_pre += pre * n_post
             total_post += post * n_post
             total_sessions += n_post
@@ -116,13 +118,27 @@ def run(claude_data, lines):
             pct_label = "{}+{:.0f}%{}".format(color, abs(net_saving_pct), RST)
             token_label = "{}net: +{}/session{}".format(color, _format_tokens(abs(net_tokens)), RST)
 
-        padded_label = "TOTAL".ljust(max_name)
-        lines.append("| {}graphify{} | {}{}{} | {} | {} | {}{} projects{}".format(
-            DIM, RST,
-            DIM, padded_label, RST,
-            pct_label,
-            token_label,
-            DIM, n_projects, RST,
+        name = "{}TOTAL{}".format(DIM, RST)
+        info = "{}{} projects{}".format(DIM, n_projects, RST)
+        row_cols.append((name, pct_label, token_label, info))
+
+    if not row_cols:
+        return lines
+
+    # Use base_info column widths if available, otherwise self-align
+    if col_widths and len(col_widths) >= 4:
+        c1w, c2w, c3w, c4w = col_widths[0], col_widths[1], col_widths[2], col_widths[3]
+    else:
+        from statusline.formatting import visible_len
+        c1w = max(visible_len(c[0]) for c in row_cols)
+        c2w = max(visible_len(c[1]) for c in row_cols)
+        c3w = max(visible_len(c[2]) for c in row_cols)
+        c4w = max(visible_len(c[3]) for c in row_cols)
+
+    for c1, c2, c3, c4 in row_cols:
+        lines.append("{}{}{}{}{}{}{}".format(
+            lbor, pad_left(c1, c1w), sep, pad_right(c2, c2w),
+            sep, pad_right(c3, c3w), sep + c4,
         ))
 
     return lines
