@@ -100,13 +100,14 @@ def main():
         config = load_pipeline_config(config_path)
 
         # Import built-in modules
-        from statusline import base_info, repo_cleanup, progress_display, version_tracker, usage_costs
+        from statusline import base_info, repo_cleanup, progress_display, version_tracker, usage_costs, graphify_savings
         modules = {
             "base_info": base_info.run,
             "repo_cleanup": repo_cleanup.run,
             "progress_display": progress_display.run,
             "version_tracker": version_tracker.run,
             "usage_costs": usage_costs.run,
+            "graphify_savings": graphify_savings.run,
         }
 
         lines = run_pipeline(claude_input, config["pipeline"], modules)

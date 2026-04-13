@@ -265,14 +265,15 @@ If `~/.claude-status-line/pipeline.json` does not exist, write it:
     {"name": "base-info", "module": "base_info"},
     {"name": "repo-cleanup", "module": "repo_cleanup"},
     {"name": "progress-display", "module": "progress_display"},
-    {"name": "version-tracker", "module": "version_tracker"}
+    {"name": "version-tracker", "module": "version_tracker"},
+    {"name": "graphify-savings", "module": "graphify_savings"}
   ]
 }
 ```
 
 If it already exists:
 - Replace any built-in `"script"` entries (referencing `base-info.sh`, `repo-cleanup.sh`, `progress-display.sh`) with `"module"` entries as shown above.
-- Ensure `base-info`, `repo-cleanup`, `progress-display`, and `version-tracker` entries are present. Add any that are missing.
+- Ensure `base-info`, `repo-cleanup`, `progress-display`, `version-tracker`, and `graphify-savings` entries are present. Add any that are missing.
 - Preserve any user-added external script entries unchanged.
 
 ### Step 5: Configure settings.json
