@@ -3,9 +3,15 @@
 
 Usage: install-statusline.py [--skip-tests]
 
-Copies all .py files from skills/custom-status-line/references/statusline/
-to ~/.claude-status-line/statusline/, plus any changed scripts, clears pycache,
-and runs the test suite.
+Copies:
+  skills/custom-status-line/references/statusline/*.py
+    → ~/.claude-status-line/statusline/
+  skills/custom-status-line/references/scripts/*.py
+    → ~/.claude-status-line/scripts/
+  skills/custom-status-line/references/hooks/*.py
+    → ~/.claude/hooks/   (status-line hook scripts, e.g. session-tracker.py)
+
+Clears pycache and runs the test suite (skip with --skip-tests).
 """
 import argparse
 import os
@@ -37,9 +43,11 @@ def _find_repo_root() -> Path:
 HERE = _find_repo_root()
 SRC_STATUSLINE = HERE / "skills/custom-status-line/references/statusline"
 SRC_SCRIPTS = HERE / "skills/custom-status-line/references/scripts"
+SRC_HOOKS = HERE / "skills/custom-status-line/references/hooks"
 INSTALLED = Path.home() / ".claude-status-line"
 INSTALLED_STATUSLINE = INSTALLED / "statusline"
 INSTALLED_SCRIPTS = INSTALLED / "scripts"
+INSTALLED_HOOKS = Path.home() / ".claude" / "hooks"
 
 
 def copy_tree(src: Path, dst: Path) -> int:
@@ -75,9 +83,13 @@ def main():
 
     n_sl = copy_tree(SRC_STATUSLINE, INSTALLED_STATUSLINE)
     n_sc = copy_tree(SRC_SCRIPTS, INSTALLED_SCRIPTS)
+    n_hk = copy_tree(SRC_HOOKS, INSTALLED_HOOKS)
     clear_pycache(INSTALLED)
+    # Hook scripts must be executable — Claude Code invokes them as commands.
+    for f in INSTALLED_HOOKS.glob("*.py"):
+        os.chmod(f, 0o755)
 
-    print(f"installed: {n_sl} statusline + {n_sc} scripts files")
+    print(f"installed: {n_sl} statusline + {n_sc} scripts + {n_hk} hooks files")
 
     if args.skip_tests:
         return

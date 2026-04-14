@@ -151,8 +151,8 @@ starting.
 - Verify `main`/`master` matches the remote. If behind, pull.
 
 ### What the Hook Enforces
-The Stop hook at `~/.claude/hooks/repo-hygiene.py` blocks your turn from
-ending if any of these are true:
+The Stop hook at `~/.claude/hooks/cc-repo-hygiene-hook.py` blocks your turn
+from ending if any of these are true:
 1. Staged or unstaged changes exist
 2. Untracked files exist (not in .gitignore)
 3. Local branches exist that are already merged into default
@@ -167,35 +167,37 @@ Claude re-reads `CLAUDE.md` at session start, so restart any running `claude` se
 
 ---
 
-## 3. Global hooks — `~/.claude/hooks/`
+## 3. Global hooks — vendored in this repo, auto-installed
 
-Two hooks in this directory shape git/bash behavior. They live outside this repo; you need to place them manually.
+Both hooks are now checked into this repo and installed automatically. No manual copies.
 
-### 3.1 `repo-hygiene.py` (Stop hook — the enforcer)
+### 3.1 `cc-repo-hygiene-hook.py` (Stop hook — the enforcer)
 
-Reads JSON from stdin (Claude Code hook protocol), runs several `git` queries against the session's `cwd`, and exits non-zero with a diagnostic message if the repo is dirty. Blocks the turn from ending.
+Source: `scripts/cc-repo-hygiene-hook.py`.
+Installed by `./install.sh` (step 1) to `~/.claude/hooks/cc-repo-hygiene-hook.py`.
+The `*-hook` suffix tells the installer to route the file into Claude Code's
+hooks directory (where the harness invokes it via stdin) rather than onto
+`$PATH` (where it would make no sense as a CLI command).
 
-Check the sibling `~/.claude/hooks/repo-hygiene.py` on your source machine (236 lines) and copy it to the new machine. If you don't have the source, the behavior is:
+Reads JSON from stdin (Claude Code hook protocol), runs several `git` queries against the session's `cwd`, and exits non-zero with a diagnostic message if the repo is dirty — blocking the turn from ending.
 
+Behavior summary:
 - Parse stdin JSON, early-exit if `stop_hook_active` is set (re-entry guard).
 - Compute `cwd`; early-exit unless cwd is under `$HOME/projects/`.
-- Run `git status --porcelain`, `git branch --merged <default>`, `git rev-list`, `git worktree list` to check each of the 6 conditions listed in section 2.1.
-- If any fail, print a human-readable diagnostic to stderr and exit 2 (which the Claude harness interprets as "block the turn").
-
-```bash
-mkdir -p ~/.claude/hooks
-# Copy from your source machine, or re-author from the rules above
-cp /path/to/source/.claude/hooks/repo-hygiene.py ~/.claude/hooks/
-chmod +x ~/.claude/hooks/repo-hygiene.py
-```
+- Run `git status --porcelain`, `git branch --merged <default>`, `git rev-list`, `git worktree list` to check each of the 6 conditions in section 2.1.
+- If any fail, print a human-readable diagnostic to stderr and exit 2 (block).
 
 ### 3.2 `session-tracker.py`
 
-Writes session metadata used by the status line. Not git/bash-specific, but wired alongside the hygiene hook — copy it too if you have it:
+Source: `skills/custom-status-line/references/hooks/session-tracker.py`.
+Installed by `cc-install-statusline` to `~/.claude/hooks/session-tracker.py`.
+
+Writes per-session JSON markers to `~/.claude-status-line/sessions/` on SessionStart / UserPromptSubmit / Stop / SessionEnd. Powers the `all sessions | N active | M thinking | K waiting` row in the status line. Installed alongside the status line because it's purely status-line-state plumbing.
+
+Run once after the skill is set up:
 
 ```bash
-cp /path/to/source/.claude/hooks/session-tracker.py ~/.claude/hooks/
-chmod +x ~/.claude/hooks/session-tracker.py
+cc-install-statusline           # copies statusline + hooks in one call
 ```
 
 ---
@@ -213,7 +215,7 @@ Open `~/.claude/settings.json` and ensure the `hooks` object contains these even
       {
         "hooks": [
           { "type": "command",
-            "command": "/usr/bin/python3 $HOME/.claude/hooks/repo-hygiene.py" }
+            "command": "/usr/bin/python3 $HOME/.claude/hooks/cc-repo-hygiene-hook.py" }
         ]
       },
       {
@@ -331,7 +333,8 @@ If any step fails, re-read the corresponding section above — each one is isola
 ```bash
 cd ~/projects/active/cat-herding
 ./uninstall.sh                    # removes cc-* symlinks, unsymlinks skills, uninstalls CLIs
-rm ~/.claude/hooks/repo-hygiene.py ~/.claude/hooks/session-tracker.py
+# cc-repo-hygiene-hook is a symlink — removed by uninstall.sh above
+rm ~/.claude/hooks/session-tracker.py    # installed by cc-install-statusline
 # Remove the `hooks` entries you added in section 4 from ~/.claude/settings.json
 # Remove repo/.claude/settings.local.json if you don't want auto-approvals
 git -C ~/projects/active/cat-herding config --unset core.hooksPath

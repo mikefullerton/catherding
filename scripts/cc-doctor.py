@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Verify every cc-* symlink in ~/.local/bin/ resolves to an executable script.
+"""Verify every cc-* entry resolves to an executable script.
 
 Usage: cc-doctor
 
-Reports broken symlinks (target deleted/moved), non-symlinks shadowing the
-namespace, and stale entries pointing outside the canonical scripts dir.
-Exits non-zero on any problem.
+Walks both `~/.local/bin/cc-*` (regular scripts) and `~/.claude/hooks/cc-*-hook.py`
+(Claude Code hook scripts). Reports broken symlinks (target deleted/moved),
+non-symlinks shadowing the namespace, and stale entries pointing outside the
+canonical scripts dir. Exits non-zero on any problem.
 """
 from __future__ import annotations
 
@@ -17,19 +18,31 @@ from pathlib import Path
 REPO_ROOT = Path.home() / "projects" / "active" / "cat-herding"
 CANONICAL_SOURCES = [REPO_ROOT / "scripts", REPO_ROOT / "skill-scripts"]
 BIN_DIR = Path.home() / ".local" / "bin"
+HOOKS_DIR = Path.home() / ".claude" / "hooks"
+
+
+def _entries() -> list[Path]:
+    """All cc-* entries we manage across both install destinations."""
+    out: list[Path] = []
+    if BIN_DIR.is_dir():
+        out.extend(p for p in sorted(BIN_DIR.iterdir()) if p.name.startswith("cc-"))
+    if HOOKS_DIR.is_dir():
+        out.extend(
+            p for p in sorted(HOOKS_DIR.iterdir())
+            if p.name.startswith("cc-") and p.name.endswith("-hook.py")
+        )
+    return out
 
 
 def main() -> int:
-    if not BIN_DIR.is_dir():
-        print(f"FAIL: {BIN_DIR} does not exist", file=sys.stderr)
+    if not BIN_DIR.is_dir() and not HOOKS_DIR.is_dir():
+        print(f"FAIL: neither {BIN_DIR} nor {HOOKS_DIR} exists", file=sys.stderr)
         return 1
 
     ok = broken = non_symlink = stale = 0
     issues: list[str] = []
 
-    for entry in sorted(BIN_DIR.iterdir()):
-        if not entry.name.startswith("cc-"):
-            continue
+    for entry in _entries():
         if not entry.is_symlink():
             non_symlink += 1
             issues.append(f"  not a symlink: {entry}")

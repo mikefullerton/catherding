@@ -31,16 +31,27 @@ for pyproject in "$REPO_DIR"/skills/*/*/pyproject.toml; do
 done
 
 echo ""
-echo "Installing workflow + skill scripts to ~/.local/bin/cc-*..."
-mkdir -p "$HOME/.local/bin"
+echo "Installing workflow + skill scripts to ~/.local/bin/cc-* (and Claude Code hooks to ~/.claude/hooks/)..."
+mkdir -p "$HOME/.local/bin" "$HOME/.claude/hooks"
 for dir in scripts skill-scripts; do
     for script in "$REPO_DIR"/"$dir"/cc-*.py; do
         [ -f "$script" ] || continue
         name="$(basename "$script" .py)"
-        target="$HOME/.local/bin/$name"
+        case "$name" in
+            *-hook)
+                # Hook scripts read JSON from stdin and integrate with Claude
+                # Code's hook protocol — they don't belong on $PATH.
+                target="$HOME/.claude/hooks/$name.py"
+                location="claude/hooks"
+                ;;
+            *)
+                target="$HOME/.local/bin/$name"
+                location="local/bin"
+                ;;
+        esac
         cp "$script" "$target"
         chmod +x "$target"
-        echo "  $name ($dir)"
+        echo "  $name ($dir → $location)"
     done
 done
 
