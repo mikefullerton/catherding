@@ -61,7 +61,7 @@ Print the following exactly, then stop:
 >     version_tracker.py   # Built-in: Claude version change detection
 >     formatting.py        # Shared: ANSI colors, column alignment
 >     db.py                # Shared: SQLite usage tracking
->   claude_version.json    # Baseline: Claude version and known fields
+>   # claude_version.json is runtime state, created on first run
 >   pipeline.json          # Ordered list of pipeline stages
 >   scripts/               # Directory for external drop-in scripts
 >   progress/
@@ -231,7 +231,7 @@ mkdir -p ~/.claude-status-line/scripts ~/.claude-status-line/progress
 
 Copy the entire `statusline` package from `${CLAUDE_SKILL_DIR}/references/statusline/` to `~/.claude-status-line/statusline/`. Read each `.py` file from the source and write it to the destination.
 
-Copy `${CLAUDE_SKILL_DIR}/references/claude_version.json` to `~/.claude-status-line/claude_version.json`. If the file already exists, preserve it (it tracks the user's acknowledged baseline).
+If `~/.claude-status-line/claude_version.json` does not exist, create it with the current Claude version and fields. This is runtime state — it is not shipped with the skill.
 
 Write a Python entry point at `~/.claude-status-line/progress/update-progress.py`:
 

@@ -315,6 +315,21 @@ def get_version_columns(claude_data: dict) -> tuple:
         with open(VERSION_FILE) as f:
             info = json.load(f)
     except (OSError, json.JSONDecodeError):
+        # First run — create baseline from current version
+        current_version = claude_data.get("version", "")
+        if current_version:
+            try:
+                baseline = {
+                    "built_against": current_version,
+                    "acknowledged": True,
+                    "fields": sorted(extract_paths(claude_data)),
+                }
+                os.makedirs(os.path.dirname(VERSION_FILE), exist_ok=True)
+                with open(VERSION_FILE, "w") as f:
+                    json.dump(baseline, f, indent=2)
+                    f.write("\n")
+            except OSError:
+                pass
         return None
 
     current_version = claude_data.get("version", "")
