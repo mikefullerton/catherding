@@ -344,13 +344,22 @@ def get_usage_columns(claude_data: dict) -> tuple:
 
     too_early = elapsed_hours < 6
 
-    c1 = f"weekly: {rate_7d:.1f}%"
+    def _quota_color(pct: float) -> str:
+        if pct >= 100.0:
+            return RED
+        if pct >= 95.0:
+            return YELLOW
+        return ""
+
+    wk_col = _quota_color(rate_7d)
+    c1 = f"weekly: {wk_col}{rate_7d:.1f}%{RST}" if wk_col else f"weekly: {rate_7d:.1f}%"
     resets_at = int(
         ((claude_data.get("rate_limits") or {})
          .get("five_hour") or {})
         .get("resets_at") or 0
     )
-    c2 = f"5h: {rate_5h:.1f}%"
+    fh_col = _quota_color(rate_5h)
+    c2 = f"5h: {fh_col}{rate_5h:.1f}%{RST}" if fh_col else f"5h: {rate_5h:.1f}%"
     c7 = ""
     if resets_at > 0:
         remaining_s = resets_at - now.timestamp()
