@@ -45,16 +45,6 @@ install_skill() {
     fi
     ln -sfn "$skill_dir" "$target"
     echo "    $name → ~/.claude/skills/$name"
-
-    # Install any bundled CLI via uv
-    for pyproject in "$skill_dir"/*/pyproject.toml; do
-        [ -f "$pyproject" ] || continue
-        local cli_dir pkg
-        cli_dir="$(dirname "$pyproject")"
-        pkg="$(grep '^name' "$pyproject" | head -1 | sed 's/.*= *"\(.*\)"/\1/')"
-        echo "    uv tool install $pkg ($(basename "$cli_dir"))"
-        uv tool install -e "$cli_dir" 2>&1 | sed 's/^/      /'
-    done
 }
 
 echo ""

@@ -43,18 +43,6 @@ uninstall_skill() {
     else
         echo "    SKIP unsymlink (not installed)"
     fi
-
-    for pyproject in "$skill_dir"/*/pyproject.toml; do
-        [ -f "$pyproject" ] || continue
-        local pkg
-        pkg="$(grep '^name' "$pyproject" | head -1 | sed 's/.*= *"\(.*\)"/\1/')"
-        if uv tool list 2>/dev/null | grep -q "^$pkg "; then
-            echo "    uv tool uninstall $pkg"
-            uv tool uninstall "$pkg" 2>&1 | sed 's/^/      /'
-        else
-            echo "    SKIP $pkg (not installed as uv tool)"
-        fi
-    done
 }
 
 echo ""
