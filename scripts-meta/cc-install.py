@@ -6,12 +6,14 @@ Usage:
   cc-install --from <dir>              # install from an explicit directory (single dir)
   cc-install --dry-run                 # just print what would change
 
-Each `cc-<name>.py` becomes `~/.local/bin/cc-<name>` (extension stripped).
+Each `cc-<name>.py` becomes `~/.local/bin/cc-<name>` (extension stripped), except
+`cc-*-hook.py` files which go to `~/.claude/hooks/cc-*-hook.py` (Claude Code
+expects hook scripts there, not on PATH).
 
-By default, installs from BOTH `scripts/` (workflow scripts) and `skill-scripts/`
-(skill-specific scripts — see each directory's README) under the cat-herding
-repo. Pass `--from <dir>` to override with a single explicit source (useful for
-testing a worktree in isolation).
+By default, installs from every `scripts-*/` category dir (scripts-git/,
+scripts-bash/, scripts-xcode/, scripts-claude/, scripts-meta/, scripts-hooks/)
+plus `skill-scripts/`. Pass `--from <dir>` to override with a single explicit
+source (useful for testing a worktree in isolation).
 
 Useful when:
   - a new script was added (so install.sh needs to re-run)
@@ -27,7 +29,12 @@ from pathlib import Path
 
 
 REPO_ROOT = Path.home() / "projects" / "active" / "cat-herding"
-DEFAULT_SOURCES = [REPO_ROOT / "scripts", REPO_ROOT / "skill-scripts"]
+# Scripts are organized into category directories: scripts-git/, scripts-bash/,
+# scripts-xcode/, scripts-claude/, scripts-meta/, scripts-hooks/. Plus the
+# skill-coupled ones under skill-scripts/. Collect every cc-*.py across them.
+DEFAULT_SOURCES = sorted(
+    [*REPO_ROOT.glob("scripts-*"), REPO_ROOT / "skill-scripts"]
+)
 BIN_DIR = Path.home() / ".local" / "bin"
 HOOKS_DIR = Path.home() / ".claude" / "hooks"
 
