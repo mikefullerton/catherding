@@ -29,6 +29,20 @@ from pathlib import Path
 REPO_ROOT = Path.home() / "projects" / "active" / "cat-herding"
 DEFAULT_SOURCES = [REPO_ROOT / "scripts", REPO_ROOT / "skill-scripts"]
 BIN_DIR = Path.home() / ".local" / "bin"
+HOOKS_DIR = Path.home() / ".claude" / "hooks"
+
+
+def _install_target(script: Path) -> Path:
+    """Where this script should be installed.
+
+    `cc-*-hook.py` scripts are Claude Code hook handlers (read JSON on stdin,
+    integrate with the hook protocol). They live under ~/.claude/hooks/ and
+    KEEP the .py extension because Claude Code invokes them as Python files.
+    Everything else goes on $PATH at ~/.local/bin/cc-* (extension stripped).
+    """
+    if script.stem.endswith("-hook"):
+        return HOOKS_DIR / script.name
+    return BIN_DIR / script.stem
 
 
 def main() -> int:
@@ -57,6 +71,7 @@ def main() -> int:
         return 2
 
     BIN_DIR.mkdir(parents=True, exist_ok=True)
+    HOOKS_DIR.mkdir(parents=True, exist_ok=True)
 
     scripts: list[Path] = []
     for src in sources:
@@ -80,8 +95,7 @@ def main() -> int:
 
     changed = unchanged = 0
     for script in resolved:
-        name = script.stem  # already prefixed cc-
-        target = BIN_DIR / name
+        target = _install_target(script)
         if target.is_symlink() and os.readlink(target) == str(script):
             unchanged += 1
             continue
