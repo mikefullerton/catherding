@@ -271,14 +271,14 @@ def get_usage_columns(claude_data: dict) -> tuple:
          .get("five_hour") or {})
         .get("resets_at") or 0
     )
-    countdown = ""
+    c2 = f"5h: {rate_5h:.1f}%"
+    c7 = ""
     if resets_at > 0:
         remaining_s = resets_at - now.timestamp()
         if remaining_s > 0:
             remaining_m = int(remaining_s // 60)
             h, m = divmod(remaining_m, 60)
-            countdown = f" (-{h}h {m:02d}m)" if h >= 1 else f" (-{m}m)"
-    c2 = f"5h: {rate_5h:.1f}%{countdown}"
+            c7 = f"-{h}h {m:02d}m" if h >= 1 else f"-{m}m"
     c3 = f"today: {today_pct:.1f}%"
     c5 = f"{remaining_days:.1f}d left"
 
@@ -291,7 +291,7 @@ def get_usage_columns(claude_data: dict) -> tuple:
         c4 = f"daily ave: {daily_avg_pct:.1f}%"
         c6 = f"{RED}{projected:.1f}%{RST} projected" if projected > 100.0 else f"{projected:.1f}% projected"
 
-    return (c1, c2, c3, c4, c5, c6)
+    return (c1, c2, c3, c4, c5, c6, c7)
 
 
 # --- Version tracker helpers ---
@@ -506,9 +506,9 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
     rows.append(Row(sc1, sc2, sc3, sc4))
 
     if usage_cols:
-        uc1, uc2, uc3, uc4, uc5, uc6 = usage_cols
+        uc1, uc2, uc3, uc4, uc5, uc6, uc7 = usage_cols
         rows.append(Row(uc1, uc4, uc5, uc6))
-        rows.append(Row(uc3, uc2))
+        rows.append(Row(uc3, uc2, uc7))
 
     if version_cols:
         vc1, vc2, vc3 = version_cols
