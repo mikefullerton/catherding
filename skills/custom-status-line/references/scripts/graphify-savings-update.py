@@ -215,7 +215,7 @@ def main():
             "detail": "{} \u2192 {}".format(
                 format_tokens(pre_avg), format_tokens(post_avg)
             ),
-            "info": "{}pre/{}post".format(n_pre, n_post),
+            "info": "{} pre \xb7 {} post".format(n_pre, n_post),
             "sort": sort,
             "pre_avg": pre_avg,
             "post_avg": post_avg,
