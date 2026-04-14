@@ -10,7 +10,7 @@ import subprocess
 import sys
 import time
 
-from statusline.formatting import GREEN, DIM, ORANGE, RST, Row, compute_column_widths, format_rows
+from statusline.formatting import GREEN, DIM, ORANGE, RST, Row
 
 CACHE_FILE = os.path.expanduser("~/.claude-status-line/graphify-savings-cache.json")
 UPDATER = os.path.expanduser("~/.claude-status-line/scripts/graphify-savings-update.py")
@@ -46,9 +46,11 @@ def _format_tokens(n):
     return str(int(n))
 
 
-def run(claude_data, lines):
-    # type: (dict, list) -> list
-    """Read cached graphify savings and append rows."""
+def run(claude_data, lines, rows=None):
+    # type: (dict, list, list) -> list
+    """Read cached graphify savings and append Row objects to shared rows list."""
+    if rows is None:
+        rows = []
     _maybe_trigger_update()
 
     if not os.path.exists(CACHE_FILE):
@@ -62,13 +64,13 @@ def run(claude_data, lines):
     except (OSError, json.JSONDecodeError, ValueError):
         return lines
 
-    rows = [r for r in data.get("rows", []) if r.get("status") not in ("collecting", "no_baseline")]
-    if not rows:
+    cache_rows = [r for r in data.get("rows", []) if r.get("status") not in ("collecting", "no_baseline")]
+    if not cache_rows:
         return lines
 
     # Build column values for each row
     row_cols = []
-    for r in rows:
+    for r in cache_rows:
         status = r["status"]
         label_text = r["label"]
         detail = r.get("detail", "")
@@ -91,7 +93,7 @@ def run(claude_data, lines):
     total_sessions = 0
     n_projects = 0
 
-    for r in rows:
+    for r in cache_rows:
         pre = r.get("pre_avg", 0)
         post = r.get("post_avg", 0)
         n_post = r.get("n_post", 0)
@@ -121,37 +123,7 @@ def run(claude_data, lines):
     if not row_cols:
         return lines
 
-    # Build Row objects
-    gs_rows = [Row(*cols) for cols in row_cols]
-
-    # Get base_info rows to compute widths across ALL rows
-    from statusline.base_info import run as base_info_run
-    base_rows = getattr(base_info_run, "last_rows", [])
-
-    all_rows = base_rows + gs_rows
-    widths = compute_column_widths(all_rows)
-
-    # If widths changed, reformat base_info rows and rebuild those lines
-    format_rows(all_rows, widths)
-
-    # Rebuild the base_info lines in-place (skip line 0 which is the path header)
-    if base_rows:
-        base_idx = 0
-        for i in range(1, len(lines)):
-            if base_idx < len(base_rows):
-                # Preserve any trailing content after the formatted columns (e.g. YOLO)
-                old_line = lines[i]
-                new_render = base_rows[base_idx].render()
-                # Check if old line had extra content beyond the formatted columns
-                old_parts = old_line.split(" | ")
-                new_parts = new_render.split(" | ")
-                if len(old_parts) > len(new_parts):
-                    extra = " | ".join(old_parts[len(new_parts):])
-                    new_render += " | " + extra
-                lines[i] = new_render
-                base_idx += 1
-
-    for row in gs_rows:
-        lines.append(row.render())
+    for cols in row_cols:
+        rows.append(Row(*cols))
 
     return lines

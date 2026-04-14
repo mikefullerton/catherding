@@ -58,14 +58,27 @@ def run_pipeline(
     pipeline: list,
     modules: dict,
 ) -> list:
-    """Run the pipeline stages, return final lines."""
+    """Run the pipeline stages, return final lines.
+
+    Maintains a shared `rows` list of Row objects that columnar modules
+    append to. After all stages run, rows are formatted in one pass and
+    inserted into the output.
+    """
     lines = []
+    rows = []  # shared Row list — columnar modules append here
+
     for stage in pipeline:
         try:
             if "module" in stage:
                 mod_name = stage["module"]
                 if mod_name in modules:
-                    lines = modules[mod_name](claude_data, lines)
+                    func = modules[mod_name]
+                    import inspect
+                    params = inspect.signature(func).parameters
+                    if "rows" in params:
+                        lines = func(claude_data, lines, rows)
+                    else:
+                        lines = func(claude_data, lines)
             elif "script" in stage:
                 state = {"claude": claude_data, "lines": lines}
                 result = run_external_script(stage["script"], state)
@@ -77,6 +90,15 @@ def run_pipeline(
             with open(log_path, "a") as f:
                 f.write(f"[{__import__('datetime').datetime.now().isoformat()}] Stage '{stage.get('name', '?')}' failed: {e}\n")
                 f.write(f"  {traceback.format_exc()}\n")
+
+    # Single formatting pass for all columnar rows
+    if rows:
+        from statusline.formatting import compute_column_widths, format_rows
+        widths = compute_column_widths(rows)
+        format_rows(rows, widths)
+        for row in rows:
+            lines.append(row.render())
+
     return lines
 
 

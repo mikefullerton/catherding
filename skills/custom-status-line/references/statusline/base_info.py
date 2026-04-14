@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 from statusline.formatting import (
     BLUE, YELLOW, GREEN, ORANGE, RED, DIM, RST,
-    Row, compute_column_widths, format_rows,
+    Row,
 )
 from statusline.db import get_db, upsert_session, append_weekly_usage
 
@@ -338,8 +338,16 @@ def get_version_columns(claude_data: dict) -> tuple:
     return (v1, v2, v3)
 
 
-def run(claude_data: dict, lines: list) -> list:
-    """Generate all status lines: path, git, model, sessions, usage, version."""
+def run(claude_data: dict, lines: list, rows: list = None) -> list:
+    """Generate all status lines: path, git, model, sessions, usage, version.
+
+    When called with a shared `rows` list (from the dispatcher), appends Row
+    objects for centralized formatting. When called standalone (rows=None),
+    formats and appends rows to lines directly.
+    """
+    _standalone = rows is None
+    if _standalone:
+        rows = []
     claude = claude_data
 
     # Extract fields
@@ -486,19 +494,16 @@ def run(claude_data: dict, lines: list) -> list:
     # LINE 6 — version tracker (optional)
     version_cols = get_version_columns(claude)
 
-    # --- Build rows ---
-    rows = []
-
-    git_row = None
+    # --- Append rows to shared list ---
     if branch:
-        git_row = Row(gs1, gs2, gs3, gs4)
-        rows.append(git_row)
+        rows.append(Row(gs1, gs2, gs3, gs4))
 
     model_row = Row(mc1, mc2, mc3)
+    if yolo_col:
+        model_row.columns.append(yolo_col)
     rows.append(model_row)
 
-    session_row = Row(sc1, sc2, sc3, sc4)
-    rows.append(session_row)
+    rows.append(Row(sc1, sc2, sc3, sc4))
 
     if usage_cols:
         uc1, uc2, uc3, uc4, uc5, uc6 = usage_cols
@@ -509,20 +514,16 @@ def run(claude_data: dict, lines: list) -> list:
         vc1, vc2, vc3 = version_cols
         rows.append(Row(vc1, vc2, vc3))
 
-    widths = compute_column_widths(rows)
-    format_rows(rows, widths)
-
-    # Expose rows for downstream pipeline modules to reformat when they widen columns
-    run.last_rows = rows
-
-    # --- Build output ---
+    # --- Non-columnar output ---
     result = [line1]
 
-    for row in rows:
-        line = row.render()
-        if row is model_row and yolo_col:
-            line += f" | {yolo_col}"
-        result.append(line)
+    # Standalone mode: format and render rows inline
+    if _standalone:
+        from statusline.formatting import compute_column_widths, format_rows
+        widths = compute_column_widths(rows)
+        format_rows(rows, widths)
+        for row in rows:
+            result.append(row.render())
 
     # Log to SQLite (non-blocking)
     elapsed_hours, wed_10am = get_wed_10am_elapsed_hours()
