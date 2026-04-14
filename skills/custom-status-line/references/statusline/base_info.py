@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 from statusline.formatting import (
     BLUE, YELLOW, GREEN, ORANGE, RED, DIM, RST,
-    get_column_widths, format_columns,
+    Row, compute_column_widths, format_rows,
 )
 from statusline.db import get_db, upsert_session, append_weekly_usage
 
@@ -486,50 +486,40 @@ def run(claude_data: dict, lines: list) -> list:
     # LINE 6 — version tracker (optional)
     version_cols = get_version_columns(claude)
 
-    # --- Build rows for column alignment ---
-    # Each row is [col1, col2, col3, col4, ...] where col1 is right-aligned
+    # --- Build rows ---
     rows = []
 
+    git_row = None
     if branch:
-        rows.append([gs1, gs2, gs3, gs4])
-    rows.append([mc1, mc2, mc3])
-    rows.append([sc1, sc2, sc3, sc4])
+        git_row = Row(gs1, gs2, gs3, gs4)
+        rows.append(git_row)
+
+    model_row = Row(mc1, mc2, mc3)
+    rows.append(model_row)
+
+    session_row = Row(sc1, sc2, sc3, sc4)
+    rows.append(session_row)
 
     if usage_cols:
         uc1, uc2, uc3, uc4, uc5, uc6 = usage_cols
-        rows.append([uc1, uc4, uc5, uc6])
-        rows.append([uc3, uc2])
+        rows.append(Row(uc1, uc4, uc5, uc6))
+        rows.append(Row(uc3, uc2))
 
     if version_cols:
         vc1, vc2, vc3 = version_cols
-        rows.append([vc1, vc2, vc3])
+        rows.append(Row(vc1, vc2, vc3))
 
-    widths = get_column_widths(rows)
-    formatted = format_columns(rows, widths)
+    widths = compute_column_widths(rows)
+    format_rows(rows, widths)
 
     # --- Build output ---
     result = [line1]
 
-    idx = 0
-    if branch:
-        result.append(formatted[idx])
-        idx += 1
-
-    # Model line — append YOLO indicator if active
-    model_line = formatted[idx]
-    if yolo_col:
-        model_line += f" | {yolo_col}"
-    result.append(model_line)
-    idx += 1
-
-    # Sessions line
-    result.append(formatted[idx])
-    idx += 1
-
-    # Remaining lines (usage rows, version) — append as-is
-    while idx < len(formatted):
-        result.append(formatted[idx])
-        idx += 1
+    for row in rows:
+        line = row.render()
+        if row is model_row and yolo_col:
+            line += f" | {yolo_col}"
+        result.append(line)
 
     # Log to SQLite (non-blocking)
     elapsed_hours, wed_10am = get_wed_10am_elapsed_hours()

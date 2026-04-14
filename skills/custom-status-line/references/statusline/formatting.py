@@ -30,63 +30,74 @@ def pad_left(s: str, width: int) -> str:
     return " " * pad + s if pad > 0 else s
 
 
-def get_column_widths(rows: list) -> list:
-    """Compute column widths from rows of column values.
+class Row:
+    """A status line row with raw columns and formatted output."""
 
-    Args:
-        rows: list of lists, each inner list is one row's column values.
+    _SEP = " | "
+    _BORDER = "| "
 
-    Returns:
-        list of ints, one per column. Each width is the longest visible
-        string in that column + 1 (for padding).
+    def __init__(self, *columns):
+        self.columns = [c.strip() if c else "" for c in columns]
+        self.formatted = []
+
+    def render(self):
+        """Render as '| col0 | col1 | col2 | ...'."""
+        return self._BORDER + self._SEP.join(self.formatted)
+
+
+def compute_column_widths(rows: list) -> list:
+    """Compute column widths from a list of Row objects.
+
+    Returns a list of ints, one per column. Each width is the longest
+    visible string in that column + 1 (for padding).
     """
     if not rows:
         return []
-    num_cols = max(len(row) for row in rows)
+    num_cols = max(len(r.columns) for r in rows)
     widths = []
     for col in range(num_cols):
         max_w = 0
         for row in rows:
-            if col < len(row) and row[col]:
-                max_w = max(max_w, visible_len(row[col]))
+            if col < len(row.columns) and row.columns[col]:
+                max_w = max(max_w, visible_len(row.columns[col]))
         widths.append(max_w + 1)
     return widths
 
 
-def format_columns(rows: list, widths: list) -> list:
-    """Format rows into aligned status lines.
+def format_rows(rows: list, widths: list) -> None:
+    """Pad each Row's columns into row.formatted.
 
-    Col 0 is right-aligned (pad_left), all others are left-aligned (pad_right).
-    Each line is prefixed with "| " and columns are joined with " | ".
+    Col 0 is right-aligned (pad_left), all others left-aligned (pad_right).
     Trailing empty columns are omitted; interior empty columns are padded.
-
-    Args:
-        rows: list of lists, each inner list is one row's column values.
-              Rows may have fewer columns than widths — trailing columns are omitted.
-        widths: column widths from get_column_widths().
-
-    Returns:
-        list of formatted strings, one per row.
+    After formatting, verifies all formatted columns at the same position
+    have the same visible length.
     """
-    lbor = "| "
-    sep = " | "
-    result = []
     for row in rows:
-        # Find last non-empty column to avoid trailing empty padding
-        last_col = len(row) - 1
-        while last_col > 0 and not row[last_col]:
+        # Find last non-empty column
+        last_col = len(row.columns) - 1
+        while last_col > 0 and not row.columns[last_col]:
             last_col -= 1
 
-        parts = []
+        row.formatted = []
         for col in range(last_col + 1):
-            val = row[col]
+            val = row.columns[col]
             w = widths[col] if col < len(widths) else 0
             if col == 0:
-                parts.append(lbor + pad_left(val or "", w))
+                row.formatted.append(pad_left(val, w))
             else:
-                parts.append(pad_right(val or "", w))
-        result.append(sep.join(parts))
-    return result
+                row.formatted.append(pad_right(val, w))
+
+    # Verify: all formatted columns at the same position have identical visible length
+    num_cols = max((len(r.formatted) for r in rows), default=0)
+    for col in range(num_cols):
+        lengths = set()
+        for row in rows:
+            if col < len(row.formatted):
+                lengths.add(visible_len(row.formatted[col]))
+        if len(lengths) > 1:
+            raise ValueError(
+                f"Column {col} has inconsistent widths after formatting: {lengths}"
+            )
 
 
 def extract_col_widths(lines):
