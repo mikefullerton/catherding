@@ -22,11 +22,11 @@ def _find_repo_root() -> Path:
     `__file__` points into `~/.local/` and the old `parent.parent` trick breaks.
 
     Search order:
-      1. Walk up from cwd looking for `.claude-plugin/marketplace.json`
+      1. Walk up from cwd looking for `scripts/cc-install.py`
          (unique to cat-herding).
       2. Fall back to the canonical path documented in global CLAUDE.md.
     """
-    marker = Path(".claude-plugin/marketplace.json")
+    marker = Path("scripts/cc-install.py")
     p = Path.cwd().resolve()
     for candidate in (p, *p.parents):
         if (candidate / marker).is_file():

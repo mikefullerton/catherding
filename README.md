@@ -1,6 +1,6 @@
 # Cat Herding
 
-Personal collection of Claude Code skills, plugins, hooks, and workflow extensions.
+Personal collection of Claude Code skills, hooks, workflow scripts, and rules.
 
 ## Skills
 

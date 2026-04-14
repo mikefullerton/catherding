@@ -1,9 +1,0 @@
-{
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "cat-herding",
-  "description": "Personal workflow tools: YOLO mode, status line enhancements, project dashboard",
-  "owner": {
-    "name": "Mike Fullerton"
-  },
-  "plugins": []
-}
