@@ -34,16 +34,16 @@ Each invocation is a fresh Python process. `PYTHONDONTWRITEBYTECODE=1` prevents 
     repo_cleanup.py                 # Appends cleanup warnings to header line
     progress_display.py             # Progress bar rendering (standard or compact)
     graphify_savings.py             # Graphify token savings per project
+    version_check.py                # Version tracking: DB-backed, runs last in pipeline
     usage_costs.py                  # Legacy standalone usage module (not in active pipeline)
     version_tracker.py              # Legacy standalone version module (not in active pipeline)
-    db.py                           # SQLite schema and logging helpers
+    db.py                           # SQLite schema and logging helpers (DB_VERSION=4)
     update_progress.py              # CLI for updating progress from hooks
   scripts/
     graphify-savings-update.py      # Background updater for graphify savings cache
   progress/
     update-progress.py              # Progress update entry point
   sessions/                         # Per-session state files ({session_id}.json)
-  claude_version.json               # Runtime state: version baseline (auto-created, not shipped)
   graphify-savings-cache.json       # Cached graphify savings data
   graphify-savings.lock             # Rate-limit lock for graphify updater
   scanner-last-run                  # Rate-limit timestamp for usage scanner
@@ -242,13 +242,18 @@ All rows share column widths. Col 0 is right-aligned, rest left-aligned.
 - Token counts: pre-average -> post-average
 - Last row: `TOTAL` with weighted net savings across all projects
 
-#### Version Row (last, optional)
+#### Version Rows (last, optional, one per new version)
 
 | Col 0 | Col 1 | Col 2 |
 |-------|-------|-------|
-| `claude upgrade` | `2.1.105` (yellow) `(from 2.1.104)` | `5 new fields` (green) |
+| `claude 2.1.108` | `2 new fields` (green) | `field.a, field.b` (dim) |
+| `claude 2.1.109` | `no new fields` (dim) | |
 
-- Only shown when Claude version changes from baseline
+- Only shown when versions exist above `BUILT_FOR_VERSION` in version_check.py
+- One row per new version, in ascending order
+- Each row diffs against the previous version in the DB (not cumulative)
+- Produced by `version_check.py` (last pipeline stage)
+- Throttled: checked every 5 minutes + on session start
 
 ### Progress Bar (non-columnar, after all rows)
 
@@ -274,7 +279,20 @@ All rows share column widths. Col 0 is right-aligned, rest left-aligned.
 
 ### Status Line DB (`~/claude-usage.db`)
 
-Logged by `base_info.py` on every pipeline run.
+DB_VERSION = 4. Logged by `base_info.py` (sessions, weekly_usage) and `version_check.py` (claude_versions) on every pipeline run.
+
+#### claude_versions table
+
+```sql
+CREATE TABLE claude_versions (
+    claude_version TEXT PRIMARY KEY,
+    fields TEXT NOT NULL,           -- full claude_data JSON blob
+    fields_count INTEGER NOT NULL,  -- count of extracted field paths
+    first_seen TEXT NOT NULL        -- ISO timestamp
+);
+```
+
+One row per Claude version ever seen. The `fields` column stores the complete `claude_data` JSON object as self-contained, pretty-printed JSON. Field paths are extracted on read.
 
 #### sessions table
 
@@ -457,102 +475,88 @@ net_tokens = (total_pre - total_post) / total_sessions
 
 ## Version Tracking
 
-### Current Design
+### Architecture
 
-**Runtime state file**: `~/.claude-status-line/claude_version.json`
+Version tracking is database-backed and split across two components:
 
-```json
-{
-  "built_against": "2.1.105",
-  "acknowledged": true,
-  "fields": ["context_window", "context_window.context_window_size", ...]
-}
-```
+- **`version_check.py`** -- pipeline module, runs last, detects and displays version changes
+- **`db.py`** -- `claude_versions` table stores the full JSON blob per version
 
-- Auto-created on first run from current Claude version and fields
-- Not shipped with the skill (runtime state, not distributable)
-- Compared against `claude_data.version` on each pipeline run
-- If versions differ: shows upgrade line with new field count
+### Database Table: `claude_versions`
 
-### Problems with Current Design
-
-1. **No history** -- only tracks the most recent baseline, no record of past versions
-2. **File-based** -- the JSON file can get overwritten, corrupted, or stale
-3. **No per-version field snapshots** -- can't compare arbitrary versions
-4. **Hardcoded known version** -- the status line code doesn't know which version it was built for
-
-### Proposed Design: Database-Backed Version Tracking
-
-#### New Table: `claude_versions`
-
-Add to `~/claude-usage.db` (the status line's own database):
+In `~/claude-usage.db`:
 
 ```sql
 CREATE TABLE claude_versions (
     claude_version TEXT PRIMARY KEY,
-    fields TEXT NOT NULL,           -- JSON array of field paths
-    fields_count INTEGER NOT NULL,  -- count for quick display
+    fields TEXT NOT NULL,           -- full claude_data JSON blob (self-contained, as if from a file)
+    fields_count INTEGER NOT NULL,  -- count of extracted field paths (for quick display)
     first_seen TEXT NOT NULL        -- ISO timestamp when first detected
 );
 ```
 
-#### Built-For Version
+The `fields` column stores the **complete `claude_data` JSON object** -- not just field paths. This means you can extract it directly from the DB and read it as a standalone JSON file. Field paths are derived on read via `_extract_paths()` in `db.py`.
 
-The status line code stores the version it was built/upgraded for as a constant:
+**Note:** Conditional fields (e.g. `worktree.*` only present in worktree sessions, `session_name` absent in worktrees) mean the field snapshot reflects the session context at capture time. The same Claude version may produce slightly different field sets depending on session type.
+
+### DB Helper Functions (in `db.py`)
+
+- **`_extract_paths(obj, prefix="")`** -- recursively extracts dotted field paths from a JSON object
+- **`_parse_version_row(row)`** -- parses a DB row, returns dict with `claude_version`, `blob` (the full JSON), `field_paths` (derived), `fields_count`, `first_seen`
+- **`get_version(db, version)`** -- fetch a single version row, or None
+- **`insert_version(db, version, claude_data, fields_count)`** -- insert if not exists, stores `claude_data` as pretty-printed JSON
+- **`get_versions_after(db, version)`** -- all versions > given, ordered ascending
+
+### Built-For Version
 
 ```python
-# in base_info.py or a dedicated version_config.py
-BUILT_FOR_VERSION = "2.1.105"
+# in version_check.py
+BUILT_FOR_VERSION = "2.1.107"
 ```
 
-This is the version the status line developer last acknowledged. It gets updated in the code when the developer upgrades the status line to use new fields.
+This constant represents the Claude version the status line was last upgraded to use. It lives in the code and gets updated (with a commit) when the developer acknowledges new fields after a Claude upgrade.
 
-#### Detection Flow
+### Detection Flow
 
-On each pipeline run:
+The `version_check.py` module runs as the **last pipeline stage** (after `graphify_savings`):
 
-1. Read `claude_data["version"]` (the running Claude version)
-2. Query `claude_versions` table for this version
-3. **If version not in DB**: insert a new row with current fields and count (done once per version)
-4. **If version > BUILT_FOR_VERSION**: show upgrade line(s)
+1. **Throttle check**: skip if checked within 5 minutes (module-level `_last_check_time`), always check on first invocation (`_last_check_time == 0` at session start)
+2. Read `claude_data["version"]`
+3. Open `~/claude-usage.db`
+4. **If version not in DB**: extract field paths, insert new row with the full `claude_data` blob (done once per version, ever)
+5. Query all versions > `BUILT_FOR_VERSION`, ordered ascending
+6. **If none**: no output (no upgrade lines shown)
+7. **If any**: build one Row per version, diff each against its **predecessor** in the DB (not cumulative vs `BUILT_FOR_VERSION`)
 
-#### Check Frequency
+### Display
 
-- **On session start**: always check (first pipeline run of a session)
-- **During session**: check every 5 minutes (throttled via timestamp)
-- Use a module-level variable or small cache file to track last check time
-
-#### Display
-
-When new versions exist above `BUILT_FOR_VERSION`, show one line per new version in ascending version order as the **last rows** in the status line table:
+Version rows are the **last rows** in the status line table. One row per new version in ascending order:
 
 ```
-| claude 2.1.106 | 2 new fields | context_window.foo, model.bar
-| claude 2.1.107 | 0 new fields |
+| claude 2.1.108 | 2 new fields     | worktree.foo, model.bar          |
+| claude 2.1.109 | no new fields    |                                  |
 ```
 
-Each line shows:
-- Version number
-- Count of new fields (compared to previous version in DB)
-- Field names if any (abbreviated if many)
+Each row shows:
+- `claude X.Y.Z` -- the version number
+- `N new fields` (green) or `no new fields` (dim), with `(-N)` suffix if fields were removed
+- Field names: up to 3 listed, then `+N more` if many
 
-#### Upgrade Workflow
+### Caching
 
-When the user requests to upgrade the status line:
+Between checks, the module caches the list of version Row objects in `_cached_version_rows`. This avoids DB queries on every pipeline tick (which runs on every prompt). The cache refreshes every 5 minutes or on session start.
+
+### Upgrade Workflow
+
+When the user requests to upgrade the status line for a new Claude version:
 
 1. Query all versions > `BUILT_FOR_VERSION` from the DB
-2. For each version, show new fields (diff against previous version)
-3. Discuss with the user how to use the new fields
-4. Update `BUILT_FOR_VERSION` in the code
+2. For each version, show new fields (diff against previous version in DB)
+3. Discuss with the user how to use the new fields in the status line
+4. Update `BUILT_FOR_VERSION` in `version_check.py`
 5. Commit the change
 
-This separates **detection** (automatic, in DB) from **acknowledgment** (manual, in code).
-
-#### Migration
-
-- Create `claude_versions` table on first access (DB migration)
-- Seed with current version if table is empty
-- Remove dependency on `~/.claude-status-line/claude_version.json` (delete file)
+This cleanly separates **detection** (automatic, stored in DB on first sight) from **acknowledgment** (manual, updating the constant in code).
 
 ---
 
