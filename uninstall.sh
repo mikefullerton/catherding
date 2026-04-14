@@ -37,11 +37,9 @@ for script in "$REPO_DIR"/scripts/*.py; do
     [ -f "$script" ] || continue
     name="$(basename "$script" .py)"
     target="$HOME/.local/bin/cc-$name"
-    if [ -L "$target" ] && [ "$(readlink "$target")" = "$script" ]; then
+    if [ -e "$target" ] || [ -L "$target" ]; then
         rm "$target"
         echo "  cc-$name"
-    elif [ -L "$target" ]; then
-        echo "  SKIP cc-$name (symlink points elsewhere)"
     else
         echo "  SKIP cc-$name (not installed)"
     fi
