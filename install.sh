@@ -73,17 +73,14 @@ fi
 if confirm "Install custom status line?"; then
     echo "Installing custom-status-line..."
     install_skill "custom-status-line"
-    if command -v cc-install-statusline >/dev/null 2>&1; then
-        cc-install-statusline --skip-tests 2>&1 | sed 's/^/    /'
-    else
-        echo "    (cc-install-statusline not on PATH — run it manually once a shell picks up ~/.local/bin)"
-    fi
+    "$REPO_DIR/skills/custom-status-line/install.sh" --skip-tests 2>&1 | sed 's/^/    /'
 fi
 
 # ---- 3. YOLO ---------------------------------------------------------------
 if confirm "Install YOLO?"; then
     echo "Installing yolo..."
     install_skill "yolo"
+    "$REPO_DIR/skills/yolo/install.sh" 2>&1 | sed 's/^/    /'
 fi
 
 echo ""

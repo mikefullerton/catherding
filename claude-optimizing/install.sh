@@ -7,7 +7,7 @@
 #
 # Does NOT install the custom-status-line or yolo skills — those are user-facing
 # skills under `skills/` at the repo root, installed by the repo's top-level
-# install.sh (and by `cc-install-statusline` for the status-line specifically).
+# install.sh (and by `skills/custom-status-line/install.sh` for the status-line).
 # Does NOT install Claude Code plugins (commit-commands, github, etc.) — those
 # require the `/plugin install` flow from inside a live Claude session.
 #
@@ -159,16 +159,12 @@ else
 fi
 
 head1 "Done."
-cat <<EOF
+cat <<'EOF'
 
-Next steps not automated by this script:
-  • Plugins — run inside a Claude session:
-        /plugin install commit-commands@claude-plugins-official
-        /plugin install github@claude-plugins-official
-        /plugin install pr-review-toolkit@claude-plugins-official
-        /plugin install superpowers@claude-plugins-official
-  • Status line + session-tracker hook — run 'cc-install-statusline'
-  • Per-repo allow-list — create .claude/settings.local.json in each repo:
+Not covered by this script (run from the repo root if needed):
+  • Status line + session-tracker hook — ./skills/custom-status-line/install.sh
+  • YOLO mode                          — ./skills/yolo/install.sh
+  • Per-repo Bash allow-list — create .claude/settings.local.json in each repo:
         { "permissions": { "allow": ["Bash(git add:*)","Bash(git commit:*)",
           "Bash(git push:*)","Bash(git:*)","Bash(cp:*)"] } }
 EOF

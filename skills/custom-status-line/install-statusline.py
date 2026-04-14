@@ -23,15 +23,15 @@ from pathlib import Path
 def _find_repo_root() -> Path:
     """Locate the cat-herding repo.
 
-    Works both when invoked in-tree (via `python3 scripts/install-statusline.py`)
-    and when invoked as a copy under `~/.local/bin/cc-install-statusline`, where
-    `__file__` points into `~/.local/` and the old `parent.parent` trick breaks.
-
-    Search order:
-      1. Walk up from cwd looking for `scripts/cc-install.py`
-         (unique to cat-herding).
-      2. Fall back to the canonical path documented in global CLAUDE.md.
+    Prefers the dir containing this script (works when invoked via `python3
+    skills/custom-status-line/install-statusline.py`). Falls back to walking up
+    from cwd for a marker, and finally to the canonical path documented in
+    global CLAUDE.md.
     """
+    here = Path(__file__).resolve().parent  # .../skills/custom-status-line
+    if here.name == "custom-status-line" and here.parent.name == "skills":
+        return here.parent.parent
+    marker = Path("claude-optimizing/scripts-meta/cc-install.py")
     marker = Path("scripts/cc-install.py")
     p = Path.cwd().resolve()
     for candidate in (p, *p.parents):

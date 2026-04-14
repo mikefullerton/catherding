@@ -5,7 +5,7 @@ This doc walks through reproducing **everything in this repo that influences how
 Two layers are involved:
 
 1. **This repo** (auto-installed via `./install.sh`): 31 `cc-*` workflow scripts, the pre-commit syntax check, and the `/home/.local/bin` wiring.
-2. **Global state** that lives outside this repo (user has to stage manually): `~/.claude/CLAUDE.md` policy, `~/.claude/hooks/*` enforcement, the global `~/.claude/settings.json` hook registration, and a handful of Claude Code plugins.
+2. **Global state** that lives outside this repo (user has to stage manually): `~/.claude/CLAUDE.md` policy, `~/.claude/hooks/*` enforcement, and the global `~/.claude/settings.json` hook registration.
 
 Follow the sections in order.
 
@@ -281,28 +281,7 @@ Repeat for every repo under `~/projects/` where you want the same convenience. A
 
 ---
 
-## 6. Claude Code plugins that add git/bash surface
-
-These are optional but recommended — they plug in slash-commands, PR-review agents, and process skills that guide git flows. Install via Claude Code's plugin manager:
-
-```bash
-# In a Claude Code session (or via `claude plugin install` if supported headless):
-/plugin install commit-commands@claude-plugins-official      # /commit, /commit-push-pr, /clean_gone
-/plugin install github@claude-plugins-official               # gh PR/issue helpers
-/plugin install pr-review-toolkit@claude-plugins-official    # review-pr + specialist review agents
-/plugin install superpowers@claude-plugins-official          # using-git-worktrees, finishing-a-development-branch, executing-plans, writing-plans, etc.
-```
-
-Disable plugins you don't want:
-
-```bash
-/plugin disable security-guidance@claude-plugins-official
-/plugin disable vercel@claude-plugins-official
-```
-
----
-
-## 7. Verify end-to-end
+## 6. Verify end-to-end
 
 ```bash
 # Scripts
@@ -340,4 +319,3 @@ rm ~/.claude/hooks/session-tracker.py    # installed by cc-install-statusline
 git -C ~/projects/active/cat-herding config --unset core.hooksPath
 ```
 
-Plugins can be removed via `/plugin uninstall <name>@<marketplace>`.
