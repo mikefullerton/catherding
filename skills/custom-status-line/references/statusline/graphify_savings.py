@@ -10,7 +10,7 @@ import subprocess
 import sys
 import time
 
-from statusline.formatting import GREEN, DIM, ORANGE, RST, extract_col_widths, pad_left, pad_right
+from statusline.formatting import GREEN, DIM, ORANGE, RST, Row, compute_column_widths, format_rows
 
 CACHE_FILE = os.path.expanduser("~/.claude-status-line/graphify-savings-cache.json")
 UPDATER = os.path.expanduser("~/.claude-status-line/scripts/graphify-savings-update.py")
@@ -67,10 +67,6 @@ def run(claude_data, lines):
         return lines
 
     # Build column values for each row
-    sep = " | "
-    lbor = "| "
-    col_widths = extract_col_widths(lines)
-
     row_cols = []
     for r in rows:
         status = r["status"]
@@ -125,20 +121,37 @@ def run(claude_data, lines):
     if not row_cols:
         return lines
 
-    # Use base_info column widths if available, otherwise self-align
-    if col_widths and len(col_widths) >= 4:
-        c1w, c2w, c3w, c4w = col_widths[0], col_widths[1], col_widths[2], col_widths[3]
-    else:
-        from statusline.formatting import visible_len
-        c1w = max(visible_len(c[0]) for c in row_cols)
-        c2w = max(visible_len(c[1]) for c in row_cols)
-        c3w = max(visible_len(c[2]) for c in row_cols)
-        c4w = max(visible_len(c[3]) for c in row_cols)
+    # Build Row objects
+    gs_rows = [Row(*cols) for cols in row_cols]
 
-    for c1, c2, c3, c4 in row_cols:
-        lines.append("{}{}{}{}{}{}{}".format(
-            lbor, pad_left(c1, c1w), sep, pad_right(c2, c2w),
-            sep, pad_right(c3, c3w), sep + c4,
-        ))
+    # Get base_info rows to compute widths across ALL rows
+    from statusline.base_info import run as base_info_run
+    base_rows = getattr(base_info_run, "last_rows", [])
+
+    all_rows = base_rows + gs_rows
+    widths = compute_column_widths(all_rows)
+
+    # If widths changed, reformat base_info rows and rebuild those lines
+    format_rows(all_rows, widths)
+
+    # Rebuild the base_info lines in-place (skip line 0 which is the path header)
+    if base_rows:
+        base_idx = 0
+        for i in range(1, len(lines)):
+            if base_idx < len(base_rows):
+                # Preserve any trailing content after the formatted columns (e.g. YOLO)
+                old_line = lines[i]
+                new_render = base_rows[base_idx].render()
+                # Check if old line had extra content beyond the formatted columns
+                old_parts = old_line.split(" | ")
+                new_parts = new_render.split(" | ")
+                if len(old_parts) > len(new_parts):
+                    extra = " | ".join(old_parts[len(new_parts):])
+                    new_render += " | " + extra
+                lines[i] = new_render
+                base_idx += 1
+
+    for row in gs_rows:
+        lines.append(row.render())
 
     return lines

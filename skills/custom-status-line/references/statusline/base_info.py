@@ -512,6 +512,9 @@ def run(claude_data: dict, lines: list) -> list:
     widths = compute_column_widths(rows)
     format_rows(rows, widths)
 
+    # Expose rows for downstream pipeline modules to reformat when they widen columns
+    run.last_rows = rows
+
     # --- Build output ---
     result = [line1]
 
