@@ -278,8 +278,14 @@ def get_usage_columns(claude_data: dict) -> tuple:
             c7 = f"-{h}h {m:02d}m" if h >= 1 else f"-{m}m"
     c3 = f"today: {today_pct:.1f}%"
     remaining_minutes = max(0, int(remaining_days * 24 * 60))
-    rh, rm = divmod(remaining_minutes, 60)
-    c5 = f"{rh}h {rm:02d}m left" if rh > 0 else f"{rm}m left"
+    rd, rem = divmod(remaining_minutes, 24 * 60)
+    rh, rm = divmod(rem, 60)
+    if rd > 0:
+        c5 = f"{rd}d {rh}h {rm:02d}m left"
+    elif rh > 0:
+        c5 = f"{rh}h {rm:02d}m left"
+    else:
+        c5 = f"{rm}m left"
 
     if too_early:
         c4 = f"{DIM}daily ave: --{RST}"
