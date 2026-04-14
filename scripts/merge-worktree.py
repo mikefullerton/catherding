@@ -4,10 +4,11 @@
 Usage: merge-worktree.py <pr-number> [--branch <branch-name>]
 
 Runs the full worktree-exit ritual in one call:
-  1. Verify cwd is main project, on default branch
-  2. Merge the PR via gh (squash)
-  3. Pull main
-  4. Gate: verify MERGED state + commit landed + main==origin/main + clean tracked
+  1. Locate the main-worktree checkout (auto-switches if called from a worktree)
+  2. Mark PR ready if it's a draft, then merge via gh (squash)
+  3. Pull default branch
+  4. Gate: verify MERGED state + main==origin/main + clean tracked
+     (tracked changes that already match origin/<default> are discarded)
   5. Remove worktree directory
   6. Delete local branch
   7. Delete remote branch
@@ -16,17 +17,19 @@ Runs the full worktree-exit ritual in one call:
 Exits non-zero on any gate failure. Safe to re-run if a step failed midway.
 """
 import argparse
+import os
 import subprocess
 import sys
 
 
-def run(cmd, check=True, capture=True):
+def run(cmd, check=True, capture=True, cwd=None):
     """Run a command, return (stdout, returncode). Exit on non-zero if check=True."""
     result = subprocess.run(
         cmd,
         capture_output=capture,
         text=True,
         timeout=60,
+        cwd=cwd,
     )
     if check and result.returncode != 0:
         print(f"FAIL: {' '.join(cmd)}", file=sys.stderr)
@@ -35,19 +38,66 @@ def run(cmd, check=True, capture=True):
     return result.stdout.strip(), result.returncode
 
 
+def find_main_worktree(default_branches=("main", "master")):
+    """Return (path, branch) of the main-branch worktree for the current repo."""
+    wt_list, _ = run(["git", "worktree", "list", "--porcelain"])
+    cur_path = None
+    for line in wt_list.splitlines():
+        if line.startswith("worktree "):
+            cur_path = line[len("worktree "):]
+        elif line.startswith("branch refs/heads/"):
+            branch = line[len("branch refs/heads/"):]
+            if branch in default_branches:
+                return cur_path, branch
+    return None, None
+
+
+def discard_if_matches_upstream(default_branch, cwd):
+    """Discard tracked changes that already match origin/<default_branch>.
+
+    Returns True if the working tree is clean (or made clean) afterwards, False otherwise.
+    """
+    run(["git", "fetch", "origin", default_branch], cwd=cwd)
+
+    status, _ = run(["git", "status", "--porcelain=v1"], cwd=cwd)
+    dirty_paths = []
+    for line in status.splitlines():
+        if not line or line.startswith("??"):
+            continue
+        dirty_paths.append(line[3:].strip())
+
+    if not dirty_paths:
+        return True
+
+    diff_vs_upstream, _ = run(
+        ["git", "diff", f"origin/{default_branch}", "--", *dirty_paths],
+        cwd=cwd,
+    )
+    if diff_vs_upstream.strip():
+        return False
+
+    print(f"  discarding {len(dirty_paths)} tracked change(s) already in origin/{default_branch}")
+    run(["git", "checkout", "--", *dirty_paths], cwd=cwd)
+    return True
+
+
 def main():
     ap = argparse.ArgumentParser(description="Merge worktree PR and clean up.")
     ap.add_argument("pr", type=int, help="PR number")
     ap.add_argument("--branch", help="Worktree branch name (auto-detected if omitted)")
     args = ap.parse_args()
 
-    # 1. Verify on default branch in main worktree
-    branch, _ = run(["git", "branch", "--show-current"])
-    if branch not in ("main", "master"):
-        print(f"FAIL: current branch is '{branch}', must be main/master", file=sys.stderr)
-        print("Run ExitWorktree with action: keep before calling this script.", file=sys.stderr)
+    # 1. Locate the main-branch worktree. Run all git ops there so it's safe to
+    #    invoke this script from inside a worktree.
+    main_path, default_branch = find_main_worktree()
+    if not main_path:
+        print("FAIL: could not find a main/master worktree for this repo", file=sys.stderr)
         sys.exit(2)
-    default_branch = branch
+
+    cwd_at_start = os.getcwd()
+    if os.path.realpath(cwd_at_start) != os.path.realpath(main_path):
+        print(f"switching to main worktree: {main_path}")
+    os.chdir(main_path)
 
     # 2. Detect worktree branch if not provided
     wt_branch = args.branch
@@ -63,16 +113,31 @@ def main():
 
     print(f"merging PR #{args.pr} (worktree branch: {wt_branch})")
 
-    # 3. Merge PR (skip if already merged)
-    pr_state, _ = run(["gh", "pr", "view", str(args.pr), "--json", "state", "-q", ".state"])
+    # 3. Merge PR (skip if already merged). Mark ready if draft.
+    pr_info, _ = run(
+        ["gh", "pr", "view", str(args.pr), "--json", "state,isDraft", "-q",
+         ".state + \"|\" + (.isDraft|tostring)"],
+    )
+    pr_state, is_draft = pr_info.split("|", 1)
     if pr_state == "OPEN":
+        if is_draft == "true":
+            print("  PR is draft — marking ready")
+            run(["gh", "pr", "ready", str(args.pr)])
         run(["gh", "pr", "merge", str(args.pr), "--squash"])
         pr_state, _ = run(["gh", "pr", "view", str(args.pr), "--json", "state", "-q", ".state"])
 
-    # 4. Pull default branch
+    # 4. Before pulling, discard any tracked changes already present upstream
+    #    (a common case: the same edit was made in both the main tree and the
+    #    worktree, so the PR diff == the uncommitted diff).
+    if not discard_if_matches_upstream(default_branch, cwd=main_path):
+        print("FAIL: main worktree has uncommitted changes that differ from origin/"
+              f"{default_branch}; refusing to pull", file=sys.stderr)
+        sys.exit(3)
+
+    # 5. Pull default branch
     run(["git", "pull", "origin", default_branch])
 
-    # 5. Gate checks
+    # 6. Gate checks
     if pr_state != "MERGED":
         print(f"FAIL: PR state is {pr_state}, expected MERGED", file=sys.stderr)
         sys.exit(3)
@@ -91,28 +156,28 @@ def main():
 
     print("gate passed")
 
-    # 6. Remove worktree directory
+    # 7. Remove worktree directory
     wt_list, _ = run(["git", "worktree", "list", "--porcelain"])
     wt_path = None
     cur_path = None
     for line in wt_list.splitlines():
         if line.startswith("worktree "):
-            cur_path = line[9:]
+            cur_path = line[len("worktree "):]
         elif line == f"branch refs/heads/{wt_branch}":
             wt_path = cur_path
             break
     if wt_path:
         run(["git", "worktree", "remove", wt_path, "--force"])
 
-    # 7. Delete local branch
+    # 8. Delete local branch
     local_branches, _ = run(["git", "branch", "--list", wt_branch])
     if local_branches:
         run(["git", "branch", "-D", wt_branch])
 
-    # 8. Delete remote branch (harmless if already gone)
+    # 9. Delete remote branch (harmless if already gone)
     run(["git", "push", "origin", "--delete", wt_branch], check=False)
 
-    # 9. Final verification
+    # 10. Final verification
     still_there, _ = run(["git", "ls-remote", "--heads", "origin", wt_branch], check=False)
     if still_there:
         print(f"WARN: remote branch still exists: {still_there}", file=sys.stderr)
