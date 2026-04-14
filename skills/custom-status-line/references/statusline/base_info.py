@@ -491,11 +491,10 @@ def run(claude_data: dict, lines: list) -> list:
     version_cols = get_version_columns(claude)
 
     # --- Column alignment across all lines ---
-    # col1 (right-aligned): git, session_name, all sessions, weekly usage, claude upgrade
-    # col2 (left-aligned):  files, model, N active, 5h quota, version string
-    # col3 (left-aligned):  remote, duration, N thinking, today's usage, new fields
-    # col4 (left-aligned):  main, context%, N waiting, daily usage ave
-    # col5 (left-aligned):  yolo, Xd left
+    # col1 (right-aligned): git, session_name, all sessions, weekly usage, today's usage, claude upgrade
+    # col2 (left-aligned):  files, model, N active, daily usage ave, 5h quota, version string
+    # col3 (left-aligned):  remote, duration, N thinking, days left, new fields
+    # col4 (left-aligned):  main, context%, N waiting, projected
     col1_vals = [gs1, mc1, sc1]
     col2_vals = [gs2, mc2, sc2]
     col3_vals = [gs3, mc3, sc3]
@@ -503,10 +502,13 @@ def run(claude_data: dict, lines: list) -> list:
 
     if usage_cols:
         uc1, uc2, uc3, uc4, uc5, uc6 = usage_cols
+        # Row 1: weekly usage | daily usage ave | days left | projected
         col1_vals.append(uc1)
+        col2_vals.append(uc4)
+        col3_vals.append(uc5)
+        # Row 2: today's usage | 5h quota
+        col1_vals.append(uc3)
         col2_vals.append(uc2)
-        col3_vals.append(uc3)
-        col4_vals.append(uc4)
 
     if version_cols:
         vc1, vc2, vc3 = version_cols
@@ -539,12 +541,15 @@ def run(claude_data: dict, lines: list) -> list:
     session_line = f"{lbor}{pad_left(sc1, col1_w)}{sep}{pad_right(sc2, col2_w)}{sep}{pad_right(sc3, col3_w)}{sep}{pad_right(sc4, col4_w)}"
     result.append(session_line)
 
-    # LINE 5 — usage (optional)
+    # LINE 5 — weekly usage (optional)
     if usage_cols:
-        usage_line = f"{lbor}{pad_left(uc1, col1_w)}{sep}{pad_right(uc2, col2_w)}{sep}{pad_right(uc3, col3_w)}{sep}{pad_right(uc4, col4_w)}{sep}{pad_right(uc5, 0)}{sep}{uc6}"
-        result.append(usage_line)
+        usage_line1 = f"{lbor}{pad_left(uc1, col1_w)}{sep}{pad_right(uc4, col2_w)}{sep}{pad_right(uc5, col3_w)}{sep}{uc6}"
+        result.append(usage_line1)
+        # LINE 6 — today's usage
+        usage_line2 = f"{lbor}{pad_left(uc3, col1_w)}{sep}{uc2}"
+        result.append(usage_line2)
 
-    # LINE 6 — version (optional, only on upgrade)
+    # LINE 7 — version (optional, only on upgrade)
     if version_cols:
         ver_line = f"{lbor}{pad_left(vc1, col1_w)}{sep}{pad_right(vc2, col2_w)}{sep}{pad_right(vc3, col3_w)}"
         result.append(ver_line)
