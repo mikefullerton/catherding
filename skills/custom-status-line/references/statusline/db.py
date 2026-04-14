@@ -122,6 +122,31 @@ def append_weekly_usage(db: sqlite3.Connection, **kw) -> None:
     db.commit()
 
 
+def _extract_paths(obj, prefix=""):
+    """Recursively extract all dotted field paths from a JSON object."""
+    paths = []
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            p = f"{prefix}.{k}" if prefix else k
+            paths.append(p)
+            paths.extend(_extract_paths(v, p))
+    elif isinstance(obj, list) and obj:
+        paths.extend(_extract_paths(obj[0], prefix + "[]"))
+    return paths
+
+
+def _parse_version_row(row):
+    """Parse a claude_versions DB row into a dict with extracted field paths."""
+    blob = json.loads(row[1])
+    return {
+        "claude_version": row[0],
+        "blob": blob,
+        "field_paths": sorted(_extract_paths(blob)),
+        "fields_count": row[2],
+        "first_seen": row[3],
+    }
+
+
 def get_version(db: sqlite3.Connection, version: str):
     """Fetch a claude_versions row, or None if not found."""
     row = db.execute(
@@ -131,23 +156,22 @@ def get_version(db: sqlite3.Connection, version: str):
     ).fetchone()
     if not row:
         return None
-    return {
-        "claude_version": row[0],
-        "fields": json.loads(row[1]),
-        "fields_count": row[2],
-        "first_seen": row[3],
-    }
+    return _parse_version_row(row)
 
 
 def insert_version(db: sqlite3.Connection, version: str,
-                   fields: list, fields_count: int) -> None:
-    """Insert a claude_versions row if it doesn't already exist."""
+                   claude_data: dict, fields_count: int) -> None:
+    """Insert a claude_versions row if it doesn't already exist.
+
+    Stores the full claude_data JSON blob so it can be read as
+    self-contained JSON (as if it came from a file).
+    """
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     db.execute(
         "INSERT OR IGNORE INTO claude_versions "
         "(claude_version, fields, fields_count, first_seen) "
         "VALUES (?, ?, ?, ?)",
-        (version, json.dumps(fields), fields_count, now),
+        (version, json.dumps(claude_data, indent=2), fields_count, now),
     )
     db.commit()
 
@@ -160,12 +184,4 @@ def get_versions_after(db: sqlite3.Connection, version: str) -> list:
         "ORDER BY claude_version ASC",
         (version,),
     ).fetchall()
-    return [
-        {
-            "claude_version": r[0],
-            "fields": json.loads(r[1]),
-            "fields_count": r[2],
-            "first_seen": r[3],
-        }
-        for r in rows
-    ]
+    return [_parse_version_row(r) for r in rows]

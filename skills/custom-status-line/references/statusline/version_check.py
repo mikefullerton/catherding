@@ -8,7 +8,7 @@ import os
 import time
 
 from statusline.formatting import YELLOW, GREEN, DIM, RST, Row
-from statusline.db import get_db, get_version, insert_version, get_versions_after
+from statusline.db import get_db, get_version, insert_version, get_versions_after, _extract_paths
 
 # The version the status line was last upgraded to use. Update this constant
 # (and commit) when acknowledging new fields after a Claude upgrade.
@@ -20,18 +20,6 @@ CHECK_INTERVAL = 300  # 5 minutes
 _last_check_time = 0
 _cached_version_rows = None  # cached list of Row objects between checks
 
-
-def extract_paths(obj, prefix=""):
-    """Recursively extract all dotted field paths from a JSON object."""
-    paths = []
-    if isinstance(obj, dict):
-        for k, v in obj.items():
-            p = f"{prefix}.{k}" if prefix else k
-            paths.append(p)
-            paths.extend(extract_paths(v, p))
-    elif isinstance(obj, list) and obj:
-        paths.extend(extract_paths(obj[0], prefix + "[]"))
-    return paths
 
 
 def _check_version(claude_data):
@@ -48,8 +36,8 @@ def _check_version(claude_data):
     try:
         # Insert current version if not already in DB
         if not get_version(db, current_version):
-            fields = sorted(extract_paths(claude_data))
-            insert_version(db, current_version, fields, len(fields))
+            field_paths = sorted(_extract_paths(claude_data))
+            insert_version(db, current_version, claude_data, len(field_paths))
 
         # Get all versions newer than what the status line was built for
         new_versions = get_versions_after(db, BUILT_FOR_VERSION)
@@ -63,11 +51,11 @@ def _check_version(claude_data):
             if i == 0:
                 # First new version: diff against BUILT_FOR_VERSION
                 prev = get_version(db, BUILT_FOR_VERSION)
-                prev_fields = set(prev["fields"]) if prev else set()
+                prev_fields = set(prev["field_paths"]) if prev else set()
             else:
                 prev_fields = set(new_versions[i - 1]["fields"])
 
-            current_fields = set(ver["fields"])
+            current_fields = set(ver["field_paths"])
             new_fields = sorted(current_fields - prev_fields)
             removed_fields = sorted(prev_fields - current_fields)
 
