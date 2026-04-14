@@ -30,6 +30,60 @@ def pad_left(s: str, width: int) -> str:
     return " " * pad + s if pad > 0 else s
 
 
+def get_column_widths(rows: list) -> list:
+    """Compute column widths from rows of column values.
+
+    Args:
+        rows: list of lists, each inner list is one row's column values.
+
+    Returns:
+        list of ints, one per column. Each width is the longest visible
+        string in that column + 1 (for padding).
+    """
+    if not rows:
+        return []
+    num_cols = max(len(row) for row in rows)
+    widths = []
+    for col in range(num_cols):
+        max_w = 0
+        for row in rows:
+            if col < len(row) and row[col]:
+                max_w = max(max_w, visible_len(row[col]))
+        widths.append(max_w + 1)
+    return widths
+
+
+def format_columns(rows: list, widths: list) -> list:
+    """Format rows into aligned status lines.
+
+    Col 0 is right-aligned (pad_left), all others are left-aligned (pad_right).
+    Each line is prefixed with "| " and columns are joined with " | ".
+
+    Args:
+        rows: list of lists, each inner list is one row's column values.
+              Rows may have fewer columns than widths — missing columns are skipped.
+        widths: column widths from get_column_widths().
+
+    Returns:
+        list of formatted strings, one per row.
+    """
+    lbor = "| "
+    sep = " | "
+    result = []
+    for row in rows:
+        parts = []
+        for col, val in enumerate(row):
+            if not val and col > 0:
+                continue
+            w = widths[col] if col < len(widths) else 0
+            if col == 0:
+                parts.append(lbor + pad_left(val or "", w))
+            else:
+                parts.append(pad_right(val or "", w))
+        result.append(sep.join(parts))
+    return result
+
+
 def extract_col_widths(lines):
     """Extract column visible widths from existing status lines.
 

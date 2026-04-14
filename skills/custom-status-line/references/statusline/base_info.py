@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 from statusline.formatting import (
     BLUE, YELLOW, GREEN, ORANGE, RED, DIM, RST,
-    visible_len, pad_right, pad_left,
+    get_column_widths, format_columns,
 )
 from statusline.db import get_db, upsert_session, append_weekly_usage
 
@@ -362,8 +362,6 @@ def run(claude_data: dict, lines: list) -> list:
     # Git info
     branch = git_cmd("rev-parse", "--abbrev-ref", "HEAD")
 
-    sep = " | "
-    lbor = "| "
     UP = "\u2191"
     DN = "\u2193"
 
@@ -490,70 +488,50 @@ def run(claude_data: dict, lines: list) -> list:
     # LINE 6 — version tracker (optional)
     version_cols = get_version_columns(claude)
 
-    # --- Column alignment across all lines ---
-    # col1 (right-aligned): git, session_name, all sessions, weekly usage, today's usage, claude upgrade
-    # col2 (left-aligned):  files, model, N active, daily usage ave, 5h quota, version string
-    # col3 (left-aligned):  remote, duration, N thinking, days left, new fields
-    # col4 (left-aligned):  main, context%, N waiting, projected
-    col1_vals = [gs1, mc1, sc1]
-    col2_vals = [gs2, mc2, sc2]
-    col3_vals = [gs3, mc3, sc3]
-    col4_vals = [gs4, mc4, sc4]
+    # --- Build rows for column alignment ---
+    # Each row is [col1, col2, col3, col4, ...] where col1 is right-aligned
+    rows = []
+
+    if branch:
+        rows.append([gs1, gs2, gs3, gs4])
+    rows.append([mc1, mc2, mc3, mc4])
+    rows.append([sc1, sc2, sc3, sc4])
 
     if usage_cols:
         uc1, uc2, uc3, uc4, uc5, uc6 = usage_cols
-        # Row 1: weekly | daily ave | days left | projected
-        col1_vals.append(uc1)
-        col2_vals.append(uc4)
-        col3_vals.append(uc5)
-        col4_vals.append(uc6)
-        # Row 2: today | 5h quota
-        col1_vals.append(uc3)
-        col2_vals.append(uc2)
+        rows.append([uc1, uc4, uc5, uc6])
+        rows.append([uc3, uc2])
 
     if version_cols:
         vc1, vc2, vc3 = version_cols
-        col1_vals.append(vc1)
-        col2_vals.append(vc2)
-        col3_vals.append(vc3)
+        rows.append([vc1, vc2, vc3])
 
-    col1_w = max(visible_len(v) for v in col1_vals if v)
-    col2_w = max(visible_len(v) for v in col2_vals if v)
-    col3_w = max(visible_len(v) for v in col3_vals if v)
-    col4_w = max((visible_len(v) for v in col4_vals if v), default=0)
+    widths = get_column_widths(rows)
+    formatted = format_columns(rows, widths)
 
     # --- Build output ---
     result = [line1]
 
-    # LINE 2 — git
+    idx = 0
     if branch:
-        git_line = f"{lbor}{pad_left(gs1, col1_w)}{sep}{pad_right(gs2, col2_w)}{sep}{pad_right(gs3, col3_w)}"
-        if gs4:
-            git_line += f"{sep}{gs4}"
-        result.append(git_line)
+        result.append(formatted[idx])
+        idx += 1
 
-    # LINE 3 — model
-    model_line = f"{lbor}{pad_left(mc1, col1_w)}{sep}{pad_right(mc2, col2_w)}{sep}{pad_right(mc3, col3_w)}{sep}{pad_right(mc4, col4_w)}"
+    # Model line — append YOLO indicator if active
+    model_line = formatted[idx]
     if yolo_col:
-        model_line += f"{sep}{yolo_col}"
+        model_line += f" | {yolo_col}"
     result.append(model_line)
+    idx += 1
 
-    # LINE 4 — sessions
-    session_line = f"{lbor}{pad_left(sc1, col1_w)}{sep}{pad_right(sc2, col2_w)}{sep}{pad_right(sc3, col3_w)}{sep}{pad_right(sc4, col4_w)}"
-    result.append(session_line)
+    # Sessions line
+    result.append(formatted[idx])
+    idx += 1
 
-    # LINE 5 — weekly usage (optional)
-    if usage_cols:
-        usage_line1 = f"{lbor}{pad_left(uc1, col1_w)}{sep}{pad_right(uc4, col2_w)}{sep}{pad_right(uc5, col3_w)}{sep}{pad_right(uc6, col4_w)}"
-        result.append(usage_line1)
-        # LINE 6 — today's usage
-        usage_line2 = f"{lbor}{pad_left(uc3, col1_w)}{sep}{pad_right(uc2, col2_w)}"
-        result.append(usage_line2)
-
-    # LINE 7 — version (optional, only on upgrade)
-    if version_cols:
-        ver_line = f"{lbor}{pad_left(vc1, col1_w)}{sep}{pad_right(vc2, col2_w)}{sep}{pad_right(vc3, col3_w)}"
-        result.append(ver_line)
+    # Remaining lines (usage rows, version) — append as-is
+    while idx < len(formatted):
+        result.append(formatted[idx])
+        idx += 1
 
     # Log to SQLite (non-blocking)
     elapsed_hours, wed_10am = get_wed_10am_elapsed_hours()
