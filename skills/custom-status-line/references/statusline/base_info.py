@@ -406,7 +406,12 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
 
     # Extract fields
     model_name = (claude.get("model") or {}).get("display_name") or "unknown"
-    rem_pct = int((claude.get("context_window") or {}).get("remaining_percentage") or 100)
+    # Distinguish "genuinely full context" from "field missing/null" so the UI
+    # doesn't silently claim 0% used when Claude just didn't report the value.
+    _cw = claude.get("context_window") or {}
+    _raw_rem = _cw.get("remaining_percentage")
+    rem_pct_known = isinstance(_raw_rem, (int, float))
+    rem_pct = int(_raw_rem) if rem_pct_known else 100
     duration_ms = int((claude.get("cost") or {}).get("total_duration_ms") or 0)
     rate_5h = float(((claude.get("rate_limits") or {}).get("five_hour") or {}).get("used_percentage") or 0)
     rate_7d = float(((claude.get("rate_limits") or {}).get("seven_day") or {}).get("used_percentage") or 0)
@@ -483,20 +488,24 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
                 gs4 = f"main: {_c(commits, UP)}{_c(behind_main, DN)}"
 
     # LINE 3 — model (col1=model, col2=duration, col3=context)
-    ctx_size = int((claude.get("context_window") or {}).get("context_window_size") or 200000)
-    exceeds_200k = bool(claude.get("exceeds_200k_tokens"))
+    ctx_size = int(_cw.get("context_window_size") or 200000)
+    # `(extended)` should only render when the window really is the 1M extended
+    # one. A 200k window with exceeds_200k_tokens=true is internally
+    # contradictory — treat the flag as meaningful only on >200k windows.
+    exceeds_200k = bool(claude.get("exceeds_200k_tokens")) and ctx_size > 200000
     ctx_label = "1M" if ctx_size > 200000 else "200k"
     used_pct = 100 - rem_pct
+    pct_display = f"{used_pct}%" if rem_pct_known else "?%"
 
     mc1 = f"{GREEN}{model_name}{RST}" if "opus" in model_name.lower() else f"{RED}{model_name}{RST}"
     mc2 = duration
 
     if exceeds_200k:
-        mc3 = f"{RED}{used_pct}% / {ctx_label} ctx (extended){RST}"
+        mc3 = f"{RED}{pct_display} / {ctx_label} ctx (extended){RST}"
     elif ctx_size > 200000 and used_pct > 20:
-        mc3 = f"{YELLOW}{used_pct}% / {ctx_label} ctx{RST}"
+        mc3 = f"{YELLOW}{pct_display} / {ctx_label} ctx{RST}"
     else:
-        mc3 = f"{used_pct}% / {ctx_label} ctx"
+        mc3 = f"{pct_display} / {ctx_label} ctx"
 
     # YOLO indicator (trailing on line 3)
     yolo_col = ""
