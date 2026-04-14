@@ -58,10 +58,11 @@ def format_columns(rows: list, widths: list) -> list:
 
     Col 0 is right-aligned (pad_left), all others are left-aligned (pad_right).
     Each line is prefixed with "| " and columns are joined with " | ".
+    Trailing empty columns are omitted; interior empty columns are padded.
 
     Args:
         rows: list of lists, each inner list is one row's column values.
-              Rows may have fewer columns than widths — missing columns are skipped.
+              Rows may have fewer columns than widths — trailing columns are omitted.
         widths: column widths from get_column_widths().
 
     Returns:
@@ -71,10 +72,14 @@ def format_columns(rows: list, widths: list) -> list:
     sep = " | "
     result = []
     for row in rows:
+        # Find last non-empty column to avoid trailing empty padding
+        last_col = len(row) - 1
+        while last_col > 0 and not row[last_col]:
+            last_col -= 1
+
         parts = []
-        for col, val in enumerate(row):
-            if not val and col > 0:
-                continue
+        for col in range(last_col + 1):
+            val = row[col]
             w = widths[col] if col < len(widths) else 0
             if col == 0:
                 parts.append(lbor + pad_left(val or "", w))

@@ -346,7 +346,6 @@ def run(claude_data: dict, lines: list) -> list:
     model_name = (claude.get("model") or {}).get("display_name") or "unknown"
     rem_pct = int((claude.get("context_window") or {}).get("remaining_percentage") or 100)
     duration_ms = int((claude.get("cost") or {}).get("total_duration_ms") or 0)
-    session_name = claude.get("session_name") or ""
     rate_5h = float(((claude.get("rate_limits") or {}).get("five_hour") or {}).get("used_percentage") or 0)
     rate_7d = float(((claude.get("rate_limits") or {}).get("seven_day") or {}).get("used_percentage") or 0)
     session_id = claude.get("session_id") or ""
@@ -421,22 +420,21 @@ def run(claude_data: dict, lines: list) -> list:
             else:
                 gs4 = f"main: {_c(commits, UP)}{_c(behind_main, DN)}"
 
-    # LINE 3 — model (col1=session_name, col2=model, col3=duration, col4=context)
+    # LINE 3 — model (col1=model, col2=duration, col3=context)
     ctx_size = int((claude.get("context_window") or {}).get("context_window_size") or 200000)
     exceeds_200k = bool(claude.get("exceeds_200k_tokens"))
     ctx_label = "1M" if ctx_size > 200000 else "200k"
     used_pct = 100 - rem_pct
 
-    mc1 = session_name
-    mc2 = f"{GREEN}{model_name}{RST}" if "opus" in model_name.lower() else f"{RED}{model_name}{RST}"
-    mc3 = duration
+    mc1 = f"{GREEN}{model_name}{RST}" if "opus" in model_name.lower() else f"{RED}{model_name}{RST}"
+    mc2 = duration
 
     if exceeds_200k:
-        mc4 = f"{RED}{used_pct}% of {ctx_label} context (extended){RST}"
+        mc3 = f"{RED}{used_pct}% of {ctx_label} context (extended){RST}"
     elif ctx_size > 200000 and used_pct > 20:
-        mc4 = f"{YELLOW}{used_pct}% of {ctx_label} context{RST}"
+        mc3 = f"{YELLOW}{used_pct}% of {ctx_label} context{RST}"
     else:
-        mc4 = f"{used_pct}% of {ctx_label} context"
+        mc3 = f"{used_pct}% of {ctx_label} context"
 
     # YOLO indicator (trailing on line 3)
     yolo_col = ""
@@ -494,7 +492,7 @@ def run(claude_data: dict, lines: list) -> list:
 
     if branch:
         rows.append([gs1, gs2, gs3, gs4])
-    rows.append([mc1, mc2, mc3, mc4])
+    rows.append([mc1, mc2, mc3])
     rows.append([sc1, sc2, sc3, sc4])
 
     if usage_cols:
