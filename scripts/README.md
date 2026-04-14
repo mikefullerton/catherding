@@ -15,7 +15,7 @@ Design principles:
 |--------|---------|
 | `merge-worktree.py <pr>` | Merge PR + clean up worktree/branches (9-step ritual in one call) |
 | `install-statusline.py` | Copy status line files, clear pycache, run tests |
-| `commit-push.py "msg" [--pr "title"]` | Stage changed files, commit, push, optionally create PR |
+| `commit-push.py "msg" [--pr "title"] [--tracked-only]` | Stage all changes (incl. untracked, unless `--tracked-only`), commit, push, optionally PR |
 | `repo-state.py` | Session-start audit: branch, status, worktrees, staleness |
 | `project-index.py [--filter X]` | Find projects by criteria (graphify, git, etc.) |
 | `pr-status.py <num>` | PR summary: state, checks, diff, comments |
