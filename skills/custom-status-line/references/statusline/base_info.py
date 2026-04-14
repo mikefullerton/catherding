@@ -500,10 +500,23 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
     mc1 = f"{GREEN}{model_name}{RST}" if "opus" in model_name.lower() else f"{RED}{model_name}{RST}"
     mc2 = duration
 
+    # Threshold colors mirror the quota rows: RED at >=95% used (urgent), YELLOW
+    # at >=80%. The extended-1M indicator keeps its own red styling on top.
+    if not rem_pct_known:
+        ctx_color = ""
+    elif used_pct >= 95:
+        ctx_color = RED
+    elif used_pct >= 80:
+        ctx_color = YELLOW
+    elif ctx_size > 200000 and used_pct > 20:
+        ctx_color = YELLOW  # preserve old "you're past 200k on an extended window" hint
+    else:
+        ctx_color = ""
+
     if exceeds_200k:
         mc3 = f"{RED}{pct_display} / {ctx_label} ctx (extended){RST}"
-    elif ctx_size > 200000 and used_pct > 20:
-        mc3 = f"{YELLOW}{pct_display} / {ctx_label} ctx{RST}"
+    elif ctx_color:
+        mc3 = f"{ctx_color}{pct_display} / {ctx_label} ctx{RST}"
     else:
         mc3 = f"{pct_display} / {ctx_label} ctx"
 
