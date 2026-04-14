@@ -14,7 +14,8 @@ import sys
 from pathlib import Path
 
 
-CANONICAL_SOURCE = Path.home() / "projects" / "active" / "cat-herding" / "scripts"
+REPO_ROOT = Path.home() / "projects" / "active" / "cat-herding"
+CANONICAL_SOURCES = [REPO_ROOT / "scripts", REPO_ROOT / "skill-scripts"]
 BIN_DIR = Path.home() / ".local" / "bin"
 
 
@@ -43,11 +44,15 @@ def main() -> int:
             issues.append(f"  not executable: {real}")
             broken += 1
             continue
-        # Stale = points outside the canonical scripts dir AND outside any
-        # cat-herding worktree. Worktrees use `.claude/worktrees/<name>/scripts/`,
+        # Stale = points outside the canonical script dirs AND outside any
+        # cat-herding worktree. Worktrees use `.claude/worktrees/<name>/{scripts,skill-scripts}/`,
         # which is fine while testing.
-        is_canonical = str(real).startswith(str(CANONICAL_SOURCE) + "/")
-        is_worktree = "/cat-herding/.claude/worktrees/" in str(real) and "/scripts/" in str(real)
+        real_s = str(real)
+        is_canonical = any(real_s.startswith(str(src) + "/") for src in CANONICAL_SOURCES)
+        is_worktree = (
+            "/cat-herding/.claude/worktrees/" in real_s
+            and ("/scripts/" in real_s or "/skill-scripts/" in real_s)
+        )
         if not (is_canonical or is_worktree):
             stale += 1
             issues.append(f"  stale (points outside cat-herding): {entry} -> {real}")
