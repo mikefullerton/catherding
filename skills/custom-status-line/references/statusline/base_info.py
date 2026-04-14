@@ -265,7 +265,7 @@ def get_usage_columns(claude_data: dict) -> tuple:
 
     too_early = elapsed_hours < 6
 
-    c1 = f"weekly usage: {rate_7d:.1f}%"
+    c1 = f"weekly: {rate_7d:.1f}%"
     resets_at = int(
         ((claude_data.get("rate_limits") or {})
          .get("five_hour") or {})
@@ -279,16 +279,16 @@ def get_usage_columns(claude_data: dict) -> tuple:
             h, m = divmod(remaining_m, 60)
             countdown = f" (-{h}h {m:02d}m)" if h >= 1 else f" (-{m}m)"
     c2 = f"5h: {rate_5h:.1f}%{countdown}"
-    c3 = f"today's usage: {today_pct:.1f}%"
+    c3 = f"today: {today_pct:.1f}%"
     c5 = f"{remaining_days:.1f}d left"
 
     if too_early:
-        c4 = f"{DIM}daily usage ave: --{RST}"
+        c4 = f"{DIM}daily ave: --{RST}"
         c6 = f"{DIM}too early{RST}"
     else:
         daily_avg_pct = rate_7d / elapsed_days
         projected = daily_avg_pct * 7.0
-        c4 = f"daily usage ave: {daily_avg_pct:.1f}%"
+        c4 = f"daily ave: {daily_avg_pct:.1f}%"
         c6 = f"{RED}{projected:.1f}%{RST} projected" if projected > 100.0 else f"{projected:.1f}% projected"
 
     return (c1, c2, c3, c4, c5, c6)
