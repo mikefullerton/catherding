@@ -3,7 +3,7 @@
 #   1. Symlinks cc-*.py scripts into ~/.local/bin/
 #   2. Symlinks cc-*-hook.py scripts into ~/.claude/hooks/
 #   3. Registers the repo-hygiene Stop hook in ~/.claude/settings.json
-#   4. Appends guidance from claude-optimizing/CLAUDE.md into ~/.claude/CLAUDE.md
+#   4. Appends guidance from claude-optimizing/claude-additions.md into ~/.claude/CLAUDE.md
 #      (between <!-- BEGIN claude-optimizing --> / <!-- END claude-optimizing --> markers,
 #      so re-installing replaces the block in place)
 #
@@ -75,7 +75,7 @@ PYEOF
 
 echo ""
 echo "Installing guidance block into $CLAUDE_MD..."
-python3 - "$CLAUDE_MD" "$HERE/CLAUDE.md" <<'PYEOF'
+python3 - "$CLAUDE_MD" "$HERE/claude-additions.md" <<'PYEOF'
 import sys
 from pathlib import Path
 

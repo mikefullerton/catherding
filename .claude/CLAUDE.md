@@ -14,7 +14,7 @@ claude-optimizing/         # Self-contained Claude-Code tooling layer (guidance 
   scripts-claude/          # Claude Code meta (cc-usage-stats, cc-memory, cc-graphify-status, …)
   scripts-meta/            # Self-management (cc-install, cc-doctor, cc-help)
   scripts-hooks/           # Claude Code hook scripts (cc-*-hook.py → ~/.claude/hooks/)
-  CLAUDE.md                # Guidance block appended to ~/.claude/CLAUDE.md by install.sh
+  claude-additions.md      # Guidance block appended to ~/.claude/CLAUDE.md by install.sh
   install.sh / uninstall.sh  # Deploy/remove guidance + scripts + hooks
 skill-scripts/             # Skill-coupled (cc-install-statusline, cc-verify) — paired with skills/, not the tool layer
 ```
