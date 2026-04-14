@@ -1,13 +1,12 @@
 # Cat Herding
 
-Personal collection of Claude Code skills, hooks, workflow scripts, and rules.
+Personal collection of Claude Code skills, hooks, and workflow scripts.
 
 ## Repository Structure
 
 ```
 skills/           # Distributable skills (yolo, custom-status-line)
-.claude/skills/   # Internal skills (lint-skill, lint-rule, lint-agent, optimize-rules, install-worktree-rule, etc.)
-.claude/rules/    # Rules (cli-versioning)
+.claude/skills/   # Internal skills (lint-skill, lint-rule, lint-agent, optimize-rules, install-worktree-rule, port-swiftui-to-appkit)
 scripts/          # General cc-*.py workflow scripts (installed to ~/.local/bin/cc-*)
 skill-scripts/    # Skill-coupled cc-*.py scripts (cc-install-statusline, cc-verify)
 ```
