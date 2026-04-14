@@ -1,8 +1,9 @@
 """SQLite schema migration and parameterized query helpers."""
+import json
 import sqlite3
 from datetime import datetime
 
-DB_VERSION = 3
+DB_VERSION = 4
 
 
 def get_db(path: str) -> sqlite3.Connection:
@@ -36,6 +37,12 @@ def get_db(path: str) -> sqlite3.Connection:
                 cache_create_tokens INTEGER NOT NULL DEFAULT 0,
                 cache_read_tokens INTEGER NOT NULL DEFAULT 0,
                 context_used_pct INTEGER NOT NULL
+            );
+            CREATE TABLE claude_versions (
+                claude_version TEXT PRIMARY KEY,
+                fields TEXT NOT NULL,
+                fields_count INTEGER NOT NULL,
+                first_seen TEXT NOT NULL
             );
             CREATE TABLE weekly_usage (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -113,3 +120,52 @@ def append_weekly_usage(db: sqlite3.Connection, **kw) -> None:
             :five_hour_resets_at, :seven_day_resets_at, :projected_pct)
     """, {**kw, "now": now})
     db.commit()
+
+
+def get_version(db: sqlite3.Connection, version: str):
+    """Fetch a claude_versions row, or None if not found."""
+    row = db.execute(
+        "SELECT claude_version, fields, fields_count, first_seen "
+        "FROM claude_versions WHERE claude_version=?",
+        (version,),
+    ).fetchone()
+    if not row:
+        return None
+    return {
+        "claude_version": row[0],
+        "fields": json.loads(row[1]),
+        "fields_count": row[2],
+        "first_seen": row[3],
+    }
+
+
+def insert_version(db: sqlite3.Connection, version: str,
+                   fields: list, fields_count: int) -> None:
+    """Insert a claude_versions row if it doesn't already exist."""
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    db.execute(
+        "INSERT OR IGNORE INTO claude_versions "
+        "(claude_version, fields, fields_count, first_seen) "
+        "VALUES (?, ?, ?, ?)",
+        (version, json.dumps(fields), fields_count, now),
+    )
+    db.commit()
+
+
+def get_versions_after(db: sqlite3.Connection, version: str) -> list:
+    """Get all claude_versions rows with version > given, ordered ascending."""
+    rows = db.execute(
+        "SELECT claude_version, fields, fields_count, first_seen "
+        "FROM claude_versions WHERE claude_version > ? "
+        "ORDER BY claude_version ASC",
+        (version,),
+    ).fetchall()
+    return [
+        {
+            "claude_version": r[0],
+            "fields": json.loads(r[1]),
+            "fields_count": r[2],
+            "first_seen": r[3],
+        }
+        for r in rows
+    ]

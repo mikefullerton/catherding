@@ -28,9 +28,6 @@ PRICING = {
     "haiku":  ( 0.80,  4.00),
 }
 
-# --- Version tracker constants ---
-
-VERSION_FILE = os.path.expanduser("~/.claude-status-line/claude_version.json")
 
 
 def git_cmd(*args: str) -> str:
@@ -296,63 +293,6 @@ def get_usage_columns(claude_data: dict) -> tuple:
 
 # --- Version tracker helpers ---
 
-def extract_paths(obj, prefix=""):
-    """Recursively extract all dotted field paths from a JSON object."""
-    paths = []
-    if isinstance(obj, dict):
-        for k, v in obj.items():
-            p = f"{prefix}.{k}" if prefix else k
-            paths.append(p)
-            paths.extend(extract_paths(v, p))
-    elif isinstance(obj, list) and obj:
-        paths.extend(extract_paths(obj[0], prefix + "[]"))
-    return paths
-
-
-def get_version_columns(claude_data: dict) -> tuple:
-    """Compute version line columns. Returns (v1, v2, v3) or None if no upgrade."""
-    try:
-        with open(VERSION_FILE) as f:
-            info = json.load(f)
-    except (OSError, json.JSONDecodeError):
-        # First run — create baseline from current version
-        current_version = claude_data.get("version", "")
-        if current_version:
-            try:
-                baseline = {
-                    "built_against": current_version,
-                    "acknowledged": True,
-                    "fields": sorted(extract_paths(claude_data)),
-                }
-                os.makedirs(os.path.dirname(VERSION_FILE), exist_ok=True)
-                with open(VERSION_FILE, "w") as f:
-                    json.dump(baseline, f, indent=2)
-                    f.write("\n")
-            except OSError:
-                pass
-        return None
-
-    current_version = claude_data.get("version", "")
-    built_against = info.get("built_against", "")
-    known_fields = set(info.get("fields", []))
-
-    if not current_version or current_version == built_against:
-        return None
-
-    current_fields = set(extract_paths(claude_data))
-    new_fields = sorted(current_fields - known_fields)
-
-    v1 = "claude upgrade"
-    v2 = f"{YELLOW}{current_version}{RST} (from {built_against})"
-    if new_fields:
-        count = len(new_fields)
-        v3 = f"{GREEN}{count} new field{'s' if count != 1 else ''}{RST}"
-    else:
-        v3 = f"{DIM}no new fields{RST}"
-
-    return (v1, v2, v3)
-
-
 def run(claude_data: dict, lines: list, rows: list = None) -> list:
     """Generate all status lines: path, git, model, sessions, usage, version.
 
@@ -506,9 +446,6 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
     # LINE 5 — usage costs (optional)
     usage_cols = get_usage_columns(claude)
 
-    # LINE 6 — version tracker (optional)
-    version_cols = get_version_columns(claude)
-
     # --- Append rows to shared list ---
     if branch:
         rows.append(Row(gs1, gs2, gs3, gs4))
@@ -524,10 +461,6 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
         uc1, uc2, uc3, uc4, uc5, uc6, uc7 = usage_cols
         rows.append(Row(uc1, uc4, uc5, uc6))
         rows.append(Row(uc3, uc2, uc7))
-
-    if version_cols:
-        vc1, vc2, vc3 = version_cols
-        rows.append(Row(vc1, vc2, vc3))
 
     # --- Non-columnar output ---
     result = [line1]
