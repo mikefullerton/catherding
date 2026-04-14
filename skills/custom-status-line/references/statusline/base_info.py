@@ -187,6 +187,88 @@ def get_wed_10am() -> datetime:
     return now.replace(hour=10, minute=0, second=0, microsecond=0) - timedelta(days=days_since_wed)
 
 
+def query_week_stats(db: sqlite3.Connection, start_str: str, end_str: str) -> tuple:
+    """Return (total_cost, total_tokens) for turns in [start_str, end_str)."""
+    rows = db.execute("""
+        SELECT model,
+               sum(input_tokens), sum(output_tokens),
+               sum(cache_read_tokens), sum(cache_creation_tokens)
+        FROM turns WHERE timestamp >= ? AND timestamp < ?
+        GROUP BY model
+    """, (start_str, end_str)).fetchall()
+
+    total_cost = 0.0
+    total_tokens = 0
+    for model, inp, out, cr, cc in rows:
+        i, o, r, c = (inp or 0), (out or 0), (cr or 0), (cc or 0)
+        total_cost += calc_cost(model, i, o, r, c)
+        total_tokens += i + o + r + c
+    return total_cost, total_tokens
+
+
+def format_tokens(n: int) -> str:
+    """Format token count as 1.2M, 45.3k, or 123."""
+    if abs(n) >= 1_000_000:
+        return f"{n / 1_000_000:.1f}M"
+    if abs(n) >= 1_000:
+        return f"{n / 1_000:.1f}k"
+    return str(int(n))
+
+
+def get_week_comparison_rows(wed_10am: datetime, now: datetime):
+    """Return list of Row objects comparing this week to last week."""
+    if not os.path.exists(USAGE_DB):
+        return []
+    try:
+        db = sqlite3.connect(USAGE_DB, timeout=2)
+    except Exception:
+        return []
+
+    try:
+        last_start = wed_10am - timedelta(days=7)
+        last_start_str = last_start.strftime("%Y-%m-%dT%H:%M:%S")
+        wed_str = wed_10am.strftime("%Y-%m-%dT%H:%M:%S")
+        now_str = now.strftime("%Y-%m-%dT%H:%M:%S")
+
+        last_cost, last_tokens = query_week_stats(db, last_start_str, wed_str)
+        this_cost, this_tokens = query_week_stats(db, wed_str, now_str)
+        db.close()
+    except Exception:
+        try:
+            db.close()
+        except Exception:
+            pass
+        return []
+
+    if last_tokens == 0 and this_tokens == 0:
+        return []
+
+    # Percentage delta on tokens
+    if last_tokens > 0:
+        delta_pct = (this_tokens - last_tokens) / last_tokens * 100
+    else:
+        delta_pct = 0.0
+
+    if delta_pct < 0:
+        delta_str = f"{GREEN}{delta_pct:.0f}%{RST}"
+    else:
+        delta_str = f"{ORANGE}+{delta_pct:.0f}%{RST}"
+
+    last_tok = format_tokens(last_tokens)
+    this_tok = format_tokens(this_tokens)
+    last_cost_s = f"${last_cost:.2f}"
+    this_cost_s = f"${this_cost:.2f}"
+
+    from statusline.formatting import Row
+
+    return [Row(
+        "usage last week",
+        f"{last_tok} / {last_cost_s}",
+        f"this wk: {this_tok} / {this_cost_s}",
+        delta_str,
+    )]
+
+
 def query_daily_costs(db: sqlite3.Connection, since_str: str) -> dict:
     """Return {date_str: dollar_cost} for each day since the given timestamp."""
     rows = db.execute("""
@@ -469,6 +551,11 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
         uc1, uc2, uc3, uc4, uc5, uc6, uc7 = usage_cols
         rows.append(Row(uc1, uc4, uc5, uc6))
         rows.append(Row(uc3, uc2, uc7))
+
+    # Week-over-week comparison (show 3 variants so user can pick)
+    wed_10am = get_wed_10am()
+    for r in get_week_comparison_rows(wed_10am, datetime.now()):
+        rows.append(r)
 
     # --- Non-columnar output ---
     result = [line1]
