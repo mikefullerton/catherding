@@ -31,4 +31,18 @@ for pyproject in "$REPO_DIR"/skills/*/*/pyproject.toml; do
 done
 
 echo ""
+echo "Installing workflow scripts to ~/.local/bin/cc-*..."
+mkdir -p "$HOME/.local/bin"
+for script in "$REPO_DIR"/scripts/*.py; do
+    [ -f "$script" ] || continue
+    name="$(basename "$script" .py)"
+    target="$HOME/.local/bin/cc-$name"
+    cp "$script" "$target"
+    chmod +x "$target"
+    echo "  cc-$name"
+done
+
+echo ""
 echo "Done."
+echo ""
+echo "Ensure \$HOME/.local/bin is on your PATH (check ~/.zshrc or ~/.bashrc)."

@@ -32,4 +32,18 @@ for pyproject in "$REPO_DIR"/skills/*/*/pyproject.toml; do
 done
 
 echo ""
+echo "Removing workflow scripts from ~/.local/bin/cc-*..."
+for script in "$REPO_DIR"/scripts/*.py; do
+    [ -f "$script" ] || continue
+    name="$(basename "$script" .py)"
+    target="$HOME/.local/bin/cc-$name"
+    if [ -e "$target" ] || [ -L "$target" ]; then
+        rm "$target"
+        echo "  cc-$name"
+    else
+        echo "  SKIP cc-$name (not installed)"
+    fi
+done
+
+echo ""
 echo "Done."
