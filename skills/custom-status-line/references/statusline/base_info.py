@@ -502,11 +502,12 @@ def run(claude_data: dict, lines: list) -> list:
 
     if usage_cols:
         uc1, uc2, uc3, uc4, uc5, uc6 = usage_cols
-        # Row 1: weekly usage | daily usage ave | days left | projected
+        # Row 1: weekly | daily ave | days left | projected
         col1_vals.append(uc1)
         col2_vals.append(uc4)
         col3_vals.append(uc5)
-        # Row 2: today's usage | 5h quota
+        col4_vals.append(uc6)
+        # Row 2: today | 5h quota
         col1_vals.append(uc3)
         col2_vals.append(uc2)
 
@@ -543,10 +544,10 @@ def run(claude_data: dict, lines: list) -> list:
 
     # LINE 5 — weekly usage (optional)
     if usage_cols:
-        usage_line1 = f"{lbor}{pad_left(uc1, col1_w)}{sep}{pad_right(uc4, col2_w)}{sep}{pad_right(uc5, col3_w)}{sep}{uc6}"
+        usage_line1 = f"{lbor}{pad_left(uc1, col1_w)}{sep}{pad_right(uc4, col2_w)}{sep}{pad_right(uc5, col3_w)}{sep}{pad_right(uc6, col4_w)}"
         result.append(usage_line1)
         # LINE 6 — today's usage
-        usage_line2 = f"{lbor}{pad_left(uc3, col1_w)}{sep}{uc2}"
+        usage_line2 = f"{lbor}{pad_left(uc3, col1_w)}{sep}{pad_right(uc2, col2_w)}"
         result.append(usage_line2)
 
     # LINE 7 — version (optional, only on upgrade)
