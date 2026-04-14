@@ -438,11 +438,11 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
     mc2 = duration
 
     if exceeds_200k:
-        mc3 = f"{RED}{used_pct}% of {ctx_label} context (extended){RST}"
+        mc3 = f"{RED}{used_pct}% / {ctx_label} ctx (extended){RST}"
     elif ctx_size > 200000 and used_pct > 20:
-        mc3 = f"{YELLOW}{used_pct}% of {ctx_label} context{RST}"
+        mc3 = f"{YELLOW}{used_pct}% / {ctx_label} ctx{RST}"
     else:
-        mc3 = f"{used_pct}% of {ctx_label} context"
+        mc3 = f"{used_pct}% / {ctx_label} ctx"
 
     # YOLO indicator (trailing on line 3)
     yolo_col = ""
