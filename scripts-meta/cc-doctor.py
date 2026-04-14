@@ -16,7 +16,10 @@ from pathlib import Path
 
 
 REPO_ROOT = Path.home() / "projects" / "active" / "cat-herding"
-CANONICAL_SOURCES = [REPO_ROOT / "scripts", REPO_ROOT / "skill-scripts"]
+# Every `scripts-*/` category dir, plus `skill-scripts/`.
+CANONICAL_SOURCES = sorted(
+    [*REPO_ROOT.glob("scripts-*"), REPO_ROOT / "skill-scripts"]
+)
 BIN_DIR = Path.home() / ".local" / "bin"
 HOOKS_DIR = Path.home() / ".claude" / "hooks"
 
@@ -58,13 +61,15 @@ def main() -> int:
             broken += 1
             continue
         # Stale = points outside the canonical script dirs AND outside any
-        # cat-herding worktree. Worktrees use `.claude/worktrees/<name>/{scripts,skill-scripts}/`,
+        # cat-herding worktree. Worktrees use
+        # `.claude/worktrees/<name>/{scripts-<area>,skill-scripts}/`,
         # which is fine while testing.
+        import re
         real_s = str(real)
         is_canonical = any(real_s.startswith(str(src) + "/") for src in CANONICAL_SOURCES)
         is_worktree = (
             "/cat-herding/.claude/worktrees/" in real_s
-            and ("/scripts/" in real_s or "/skill-scripts/" in real_s)
+            and bool(re.search(r"/(scripts-[a-z]+|skill-scripts)/", real_s))
         )
         if not (is_canonical or is_worktree):
             stale += 1

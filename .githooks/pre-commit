@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Syntax-check every staged scripts/*.py before allowing the commit.
+# Syntax-check every staged scripts-*/*.py and skill-scripts/*.py before
+# allowing the commit.
 # Activate once per clone with: git config core.hooksPath .githooks
 set -euo pipefail
 
-staged_py=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^scripts/.*\.py$' || true)
+staged_py=$(git diff --cached --name-only --diff-filter=ACM \
+    | grep -E '^(scripts-[a-z]+|skill-scripts)/.*\.py$' || true)
 if [ -z "$staged_py" ]; then
     exit 0
 fi
@@ -16,6 +18,6 @@ while IFS= read -r f; do
 done <<< "$staged_py"
 
 if [ "$failed" -ne 0 ]; then
-    echo "pre-commit: scripts/*.py syntax check failed; commit blocked." >&2
+    echo "pre-commit: python syntax check failed; commit blocked." >&2
     exit 1
 fi
