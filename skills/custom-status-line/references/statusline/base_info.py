@@ -275,9 +275,17 @@ def get_usage_columns(claude_data: dict) -> tuple:
         if remaining_s > 0:
             remaining_m = int(remaining_s // 60)
             h, m = divmod(remaining_m, 60)
-            c7 = f"-{h}h {m:02d}m" if h >= 1 else f"-{m}m"
+            c7 = f"{h}h {m:02d}m left" if h > 0 else f"{m}m left"
     c3 = f"today: {today_pct:.1f}%"
-    c5 = f"{remaining_days:.1f}d left"
+    remaining_minutes = max(0, int(remaining_days * 24 * 60))
+    rd, rem = divmod(remaining_minutes, 24 * 60)
+    rh, rm = divmod(rem, 60)
+    if rd > 0:
+        c5 = f"{rd}d {rh}h {rm:02d}m left"
+    elif rh > 0:
+        c5 = f"{rh}h {rm:02d}m left"
+    else:
+        c5 = f"{rm}m left"
 
     if too_early:
         c4 = f"{DIM}daily ave: --{RST}"
