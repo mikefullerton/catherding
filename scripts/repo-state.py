@@ -82,6 +82,25 @@ def main():
     vv, _ = run(["git", "branch", "-vv"])
     stale = sum(1 for ln in vv.splitlines() if ": gone]" in ln)
 
+    # Drifted submodules (parent's recorded SHA != checked-out SHA)
+    sub_status, _ = run(["git", "submodule", "status"])
+    drifted_subs: list[str] = []
+    for line in sub_status.splitlines():
+        if line.startswith("+"):
+            parts = line[1:].split()
+            if len(parts) >= 2:
+                drifted_subs.append(parts[1])
+
+    # Default branch sync (only meaningful when on or near default)
+    default_behind = 0
+    if default:
+        b, rc = run(["git", "rev-list", "--count", f"{default}..origin/{default}"])
+        if rc == 0:
+            try:
+                default_behind = int(b or 0)
+            except ValueError:
+                default_behind = 0
+
     # Print
     print(f"repo:    {main_wt}")
     print(f"branch:  {branch} ({head_msg})")
@@ -98,6 +117,23 @@ def main():
             print(f"  {w.get('branch','?'):<40} {w['path']}")
     if stale:
         print(f"stale branches: {stale}")
+    if drifted_subs:
+        print(f"drifted submodules: {len(drifted_subs)}")
+        for s in drifted_subs:
+            print(f"  {s}")
+
+    # Hints — name a cc-* command for each fixable issue.
+    hints: list[str] = []
+    for s in drifted_subs:
+        hints.append(f"cc-bump-submodule {s}   # or `git submodule update --init {s}` to match recorded SHA")
+    if default_behind > 0:
+        hints.append(f"git pull origin {default}   # default branch is {default_behind} commit(s) behind")
+    if stale > 0:
+        hints.append("cc-branch-hygiene --cleanup   # delete branches whose upstream is gone")
+    if behind > 0 and branch and branch != default:
+        hints.append(f"cc-rebase-main   # current branch is {behind} commit(s) behind origin/{branch}")
+    for h in hints:
+        print(f"hint: {h}")
 
 
 if __name__ == "__main__":
