@@ -3,9 +3,11 @@
 
 Usage:
   commit-push.py "commit message"
-  commit-push.py "commit message" --files path1 path2
-  commit-push.py "commit message" --pr "PR title" [--body "PR body"]
-  commit-push.py "commit message" --tracked-only
+  commit-push.py --message-file msg.txt
+  commit-push.py --message-file -          # read commit message from stdin
+  commit-push.py "msg" --files path1 path2
+  commit-push.py "msg" --pr "PR title" [--body "PR body" | --body-file body.md]
+  commit-push.py "msg" --tracked-only
 
 By default stages everything that isn't ignored (equivalent to `git add -A`),
 matching the user's "commit all when told to" preference. This avoids the
@@ -13,13 +15,18 @@ common footgun where a new file is silently left behind by `git add -u` and
 Claude has to diagnose a later "nothing to commit" error.
 
 Flags:
-  --files PATHS     stage only the given paths
-  --tracked-only    stage only modifications to tracked files (old -u behavior)
-  --pr TITLE        also open a draft PR (implies push)
-  --body TEXT       PR body (only used with --pr)
+  --files PATHS      stage only the given paths
+  --tracked-only     stage only modifications to tracked files (old -u behavior)
+  --message-file F   read commit message from file (use '-' for stdin). Mutually
+                     exclusive with the positional message.
+  --pr TITLE         also open a PR (implies push; draft by default)
+  --body TEXT        PR body (mutually exclusive with --body-file)
+  --body-file F      read PR body from file (use '-' for stdin)
+  --no-draft         open the PR as ready-for-review instead of draft
 
 Always appends Claude's Co-Authored-By trailer to the commit. Prints a one-line
-summary of what was staged so Claude can verify without a follow-up git status.
+`did:` summary of what was staged, committed, pushed, and (if applicable)
+the PR URL — so Claude can verify without follow-up git/gh calls.
 """
 import argparse
 import subprocess
@@ -27,6 +34,7 @@ import sys
 
 
 CO_AUTHOR = "Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
+PR_TRAILER = "\n\nGenerated with [Claude Code](https://claude.com/claude-code)\n"
 
 
 def run(cmd, check=True, capture=True):
@@ -38,15 +46,48 @@ def run(cmd, check=True, capture=True):
     return result.stdout.strip(), result.returncode
 
 
+def read_text(source: str) -> str:
+    if source == "-":
+        return sys.stdin.read()
+    with open(source) as f:
+        return f.read()
+
+
+def resolve_message(args: argparse.Namespace) -> str:
+    if args.message and args.message_file:
+        print("FAIL: pass either a positional message or --message-file, not both", file=sys.stderr)
+        sys.exit(2)
+    if args.message_file:
+        return read_text(args.message_file).rstrip()
+    if args.message:
+        return args.message.rstrip()
+    print("FAIL: no commit message supplied (positional or --message-file)", file=sys.stderr)
+    sys.exit(2)
+
+
+def resolve_body(args: argparse.Namespace) -> str:
+    if args.body and args.body_file:
+        print("FAIL: pass either --body or --body-file, not both", file=sys.stderr)
+        sys.exit(2)
+    if args.body_file:
+        return read_text(args.body_file).rstrip()
+    return (args.body or "").rstrip()
+
+
 def main():
-    ap = argparse.ArgumentParser(description="Commit, push, optionally open a PR.")
-    ap.add_argument("message", help="Commit message (first line is subject)")
+    ap = argparse.ArgumentParser(description="Stage, commit, push, optionally open a draft PR.")
+    ap.add_argument("message", nargs="?", help="Commit message (first line is subject). Omit to use --message-file.")
+    ap.add_argument("--message-file", help="Read commit message from file ('-' for stdin).")
     ap.add_argument("--files", nargs="+", help="Specific files to stage (default: all changes)")
     ap.add_argument("--tracked-only", action="store_true",
                     help="Stage only tracked-file modifications (git add -u)")
-    ap.add_argument("--pr", help="Open a draft PR with this title")
-    ap.add_argument("--body", default="", help="PR body (only used with --pr)")
+    ap.add_argument("--pr", help="Open a PR with this title")
+    ap.add_argument("--body", default="", help="PR body (mutually exclusive with --body-file)")
+    ap.add_argument("--body-file", help="Read PR body from file ('-' for stdin)")
+    ap.add_argument("--no-draft", action="store_true", help="Open PR as ready-for-review (default: draft)")
     args = ap.parse_args()
+
+    message = resolve_message(args)
 
     # 1. Stage
     if args.files:
@@ -69,10 +110,8 @@ def main():
                   "(use --files or drop --tracked-only)", file=sys.stderr)
         sys.exit(1)
 
-    print(f"staged: {len(staged_lines)} file(s)")
-
     # 3. Build full message
-    msg = args.message.rstrip() + "\n\n" + CO_AUTHOR + "\n"
+    msg = message + "\n\n" + CO_AUTHOR + "\n"
     result = subprocess.run(
         ["git", "commit", "-m", msg],
         capture_output=True, text=True,
@@ -89,7 +128,7 @@ def main():
         sys.exit(2)
 
     # 5. Push (set upstream if needed)
-    upstream, up_rc = run(
+    _, up_rc = run(
         ["git", "rev-parse", "--abbrev-ref", f"{branch}@{{upstream}}"],
         check=False,
     )
@@ -101,9 +140,11 @@ def main():
     # 6. Optional PR
     pr_url = None
     if args.pr:
-        body = args.body or ""
-        body_full = body.rstrip() + "\n\nGenerated with [Claude Code](https://claude.com/claude-code)\n"
-        cmd = ["gh", "pr", "create", "--title", args.pr, "--body", body_full, "--draft"]
+        body = resolve_body(args)
+        body_full = body + PR_TRAILER
+        cmd = ["gh", "pr", "create", "--title", args.pr, "--body", body_full]
+        if not args.no_draft:
+            cmd.append("--draft")
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             print("FAIL: gh pr create", file=sys.stderr)
@@ -111,12 +152,12 @@ def main():
             sys.exit(result.returncode)
         pr_url = result.stdout.strip()
 
-    # Summary
+    # Summary — single `did:` line so Claude can pattern-match the result.
     head, _ = run(["git", "log", "--oneline", "-1"])
-    print(f"committed: {head}")
-    print(f"pushed: {branch}")
+    summary = f"staged {len(staged_lines)} | {head} | pushed {branch}"
     if pr_url:
-        print(f"pr: {pr_url}")
+        summary += f" | pr {pr_url}"
+    print(f"did: {summary}")
 
 
 if __name__ == "__main__":
