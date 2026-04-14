@@ -25,5 +25,11 @@ Design principles:
 | `claude-fields.py <version>` | Dump stored version blob, diff fields |
 | `graphify-status.py` | Which projects have graphify data |
 | `memory.py` | Manage per-project auto-memory: `cc-memory list` / `cc-memory add <type> <name> --description ...` (updates MEMORY.md atomically) |
+| `xcsetting.py <scheme> <key>...` | Resolve Xcode build-setting values without grepping pbxproj |
+| `rename.py <pattern> <replacement>` | Dry-run-by-default find-and-replace across repo files (`--apply` to write) |
+| `clean-dd.py [pattern]` | List / delete Xcode DerivedData directories (`--yes` to delete) |
+| `submodule-status.py` | Per-submodule recorded-vs-checked-out-vs-origin SHA diagnostic |
+| `pr-review.py <num>` | Comprehensive PR review state: reviewers, inline comments, CI rollup |
+| `since.py <ref>` | List merged PRs + commits since a ref (tag, branch, SHA) |
 
 All scripts support `--help`.
