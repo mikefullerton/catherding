@@ -63,20 +63,14 @@ def _check_version(claude_data):
             count = len(new_fields)
             if count > 0:
                 v2 = f"{GREEN}{count} new field{'s' if count != 1 else ''}{RST}"
-                # Show field names, abbreviated if many
-                if count <= 3:
-                    v3 = f"{DIM}{', '.join(new_fields)}{RST}"
-                else:
-                    v3 = f"{DIM}{', '.join(new_fields[:3])}, +{count - 3} more{RST}"
             else:
                 v2 = f"{DIM}no new fields{RST}"
-                v3 = ""
 
             if removed_fields:
                 rm_count = len(removed_fields)
                 v2 += f" {DIM}(-{rm_count}){RST}"
 
-            version_rows.append(Row(v1, v2, v3))
+            version_rows.append(Row(v1, v2))
 
         db.close()
         return version_rows
