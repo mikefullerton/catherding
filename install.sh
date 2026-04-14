@@ -31,15 +31,17 @@ for pyproject in "$REPO_DIR"/skills/*/*/pyproject.toml; do
 done
 
 echo ""
-echo "Installing workflow scripts to ~/.local/bin/cc-*..."
+echo "Installing workflow + skill scripts to ~/.local/bin/cc-*..."
 mkdir -p "$HOME/.local/bin"
-for script in "$REPO_DIR"/scripts/cc-*.py; do
-    [ -f "$script" ] || continue
-    name="$(basename "$script" .py)"
-    target="$HOME/.local/bin/$name"
-    cp "$script" "$target"
-    chmod +x "$target"
-    echo "  $name"
+for dir in scripts skill-scripts; do
+    for script in "$REPO_DIR"/"$dir"/cc-*.py; do
+        [ -f "$script" ] || continue
+        name="$(basename "$script" .py)"
+        target="$HOME/.local/bin/$name"
+        cp "$script" "$target"
+        chmod +x "$target"
+        echo "  $name ($dir)"
+    done
 done
 
 echo ""
