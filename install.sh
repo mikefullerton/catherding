@@ -33,7 +33,7 @@ done
 echo ""
 echo "Installing workflow + skill scripts to ~/.local/bin/cc-* (and Claude Code hooks to ~/.claude/hooks/)..."
 mkdir -p "$HOME/.local/bin" "$HOME/.claude/hooks"
-for script in "$REPO_DIR"/scripts-*/cc-*.py "$REPO_DIR"/skill-scripts/cc-*.py; do
+for script in "$REPO_DIR"/claude-optimizing/scripts-*/cc-*.py "$REPO_DIR"/skill-scripts/cc-*.py; do
     [ -f "$script" ] || continue
     name="$(basename "$script" .py)"
     dir="$(basename "$(dirname "$script")")"

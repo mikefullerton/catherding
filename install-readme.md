@@ -52,7 +52,7 @@ What `install.sh` does:
 
 - Symlinks `skills/*` into `~/.claude/skills/` (distributable skills — `custom-status-line`, `yolo` — excluded from the scope of this doc, but installed alongside).
 - Runs `uv tool install -e` for every `skills/*/*/pyproject.toml` (CLI skills).
-- Copies every `cc-*.py` from each category dir (`scripts-git/`, `scripts-bash/`, `scripts-xcode/`, `scripts-claude/`, `scripts-meta/`, `scripts-hooks/`) and `skill-scripts/` into `~/.local/bin/cc-*` (extension stripped). `cc-*-hook.py` files route to `~/.claude/hooks/` instead.
+- Copies every `cc-*.py` from each `claude-optimizing/scripts-<area>/` dir (git, bash, xcode, claude, meta, hooks) and from repo-root `skill-scripts/` into `~/.local/bin/cc-*` (extension stripped). `cc-*-hook.py` files route to `~/.claude/hooks/` instead.
 - Activates the repo's pre-commit hook: `git config core.hooksPath .githooks`.
 
 Verify:
@@ -173,7 +173,7 @@ Both hooks are now checked into this repo and installed automatically. No manual
 
 ### 3.1 `cc-repo-hygiene-hook.py` (Stop hook — the enforcer)
 
-Source: `scripts-hooks/cc-repo-hygiene-hook.py`.
+Source: `claude-optimizing/scripts-hooks/cc-repo-hygiene-hook.py`.
 Installed by `./install.sh` (step 1) to `~/.claude/hooks/cc-repo-hygiene-hook.py`.
 The `*-hook` suffix tells the installer to route the file into Claude Code's
 hooks directory (where the harness invokes it via stdin) rather than onto

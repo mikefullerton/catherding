@@ -5,7 +5,7 @@
 set -euo pipefail
 
 staged_py=$(git diff --cached --name-only --diff-filter=ACM \
-    | grep -E '^(scripts-[a-z]+|skill-scripts)/.*\.py$' || true)
+    | grep -E '^(claude-optimizing/scripts-[a-z]+|skill-scripts)/.*\.py$' || true)
 if [ -z "$staged_py" ]; then
     exit 0
 fi
