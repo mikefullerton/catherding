@@ -4,6 +4,8 @@ Single-call scripts that collapse multi-step operations Claude repeats often. Th
 
 Every script in this directory is named `cc-<name>.py`. `install.sh` (and `cc-install`) simply strip the `.py` extension to produce the installed command `cc-<name>` on your PATH — there's no separate name-mangling step.
 
+Skill-specific scripts (currently `cc-install-statusline`, `cc-verify`) live in **`../skill-scripts/`** because their lifecycle is coupled to a skill's source tree. They install to the same `~/.local/bin/` alongside these; see `skill-scripts/README.md` for details.
+
 Design principles:
 - **Python only** — per global CLAUDE.md rule
 - **Structured output** — concise, parseable, no verbose prose
@@ -16,12 +18,10 @@ Design principles:
 | Script | Purpose |
 |--------|---------|
 | `cc-merge-worktree.py <pr>` | Merge PR + clean up worktree/branches (9-step ritual in one call) |
-| `cc-install-statusline.py` | Copy status line files, clear pycache, run tests |
 | `cc-commit-push.py "msg" [--pr "title"] [--tracked-only]` | Stage all changes (incl. untracked, unless `--tracked-only`), commit, push, optionally PR |
 | `cc-repo-state.py` | Session-start audit: branch, status, worktrees, staleness |
 | `cc-project-index.py [--filter X]` | Find projects by criteria (graphify, git, etc.) |
 | `cc-pr-status.py <num>` | PR summary: state, checks, diff, comments |
-| `cc-verify.py` | Tests + lint + type check + version bump validation |
 | `cc-branch-hygiene.py` | Stale, merged, remote-only, prunable |
 | `cc-usage-stats.py [--week]` | Token/cost stats from `~/.claude/usage.db` |
 | `cc-claude-fields.py <version>` | Dump stored version blob, diff fields |
