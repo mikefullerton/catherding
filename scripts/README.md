@@ -24,5 +24,6 @@ Design principles:
 | `usage-stats.py [--week]` | Token/cost stats from `~/.claude/usage.db` |
 | `claude-fields.py <version>` | Dump stored version blob, diff fields |
 | `graphify-status.py` | Which projects have graphify data |
+| `memory.py` | Manage per-project auto-memory: `cc-memory list` / `cc-memory add <type> <name> --description ...` (updates MEMORY.md atomically) |
 
 All scripts support `--help`.
