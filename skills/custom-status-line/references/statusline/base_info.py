@@ -251,11 +251,8 @@ def get_week_comparison_rows(wed_10am: datetime, now: datetime):
 
     if delta_pct < 0:
         delta_str = f"{GREEN}{delta_pct:.0f}%{RST}"
-        save_pct = abs(delta_pct)
-        savings_label = f"{GREEN}saving {save_pct:.0f}%{RST}"
     else:
         delta_str = f"{ORANGE}+{delta_pct:.0f}%{RST}"
-        savings_label = f"{ORANGE}+{delta_pct:.0f}%{RST}"
 
     last_tok = format_tokens(last_tokens)
     this_tok = format_tokens(this_tokens)
@@ -264,15 +261,12 @@ def get_week_comparison_rows(wed_10am: datetime, now: datetime):
 
     from statusline.formatting import Row
 
-    # Option A: tokens only
-    row_a = Row("last wk", f"{last_tok} tok", f"this wk: {this_tok} tok", delta_str)
-    # Option B: graphify-style
-    row_b = Row("vs last wk", savings_label, f"{last_tok} \u2192 {this_tok}", "tokens")
-    # Option C: tokens + cost
-    row_c = Row("last wk", f"{last_tok} / {last_cost_s}",
-                f"this wk: {this_tok} / {this_cost_s}", delta_str)
-
-    return [row_a, row_b, row_c]
+    return [Row(
+        "usage last week",
+        f"{last_tok} / {last_cost_s}",
+        f"this wk: {this_tok} / {this_cost_s}",
+        delta_str,
+    )]
 
 
 def query_daily_costs(db: sqlite3.Connection, since_str: str) -> dict:
