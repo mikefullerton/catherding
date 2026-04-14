@@ -31,4 +31,23 @@ for pyproject in "$REPO_DIR"/skills/*/*/pyproject.toml; do
 done
 
 echo ""
+echo "Installing workflow scripts to ~/.local/bin/cc-*..."
+mkdir -p "$HOME/.local/bin"
+for script in "$REPO_DIR"/scripts/*.py; do
+    [ -f "$script" ] || continue
+    name="$(basename "$script" .py)"
+    target="$HOME/.local/bin/cc-$name"
+    if [ -L "$target" ]; then
+        rm "$target"
+    elif [ -e "$target" ]; then
+        echo "  SKIP cc-$name (non-symlink exists, remove manually)"
+        continue
+    fi
+    ln -s "$script" "$target"
+    echo "  cc-$name -> $script"
+done
+
+echo ""
 echo "Done."
+echo ""
+echo "Ensure \$HOME/.local/bin is on your PATH (check ~/.zshrc or ~/.bashrc)."
