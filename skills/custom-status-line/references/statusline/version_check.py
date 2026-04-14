@@ -53,7 +53,7 @@ def _check_version(claude_data):
                 prev = get_version(db, BUILT_FOR_VERSION)
                 prev_fields = set(prev["field_paths"]) if prev else set()
             else:
-                prev_fields = set(new_versions[i - 1]["fields"])
+                prev_fields = set(new_versions[i - 1]["field_paths"])
 
             current_fields = set(ver["field_paths"])
             new_fields = sorted(current_fields - prev_fields)
