@@ -10,7 +10,7 @@ import subprocess
 import sys
 import time
 
-from statusline.formatting import GREEN, DIM, ORANGE, RST, extract_col_widths, pad_left, pad_right
+from statusline.formatting import GREEN, DIM, ORANGE, RST, Row
 
 CACHE_FILE = os.path.expanduser("~/.claude-status-line/graphify-savings-cache.json")
 UPDATER = os.path.expanduser("~/.claude-status-line/scripts/graphify-savings-update.py")
@@ -46,9 +46,11 @@ def _format_tokens(n):
     return str(int(n))
 
 
-def run(claude_data, lines):
-    # type: (dict, list) -> list
-    """Read cached graphify savings and append rows."""
+def run(claude_data, lines, rows=None):
+    # type: (dict, list, list) -> list
+    """Read cached graphify savings and append Row objects to shared rows list."""
+    if rows is None:
+        rows = []
     _maybe_trigger_update()
 
     if not os.path.exists(CACHE_FILE):
@@ -62,17 +64,13 @@ def run(claude_data, lines):
     except (OSError, json.JSONDecodeError, ValueError):
         return lines
 
-    rows = [r for r in data.get("rows", []) if r.get("status") not in ("collecting", "no_baseline")]
-    if not rows:
+    cache_rows = [r for r in data.get("rows", []) if r.get("status") not in ("collecting", "no_baseline")]
+    if not cache_rows:
         return lines
 
     # Build column values for each row
-    sep = " | "
-    lbor = "| "
-    col_widths = extract_col_widths(lines)
-
     row_cols = []
-    for r in rows:
+    for r in cache_rows:
         status = r["status"]
         label_text = r["label"]
         detail = r.get("detail", "")
@@ -95,7 +93,7 @@ def run(claude_data, lines):
     total_sessions = 0
     n_projects = 0
 
-    for r in rows:
+    for r in cache_rows:
         pre = r.get("pre_avg", 0)
         post = r.get("post_avg", 0)
         n_post = r.get("n_post", 0)
@@ -112,11 +110,11 @@ def run(claude_data, lines):
         if net_saving_pct > 0:
             color = GREEN
             pct_label = "{}saving {:.0f}%{}".format(color, net_saving_pct, RST)
-            token_label = "{}net: -{}/session{}".format(color, _format_tokens(abs(net_tokens)), RST)
+            token_label = "{}net: -{}{}".format(color, _format_tokens(abs(net_tokens)), RST)
         else:
             color = ORANGE
             pct_label = "{}+{:.0f}%{}".format(color, abs(net_saving_pct), RST)
-            token_label = "{}net: +{}/session{}".format(color, _format_tokens(abs(net_tokens)), RST)
+            token_label = "{}net: +{}{}".format(color, _format_tokens(abs(net_tokens)), RST)
 
         name = "{}TOTAL{}".format(DIM, RST)
         info = "{}{} projects{}".format(DIM, n_projects, RST)
@@ -125,20 +123,7 @@ def run(claude_data, lines):
     if not row_cols:
         return lines
 
-    # Use base_info column widths if available, otherwise self-align
-    if col_widths and len(col_widths) >= 4:
-        c1w, c2w, c3w, c4w = col_widths[0], col_widths[1], col_widths[2], col_widths[3]
-    else:
-        from statusline.formatting import visible_len
-        c1w = max(visible_len(c[0]) for c in row_cols)
-        c2w = max(visible_len(c[1]) for c in row_cols)
-        c3w = max(visible_len(c[2]) for c in row_cols)
-        c4w = max(visible_len(c[3]) for c in row_cols)
-
-    for c1, c2, c3, c4 in row_cols:
-        lines.append("{}{}{}{}{}{}{}".format(
-            lbor, pad_left(c1, c1w), sep, pad_right(c2, c2w),
-            sep, pad_right(c3, c3w), sep + c4,
-        ))
+    for cols in row_cols:
+        rows.append(Row(*cols))
 
     return lines

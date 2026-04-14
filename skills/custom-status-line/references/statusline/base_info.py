@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 from statusline.formatting import (
     BLUE, YELLOW, GREEN, ORANGE, RED, DIM, RST,
-    visible_len, pad_right, pad_left,
+    Row,
 )
 from statusline.db import get_db, upsert_session, append_weekly_usage
 
@@ -28,9 +28,6 @@ PRICING = {
     "haiku":  ( 0.80,  4.00),
 }
 
-# --- Version tracker constants ---
-
-VERSION_FILE = os.path.expanduser("~/.claude-status-line/claude_version.json")
 
 
 def git_cmd(*args: str) -> str:
@@ -265,88 +262,53 @@ def get_usage_columns(claude_data: dict) -> tuple:
 
     too_early = elapsed_hours < 6
 
-    c1 = f"weekly usage: {rate_7d:.1f}%"
+    c1 = f"weekly: {rate_7d:.1f}%"
     resets_at = int(
         ((claude_data.get("rate_limits") or {})
          .get("five_hour") or {})
         .get("resets_at") or 0
     )
-    countdown = ""
+    c2 = f"5h: {rate_5h:.1f}%"
+    c7 = ""
     if resets_at > 0:
         remaining_s = resets_at - now.timestamp()
         if remaining_s > 0:
             remaining_m = int(remaining_s // 60)
             h, m = divmod(remaining_m, 60)
-            countdown = f" (-{h}h {m:02d}m)" if h >= 1 else f" (-{m}m)"
-    c2 = f"5h: {rate_5h:.1f}%{countdown}"
-    c3 = f"today's usage: {today_pct:.1f}%"
+            c7 = f"-{h}h {m:02d}m" if h >= 1 else f"-{m}m"
+    c3 = f"today: {today_pct:.1f}%"
     c5 = f"{remaining_days:.1f}d left"
 
     if too_early:
-        c4 = f"{DIM}daily usage ave: --{RST}"
+        c4 = f"{DIM}daily ave: --{RST}"
         c6 = f"{DIM}too early{RST}"
     else:
         daily_avg_pct = rate_7d / elapsed_days
         projected = daily_avg_pct * 7.0
-        c4 = f"daily usage ave: {daily_avg_pct:.1f}%"
+        c4 = f"daily ave: {daily_avg_pct:.1f}%"
         c6 = f"{RED}{projected:.1f}%{RST} projected" if projected > 100.0 else f"{projected:.1f}% projected"
 
-    return (c1, c2, c3, c4, c5, c6)
+    return (c1, c2, c3, c4, c5, c6, c7)
 
 
 # --- Version tracker helpers ---
 
-def extract_paths(obj, prefix=""):
-    """Recursively extract all dotted field paths from a JSON object."""
-    paths = []
-    if isinstance(obj, dict):
-        for k, v in obj.items():
-            p = f"{prefix}.{k}" if prefix else k
-            paths.append(p)
-            paths.extend(extract_paths(v, p))
-    elif isinstance(obj, list) and obj:
-        paths.extend(extract_paths(obj[0], prefix + "[]"))
-    return paths
+def run(claude_data: dict, lines: list, rows: list = None) -> list:
+    """Generate all status lines: path, git, model, sessions, usage, version.
 
-
-def get_version_columns(claude_data: dict) -> tuple:
-    """Compute version line columns. Returns (v1, v2, v3) or None if no upgrade."""
-    try:
-        with open(VERSION_FILE) as f:
-            info = json.load(f)
-    except (OSError, json.JSONDecodeError):
-        return None
-
-    current_version = claude_data.get("version", "")
-    built_against = info.get("built_against", "")
-    known_fields = set(info.get("fields", []))
-
-    if not current_version or current_version == built_against:
-        return None
-
-    current_fields = set(extract_paths(claude_data))
-    new_fields = sorted(current_fields - known_fields)
-
-    v1 = "claude upgrade"
-    v2 = f"{YELLOW}{current_version}{RST} (from {built_against})"
-    if new_fields:
-        count = len(new_fields)
-        v3 = f"{GREEN}{count} new field{'s' if count != 1 else ''}{RST}"
-    else:
-        v3 = f"{DIM}no new fields{RST}"
-
-    return (v1, v2, v3)
-
-
-def run(claude_data: dict, lines: list) -> list:
-    """Generate all status lines: path, git, model, sessions, usage, version."""
+    When called with a shared `rows` list (from the dispatcher), appends Row
+    objects for centralized formatting. When called standalone (rows=None),
+    formats and appends rows to lines directly.
+    """
+    _standalone = rows is None
+    if _standalone:
+        rows = []
     claude = claude_data
 
     # Extract fields
     model_name = (claude.get("model") or {}).get("display_name") or "unknown"
     rem_pct = int((claude.get("context_window") or {}).get("remaining_percentage") or 100)
     duration_ms = int((claude.get("cost") or {}).get("total_duration_ms") or 0)
-    session_name = claude.get("session_name") or ""
     rate_5h = float(((claude.get("rate_limits") or {}).get("five_hour") or {}).get("used_percentage") or 0)
     rate_7d = float(((claude.get("rate_limits") or {}).get("seven_day") or {}).get("used_percentage") or 0)
     session_id = claude.get("session_id") or ""
@@ -362,8 +324,6 @@ def run(claude_data: dict, lines: list) -> list:
     # Git info
     branch = git_cmd("rev-parse", "--abbrev-ref", "HEAD")
 
-    sep = " | "
-    lbor = "| "
     UP = "\u2191"
     DN = "\u2193"
 
@@ -423,22 +383,21 @@ def run(claude_data: dict, lines: list) -> list:
             else:
                 gs4 = f"main: {_c(commits, UP)}{_c(behind_main, DN)}"
 
-    # LINE 3 — model (col1=session_name, col2=model, col3=duration, col4=context)
+    # LINE 3 — model (col1=model, col2=duration, col3=context)
     ctx_size = int((claude.get("context_window") or {}).get("context_window_size") or 200000)
     exceeds_200k = bool(claude.get("exceeds_200k_tokens"))
     ctx_label = "1M" if ctx_size > 200000 else "200k"
     used_pct = 100 - rem_pct
 
-    mc1 = session_name
-    mc2 = f"{GREEN}{model_name}{RST}" if "opus" in model_name.lower() else f"{RED}{model_name}{RST}"
-    mc3 = duration
+    mc1 = f"{GREEN}{model_name}{RST}" if "opus" in model_name.lower() else f"{RED}{model_name}{RST}"
+    mc2 = duration
 
     if exceeds_200k:
-        mc4 = f"{RED}{used_pct}% of {ctx_label} context (extended){RST}"
+        mc3 = f"{RED}{used_pct}% / {ctx_label} ctx (extended){RST}"
     elif ctx_size > 200000 and used_pct > 20:
-        mc4 = f"{YELLOW}{used_pct}% of {ctx_label} context{RST}"
+        mc3 = f"{YELLOW}{used_pct}% / {ctx_label} ctx{RST}"
     else:
-        mc4 = f"{used_pct}% of {ctx_label} context"
+        mc3 = f"{used_pct}% / {ctx_label} ctx"
 
     # YOLO indicator (trailing on line 3)
     yolo_col = ""
@@ -487,67 +446,32 @@ def run(claude_data: dict, lines: list) -> list:
     # LINE 5 — usage costs (optional)
     usage_cols = get_usage_columns(claude)
 
-    # LINE 6 — version tracker (optional)
-    version_cols = get_version_columns(claude)
+    # --- Append rows to shared list ---
+    if branch:
+        rows.append(Row(gs1, gs2, gs3, gs4))
 
-    # --- Column alignment across all lines ---
-    # col1 (right-aligned): git, session_name, all sessions, weekly usage, claude upgrade
-    # col2 (left-aligned):  files, model, N active, 5h quota, version string
-    # col3 (left-aligned):  remote, duration, N thinking, today's usage, new fields
-    # col4 (left-aligned):  main, context%, N waiting, daily usage ave
-    # col5 (left-aligned):  yolo, Xd left
-    col1_vals = [gs1, mc1, sc1]
-    col2_vals = [gs2, mc2, sc2]
-    col3_vals = [gs3, mc3, sc3]
-    col4_vals = [gs4, mc4, sc4]
+    model_row = Row(mc1, mc2, mc3)
+    if yolo_col:
+        model_row.columns.append(yolo_col)
+    rows.append(model_row)
+
+    rows.append(Row(sc1, sc2, sc3, sc4))
 
     if usage_cols:
-        uc1, uc2, uc3, uc4, uc5, uc6 = usage_cols
-        col1_vals.append(uc1)
-        col2_vals.append(uc2)
-        col3_vals.append(uc3)
-        col4_vals.append(uc4)
+        uc1, uc2, uc3, uc4, uc5, uc6, uc7 = usage_cols
+        rows.append(Row(uc1, uc4, uc5, uc6))
+        rows.append(Row(uc3, uc2, uc7))
 
-    if version_cols:
-        vc1, vc2, vc3 = version_cols
-        col1_vals.append(vc1)
-        col2_vals.append(vc2)
-        col3_vals.append(vc3)
-
-    col1_w = max(visible_len(v) for v in col1_vals if v)
-    col2_w = max(visible_len(v) for v in col2_vals if v)
-    col3_w = max(visible_len(v) for v in col3_vals if v)
-    col4_w = max((visible_len(v) for v in col4_vals if v), default=0)
-
-    # --- Build output ---
+    # --- Non-columnar output ---
     result = [line1]
 
-    # LINE 2 — git
-    if branch:
-        git_line = f"{lbor}{pad_left(gs1, col1_w)}{sep}{pad_right(gs2, col2_w)}{sep}{pad_right(gs3, col3_w)}"
-        if gs4:
-            git_line += f"{sep}{gs4}"
-        result.append(git_line)
-
-    # LINE 3 — model
-    model_line = f"{lbor}{pad_left(mc1, col1_w)}{sep}{pad_right(mc2, col2_w)}{sep}{pad_right(mc3, col3_w)}{sep}{pad_right(mc4, col4_w)}"
-    if yolo_col:
-        model_line += f"{sep}{yolo_col}"
-    result.append(model_line)
-
-    # LINE 4 — sessions
-    session_line = f"{lbor}{pad_left(sc1, col1_w)}{sep}{pad_right(sc2, col2_w)}{sep}{pad_right(sc3, col3_w)}{sep}{pad_right(sc4, col4_w)}"
-    result.append(session_line)
-
-    # LINE 5 — usage (optional)
-    if usage_cols:
-        usage_line = f"{lbor}{pad_left(uc1, col1_w)}{sep}{pad_right(uc2, col2_w)}{sep}{pad_right(uc3, col3_w)}{sep}{pad_right(uc4, col4_w)}{sep}{pad_right(uc5, 0)}{sep}{uc6}"
-        result.append(usage_line)
-
-    # LINE 6 — version (optional, only on upgrade)
-    if version_cols:
-        ver_line = f"{lbor}{pad_left(vc1, col1_w)}{sep}{pad_right(vc2, col2_w)}{sep}{pad_right(vc3, col3_w)}"
-        result.append(ver_line)
+    # Standalone mode: format and render rows inline
+    if _standalone:
+        from statusline.formatting import compute_column_widths, format_rows
+        widths = compute_column_widths(rows)
+        format_rows(rows, widths)
+        for row in rows:
+            result.append(row.render())
 
     # Log to SQLite (non-blocking)
     elapsed_hours, wed_10am = get_wed_10am_elapsed_hours()
