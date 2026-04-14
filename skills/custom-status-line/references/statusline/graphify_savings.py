@@ -110,11 +110,11 @@ def run(claude_data, lines, rows=None):
         if net_saving_pct > 0:
             color = GREEN
             pct_label = "{}saving {:.0f}%{}".format(color, net_saving_pct, RST)
-            token_label = "{}net: -{}/session{}".format(color, _format_tokens(abs(net_tokens)), RST)
+            token_label = "{}net: -{}{}".format(color, _format_tokens(abs(net_tokens)), RST)
         else:
             color = ORANGE
             pct_label = "{}+{:.0f}%{}".format(color, abs(net_saving_pct), RST)
-            token_label = "{}net: +{}/session{}".format(color, _format_tokens(abs(net_tokens)), RST)
+            token_label = "{}net: +{}{}".format(color, _format_tokens(abs(net_tokens)), RST)
 
         name = "{}TOTAL{}".format(DIM, RST)
         info = "{}{} projects{}".format(DIM, n_projects, RST)
