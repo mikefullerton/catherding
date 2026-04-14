@@ -12,7 +12,7 @@ from statusline.db import get_db, get_version, insert_version, get_versions_afte
 
 # The version the status line was last upgraded to use. Update this constant
 # (and commit) when acknowledging new fields after a Claude upgrade.
-BUILT_FOR_VERSION = "2.1.105"
+BUILT_FOR_VERSION = "2.1.107"
 
 DB_PATH = os.path.expanduser("~/claude-usage.db")
 CHECK_INTERVAL = 300  # 5 minutes
