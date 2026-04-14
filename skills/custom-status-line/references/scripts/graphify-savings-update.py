@@ -15,7 +15,7 @@ USAGE_DB = os.path.expanduser("~/.claude/usage.db")
 PROJECTS_ROOT = os.path.expanduser("~/projects")
 CACHE_FILE = os.path.expanduser("~/.claude-status-line/graphify-savings-cache.json")
 EXPLORE_TOOLS = ("Read", "Grep", "Glob")
-MIN_POST_SESSIONS = 2
+MIN_POST_SESSIONS = 1
 
 
 def scan_graphify_projects():
