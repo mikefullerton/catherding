@@ -63,6 +63,12 @@ def main() -> int:
         print(result.stderr or result.stdout, file=sys.stderr)
         return result.returncode
 
+    # Sync submodules — a rebase that pulls in submodule pointer bumps leaves
+    # the working tree drifted otherwise, which then trips the next merge gate.
+    has_subs, _ = run(["git", "config", "--file", ".gitmodules", "--get-regexp", r"^submodule\..*\.path$"], check=False)
+    if has_subs:
+        run(["git", "submodule", "update", "--init", "--recursive"])
+
     if not args.no_push:
         run(["git", "push", "--force-with-lease", "origin", branch])
 

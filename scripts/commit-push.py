@@ -23,6 +23,9 @@ Flags:
   --body TEXT        PR body (mutually exclusive with --body-file)
   --body-file F      read PR body from file (use '-' for stdin)
   --no-draft         open the PR as ready-for-review instead of draft
+  --ship             create PR, mark ready, squash-merge, then run
+                     cc-merge-worktree to clean up the branch + worktree.
+                     Use for solo work where the PR is record-keeping only.
 
 Always appends Claude's Co-Authored-By trailer to the commit. Prints a one-line
 `did:` summary of what was staged, committed, pushed, and (if applicable)
@@ -85,6 +88,8 @@ def main():
     ap.add_argument("--body", default="", help="PR body (mutually exclusive with --body-file)")
     ap.add_argument("--body-file", help="Read PR body from file ('-' for stdin)")
     ap.add_argument("--no-draft", action="store_true", help="Open PR as ready-for-review (default: draft)")
+    ap.add_argument("--ship", action="store_true",
+                    help="After PR creation: mark ready, squash-merge, run cc-merge-worktree cleanup.")
     args = ap.parse_args()
 
     message = resolve_message(args)
@@ -152,11 +157,40 @@ def main():
             sys.exit(result.returncode)
         pr_url = result.stdout.strip()
 
+    # Optional ship: ready + squash-merge + cleanup.
+    shipped = False
+    if args.ship:
+        if not pr_url:
+            print("FAIL: --ship requires --pr to create a PR first", file=sys.stderr)
+            sys.exit(2)
+        pr_number = pr_url.rstrip("/").rsplit("/", 1)[-1]
+        run(["gh", "pr", "ready", pr_number], check=False)
+        result = subprocess.run(
+            ["gh", "pr", "merge", pr_number, "--squash"],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            print("FAIL: gh pr merge", file=sys.stderr)
+            print(result.stderr or result.stdout, file=sys.stderr)
+            sys.exit(result.returncode)
+        # Hand off to cc-merge-worktree for the rest of the cleanup ritual.
+        # Run via PATH so the latest installed version is used.
+        result = subprocess.run(
+            ["cc-merge-worktree", pr_number, "--branch", branch],
+            text=True,
+        )
+        if result.returncode != 0:
+            print("FAIL: cc-merge-worktree", file=sys.stderr)
+            sys.exit(result.returncode)
+        shipped = True
+
     # Summary — single `did:` line so Claude can pattern-match the result.
     head, _ = run(["git", "log", "--oneline", "-1"])
     summary = f"staged {len(staged_lines)} | {head} | pushed {branch}"
     if pr_url:
         summary += f" | pr {pr_url}"
+    if shipped:
+        summary += " | shipped (merged + cleaned up)"
     print(f"did: {summary}")
 
 

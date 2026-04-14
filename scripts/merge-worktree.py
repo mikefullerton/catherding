@@ -3,7 +3,10 @@
 
 Usage: merge-worktree.py <pr-number> [--branch <branch-name>]
 
-Runs the full worktree-exit ritual in one call:
+Runs the full worktree-exit ritual in one call. Auto-syncs drifted
+submodule pointers so a recent rebase that bumped a submodule SHA
+doesn't block the gate.
+
   1. Locate the main-worktree checkout (auto-switches if called from a worktree)
   2. Mark PR ready if it's a draft, then merge via gh (squash)
   3. Pull default branch
@@ -51,6 +54,36 @@ def find_main_worktree(default_branches=("main", "master")):
             if branch in default_branches:
                 return cur_path, branch
     return None, None
+
+
+def drifted_submodules() -> list[str]:
+    """Submodules whose checked-out SHA differs from the parent's recorded SHA.
+
+    `git submodule status` prefixes a `+` to drifted entries. Returns just
+    the submodule paths.
+    """
+    out, _ = run(["git", "submodule", "status"], check=False)
+    drifted: list[str] = []
+    for line in out.splitlines():
+        if line.startswith("+"):
+            # Format: "+<sha> <path> [(<describe>)]"
+            parts = line[1:].split()
+            if len(parts) >= 2:
+                drifted.append(parts[1])
+    return drifted
+
+
+def only_dirty_paths_are(allowed: list[str]) -> bool:
+    """True iff every uncommitted tracked path is in `allowed`."""
+    status, _ = run(["git", "status", "--porcelain=v1"], check=False)
+    allowed_set = set(allowed)
+    for line in status.splitlines():
+        if not line or line.startswith("??"):
+            continue
+        path = line[3:].strip()
+        if path not in allowed_set:
+            return False
+    return True
 
 
 def discard_if_matches_upstream(default_branch, cwd):
@@ -152,8 +185,20 @@ def main():
     _, unstaged = run(["git", "diff", "--quiet"], check=False)
     _, staged = run(["git", "diff", "--cached", "--quiet"], check=False)
     if unstaged != 0 or staged != 0:
-        print("FAIL: working tree has uncommitted tracked changes", file=sys.stderr)
-        sys.exit(3)
+        # Common recoverable case: the only uncommitted entries are submodules
+        # whose checked-out SHA drifted from what HEAD records (a rebase or
+        # merge updated the parent pointer but didn't sync the submodule
+        # working tree). `git submodule update --init <paths>` fixes this
+        # without throwing away any user work.
+        drifted = drifted_submodules()
+        if drifted and only_dirty_paths_are(drifted):
+            print(f"  syncing {len(drifted)} drifted submodule(s): {', '.join(drifted)}")
+            run(["git", "submodule", "update", "--init", "--recursive", "--", *drifted])
+            _, unstaged = run(["git", "diff", "--quiet"], check=False)
+            _, staged = run(["git", "diff", "--cached", "--quiet"], check=False)
+        if unstaged != 0 or staged != 0:
+            print("FAIL: working tree has uncommitted tracked changes", file=sys.stderr)
+            sys.exit(3)
 
     print("gate passed")
 
