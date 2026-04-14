@@ -52,8 +52,9 @@ class Row:
 def compute_column_widths(rows: list) -> list:
     """Compute column widths from a list of Row objects.
 
-    Returns a list of ints, one per column. Each width is the longest
-    visible string in that column + 1 (for padding).
+    Returns a list of ints, one per column. Each width equals the longest
+    visible string in that column — no extra padding. The separator " | "
+    provides the spacing between columns.
     """
     if not rows:
         return []
@@ -64,7 +65,7 @@ def compute_column_widths(rows: list) -> list:
         for row in rows:
             if col < len(row.columns) and row.columns[col]:
                 max_w = max(max_w, visible_len(row.columns[col]))
-        widths.append(max_w + 1)
+        widths.append(max_w)
     return widths
 
 
