@@ -1,22 +1,28 @@
 #!/usr/bin/env bash
 # Reverse claude-optimizing/install.sh:
 #   1. Remove cc-* symlinks from ~/.local/bin/ and ~/.claude/hooks/
-#      (only symlinks that actually point into this claude-optimizing/ tree)
+#      (only symlinks that actually point into this claude-optimizing/ tree,
+#       or into the repo-root skill-scripts/ dir of the same repo)
 #   2. De-register the repo-hygiene Stop hook from ~/.claude/settings.json
-#   3. Strip the guidance block from ~/.claude/CLAUDE.md (between the markers)
+#   3. Strip the guidance block from ~/.claude/CLAUDE.md (between markers)
+#   4. Unset core.hooksPath if it still points at .githooks
 #
 # Idempotent — safe to re-run.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
+REPO_DIR="$(cd "$HERE/.." && pwd)"
 BIN_DIR="$HOME/.local/bin"
 HOOKS_DIR="$HOME/.claude/hooks"
 CLAUDE_MD="$HOME/.claude/CLAUDE.md"
 SETTINGS_JSON="$HOME/.claude/settings.json"
 
-# ---------- 1. Remove script symlinks -----------------------------------------
+head1() { printf "\n\033[1m%s\033[0m\n" "$*"; }
+info()  { printf "  %s\n" "$*"; }
 
-echo "Removing cc-* symlinks that point into $HERE..."
+# ---------- 1. Remove script + hook symlinks ----------------------------------
+
+head1 "Removing cc-* symlinks that point into $REPO_DIR..."
 removed=0
 for dir in "$BIN_DIR" "$HOOKS_DIR"; do
     [ -d "$dir" ] || continue
@@ -24,17 +30,17 @@ for dir in "$BIN_DIR" "$HOOKS_DIR"; do
         [ -L "$entry" ] || continue
         target="$(readlink "$entry")"
         case "$target" in
-            "$HERE"/*) rm "$entry"; removed=$((removed + 1)); echo "  $entry" ;;
+            "$HERE"/*|"$REPO_DIR"/skill-scripts/*)
+                rm "$entry"; removed=$((removed + 1)); info "$entry" ;;
         esac
     done
 done
-echo "  total: $removed"
+info "total: $removed"
 
 # ---------- 2. De-register Stop hook ------------------------------------------
 
-echo ""
+head1 "De-registering Stop hook..."
 if [ -f "$SETTINGS_JSON" ]; then
-    echo "De-registering Stop hook from $SETTINGS_JSON..."
     python3 - "$SETTINGS_JSON" <<'PYEOF'
 import json, sys
 from pathlib import Path
@@ -49,12 +55,10 @@ changed = False
 new_groups = []
 for grp in stop_groups:
     hooks = [h for h in grp.get("hooks", []) if h.get("command") != cmd]
-    if hooks:
-        new_groups.append({**grp, "hooks": hooks})
-    else:
-        changed = True  # dropping an empty group
     if len(hooks) != len(grp.get("hooks", [])):
         changed = True
+    if hooks:
+        new_groups.append({**grp, "hooks": hooks})
 
 if changed:
     settings["hooks"]["Stop"] = new_groups
@@ -64,14 +68,13 @@ else:
     print("  not present")
 PYEOF
 else
-    echo "Skipping Stop hook (no $SETTINGS_JSON)"
+    info "skip (no $SETTINGS_JSON)"
 fi
 
 # ---------- 3. Strip guidance block from ~/.claude/CLAUDE.md ------------------
 
-echo ""
+head1 "Stripping guidance block from $CLAUDE_MD..."
 if [ -f "$CLAUDE_MD" ]; then
-    echo "Stripping guidance block from $CLAUDE_MD..."
     python3 - "$CLAUDE_MD" <<'PYEOF'
 import sys
 from pathlib import Path
@@ -91,8 +94,18 @@ else:
     print("  not present")
 PYEOF
 else
-    echo "Skipping guidance strip (no $CLAUDE_MD)"
+    info "skip (no $CLAUDE_MD)"
 fi
 
-echo ""
-echo "Done."
+# ---------- 4. Unset pre-commit core.hooksPath --------------------------------
+
+head1 "Unsetting pre-commit core.hooksPath in $REPO_DIR..."
+cur="$(git -C "$REPO_DIR" config --get core.hooksPath 2>/dev/null || true)"
+if [ "$cur" = ".githooks" ]; then
+    git -C "$REPO_DIR" config --unset core.hooksPath
+    info "unset"
+else
+    info "not set to .githooks (current: ${cur:-<unset>})"
+fi
+
+head1 "Done."

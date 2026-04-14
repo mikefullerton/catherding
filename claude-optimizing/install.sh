@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
-# Install the claude-optimizing tool layer:
-#   1. Symlinks cc-*.py scripts into ~/.local/bin/
-#   2. Symlinks cc-*-hook.py scripts into ~/.claude/hooks/
-#   3. Registers the repo-hygiene Stop hook in ~/.claude/settings.json
-#   4. Appends guidance from claude-optimizing/claude-additions.md into ~/.claude/CLAUDE.md
-#      (between <!-- BEGIN claude-optimizing --> / <!-- END claude-optimizing --> markers,
-#      so re-installing replaces the block in place)
+# Install the claude-optimizing Claude-Code tool layer end-to-end.
 #
-# Idempotent — safe to re-run. See uninstall.sh to reverse.
+# Covers everything in install-readme.md sections 0 (prereq check), 2 (global
+# CLAUDE.md guidance), 3 (vendor hooks + symlinks), 4 (hook registration in
+# settings.json), and the pre-commit activation from section 1.
+#
+# Does NOT install the custom-status-line or yolo skills — those are user-facing
+# skills under `skills/` at the repo root, installed by the repo's top-level
+# install.sh (and by `cc-install-statusline` for the status-line specifically).
+# Does NOT install Claude Code plugins (commit-commands, github, etc.) — those
+# require the `/plugin install` flow from inside a live Claude session.
+#
+# Idempotent: safe to re-run. See uninstall.sh to reverse.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -17,13 +21,38 @@ HOOKS_DIR="$HOME/.claude/hooks"
 CLAUDE_MD="$HOME/.claude/CLAUDE.md"
 SETTINGS_JSON="$HOME/.claude/settings.json"
 
+warn()  { printf "  \033[33m!\033[0m %s\n" "$*" >&2; }
+info()  { printf "  %s\n" "$*"; }
+head1() { printf "\n\033[1m%s\033[0m\n" "$*"; }
+
+# ---------- 0. Prereq check ---------------------------------------------------
+
+head1 "Checking prerequisites..."
+missing=0
+for cmd in git gh python3; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+        info "$cmd → $(command -v "$cmd")"
+    else
+        warn "$cmd NOT FOUND (install with: brew install $cmd)"
+        missing=$((missing + 1))
+    fi
+done
+if [ "$missing" -gt 0 ]; then
+    warn "$missing prerequisite(s) missing — fix and re-run."
+    exit 2
+fi
+
+case ":$PATH:" in
+    *":$BIN_DIR:"*) info "PATH includes $BIN_DIR" ;;
+    *)              warn "$BIN_DIR is NOT on PATH — add to ~/.zshrc or ~/.bashrc" ;;
+esac
+
+# ---------- 1. Install cc-* scripts + hook scripts ----------------------------
+
+head1 "Installing cc-* scripts..."
 mkdir -p "$BIN_DIR" "$HOOKS_DIR"
-
-# ---------- 1 & 2. Install scripts + hooks ------------------------------------
-
-echo "Installing cc-* scripts..."
 installed=0
-for script in "$HERE"/scripts-*/cc-*.py; do
+for script in "$HERE"/scripts-*/cc-*.py "$REPO_DIR"/skill-scripts/cc-*.py; do
     [ -f "$script" ] || continue
     name="$(basename "$script" .py)"
     case "$name" in
@@ -33,28 +62,23 @@ for script in "$HERE"/scripts-*/cc-*.py; do
     ln -sfn "$script" "$target"
     chmod +x "$script"
     installed=$((installed + 1))
-    echo "  $name → $loc"
+    info "$name → $loc"
 done
-echo "  total: $installed"
+info "total: $installed"
 
-# ---------- 3. Register Stop hook in settings.json ----------------------------
+# ---------- 2. Register Stop hook in ~/.claude/settings.json ------------------
 
-echo ""
-echo "Registering Stop hook in $SETTINGS_JSON..."
+head1 "Registering Stop hook in $SETTINGS_JSON..."
 python3 - "$SETTINGS_JSON" <<'PYEOF'
-import json, sys, os
+import json, sys
 from pathlib import Path
 
 path = Path(sys.argv[1])
-if not path.exists():
-    settings = {}
-else:
-    settings = json.loads(path.read_text())
+settings = json.loads(path.read_text()) if path.exists() else {}
 
 cmd = "/usr/bin/python3 $HOME/.claude/hooks/cc-repo-hygiene-hook.py"
 settings.setdefault("hooks", {}).setdefault("Stop", [])
 
-# Check if any existing Stop group already contains this command.
 already = any(
     h.get("command") == cmd
     for grp in settings["hooks"]["Stop"]
@@ -71,10 +95,9 @@ else:
     print(f"  added: {cmd}")
 PYEOF
 
-# ---------- 4. Install guidance into ~/.claude/CLAUDE.md ----------------------
+# ---------- 3. Merge guidance block into ~/.claude/CLAUDE.md ------------------
 
-echo ""
-echo "Installing guidance block into $CLAUDE_MD..."
+head1 "Installing guidance block into $CLAUDE_MD..."
 python3 - "$CLAUDE_MD" "$HERE/claude-additions.md" <<'PYEOF'
 import sys
 from pathlib import Path
@@ -96,19 +119,56 @@ if not target.exists():
 else:
     existing = target.read_text()
     if BEGIN in existing and END in existing:
-        # Replace the existing block in place
         before = existing.split(BEGIN, 1)[0].rstrip() + "\n\n"
         after  = existing.split(END,   1)[1].lstrip("\n")
         out = before + new_block + ("\n" + after if after.strip() else "")
         target.write_text(out.rstrip() + "\n")
         print("  replaced existing block")
     else:
-        # Append
         sep = "" if existing.endswith("\n\n") else ("\n" if existing.endswith("\n") else "\n\n")
         target.write_text(existing + sep + new_block)
         print("  appended block")
 PYEOF
 
-echo ""
-echo "Done."
-echo "Ensure \$HOME/.local/bin is on your PATH (check ~/.zshrc or ~/.bashrc)."
+# ---------- 4. Activate the repo's pre-commit hook ---------------------------
+
+head1 "Activating pre-commit hook in $REPO_DIR..."
+if [ -d "$REPO_DIR/.githooks" ]; then
+    cur="$(git -C "$REPO_DIR" config --get core.hooksPath || true)"
+    if [ "$cur" = ".githooks" ]; then
+        info "already pointing at .githooks"
+    else
+        git -C "$REPO_DIR" config core.hooksPath .githooks
+        info "core.hooksPath=.githooks"
+    fi
+else
+    warn "$REPO_DIR/.githooks not found — skipping"
+fi
+
+# ---------- 5. Verify ---------------------------------------------------------
+
+head1 "Verifying..."
+if command -v cc-doctor >/dev/null 2>&1; then
+    if cc-doctor; then
+        info "cc-doctor: clean"
+    else
+        warn "cc-doctor reported problems (see above)"
+    fi
+else
+    warn "cc-doctor not on PATH yet — open a new shell and re-run"
+fi
+
+head1 "Done."
+cat <<EOF
+
+Next steps not automated by this script:
+  • Plugins — run inside a Claude session:
+        /plugin install commit-commands@claude-plugins-official
+        /plugin install github@claude-plugins-official
+        /plugin install pr-review-toolkit@claude-plugins-official
+        /plugin install superpowers@claude-plugins-official
+  • Status line + session-tracker hook — run 'cc-install-statusline'
+  • Per-repo allow-list — create .claude/settings.local.json in each repo:
+        { "permissions": { "allow": ["Bash(git add:*)","Bash(git commit:*)",
+          "Bash(git push:*)","Bash(git:*)","Bash(cp:*)"] } }
+EOF
