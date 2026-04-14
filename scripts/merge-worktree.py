@@ -9,8 +9,9 @@ Runs the full worktree-exit ritual in one call:
   3. Pull default branch
   4. Gate: verify MERGED state + main==origin/main + clean tracked
      (tracked changes that already match origin/<default> are discarded)
-  5. Remove worktree directory
-  6. Delete local branch
+  5. Remove worktree directory (skipped if the caller's shell is inside it,
+     to avoid ripping the cwd out from under the parent process)
+  6. Delete local branch (also skipped in the caller-inside case)
   7. Delete remote branch
   8. Final verification
 
@@ -156,7 +157,11 @@ def main():
 
     print("gate passed")
 
-    # 7. Remove worktree directory
+    # 7. Remove worktree directory — unless the caller is inside it. Removing
+    #    the cwd out from under the parent shell/session makes every subsequent
+    #    subprocess fail with ENOENT (posix_spawn can't resolve its cwd). In
+    #    that case, skip removal and tell the caller to finalize via their
+    #    worktree-exit flow (e.g. ExitWorktree action:remove).
     wt_list, _ = run(["git", "worktree", "list", "--porcelain"])
     wt_path = None
     cur_path = None
@@ -166,13 +171,26 @@ def main():
         elif line == f"branch refs/heads/{wt_branch}":
             wt_path = cur_path
             break
+
+    caller_cwd = os.environ.get("PWD") or cwd_at_start
+    caller_inside = False
     if wt_path:
+        try:
+            caller_real = os.path.realpath(caller_cwd)
+            wt_real = os.path.realpath(wt_path)
+            caller_inside = caller_real == wt_real or caller_real.startswith(wt_real + os.sep)
+        except OSError:
+            caller_inside = False
+
+    skip_local_cleanup = caller_inside
+    if wt_path and not caller_inside:
         run(["git", "worktree", "remove", wt_path, "--force"])
 
-    # 8. Delete local branch
-    local_branches, _ = run(["git", "branch", "--list", wt_branch])
-    if local_branches:
-        run(["git", "branch", "-D", wt_branch])
+    # 8. Delete local branch (skip if caller still has it checked out)
+    if not skip_local_cleanup:
+        local_branches, _ = run(["git", "branch", "--list", wt_branch])
+        if local_branches:
+            run(["git", "branch", "-D", wt_branch])
 
     # 9. Delete remote branch (harmless if already gone)
     run(["git", "push", "origin", "--delete", wt_branch], check=False)
@@ -184,6 +202,13 @@ def main():
 
     head_msg, _ = run(["git", "log", "--oneline", "-1"])
     print(f"done: {head_msg}")
+
+    if caller_inside:
+        print(
+            f"NOTE: caller is inside {wt_path}; left worktree + local branch in place.\n"
+            "      Finalize via ExitWorktree action:remove (or `git worktree remove`) "
+            "after leaving the directory.",
+        )
 
 
 if __name__ == "__main__":
