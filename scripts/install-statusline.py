@@ -14,7 +14,27 @@ import subprocess
 import sys
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent.parent
+def _find_repo_root() -> Path:
+    """Locate the cat-herding repo.
+
+    Works both when invoked in-tree (via `python3 scripts/install-statusline.py`)
+    and when invoked as a copy under `~/.local/bin/cc-install-statusline`, where
+    `__file__` points into `~/.local/` and the old `parent.parent` trick breaks.
+
+    Search order:
+      1. Walk up from cwd looking for `.claude-plugin/marketplace.json`
+         (unique to cat-herding).
+      2. Fall back to the canonical path documented in global CLAUDE.md.
+    """
+    marker = Path(".claude-plugin/marketplace.json")
+    p = Path.cwd().resolve()
+    for candidate in (p, *p.parents):
+        if (candidate / marker).is_file():
+            return candidate
+    return Path.home() / "projects/active/cat-herding"
+
+
+HERE = _find_repo_root()
 SRC_STATUSLINE = HERE / "skills/custom-status-line/references/statusline"
 SRC_SCRIPTS = HERE / "skills/custom-status-line/references/scripts"
 INSTALLED = Path.home() / ".claude-status-line"
@@ -46,7 +66,11 @@ def main():
     args = ap.parse_args()
 
     if not SRC_STATUSLINE.is_dir():
-        print(f"FAIL: {SRC_STATUSLINE} not found (run from repo root)", file=sys.stderr)
+        print(f"FAIL: {SRC_STATUSLINE} not found", file=sys.stderr)
+        print(f"  resolved repo root: {HERE}", file=sys.stderr)
+        print(f"  cwd: {Path.cwd()}", file=sys.stderr)
+        print("  fix: cd into the cat-herding repo, or correct the fallback path "
+              "in _find_repo_root()", file=sys.stderr)
         sys.exit(2)
 
     n_sl = copy_tree(SRC_STATUSLINE, INSTALLED_STATUSLINE)
