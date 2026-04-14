@@ -74,7 +74,20 @@ def show_script_help(name: str) -> int:
         # Allow bare "foo" to mean "cc-foo".
         target = BIN_DIR / f"cc-{name}"
     if not target.exists():
+        # Suggest closest matches if the user likely typoed.
+        import difflib
+        all_names = [p.name for p in find_scripts()]
+        matches = difflib.get_close_matches(
+            name if name.startswith("cc-") else f"cc-{name}",
+            all_names,
+            n=3,
+            cutoff=0.55,
+        )
         print(f"cc-help: no such script: {name}", file=sys.stderr)
+        if matches:
+            print("did you mean:", file=sys.stderr)
+            for m in matches:
+                print(f"  {m}", file=sys.stderr)
         return 1
     result = subprocess.run([str(target), "--help"], check=False)
     return result.returncode

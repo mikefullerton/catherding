@@ -43,6 +43,11 @@ for script in "$REPO_DIR"/scripts/*.py; do
 done
 
 echo ""
+echo "Activating git pre-commit hook..."
+git -C "$REPO_DIR" config core.hooksPath .githooks
+echo "  core.hooksPath=.githooks"
+
+echo ""
 echo "Done."
 echo ""
 echo "Ensure \$HOME/.local/bin is on your PATH (check ~/.zshrc or ~/.bashrc)."

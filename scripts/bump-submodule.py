@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-"""Bump a git submodule to the tip of its origin/<default> branch.
+"""Bump one or more git submodules to the tip of origin/<default>.
 
 Usage:
-  cc-bump-submodule <submodule-path>
+  cc-bump-submodule <submodule-path>...
 
-Steps:
+Steps for each submodule:
   1. `git -C <submodule> fetch origin`
   2. `git -C <submodule> checkout origin/<default>`
   3. `git add <submodule>` at the super-repo (stages the new SHA).
 
-Caller is expected to commit the submodule bump themselves (e.g. with
-`cc-commit-push "Bump X submodule to main"`), so that they control the
+Caller is expected to commit the bumps themselves (e.g. with
+`cc-commit-push "Bump submodules to main"`), so that they control the
 commit message.
 
-Prints a `did:` summary with old→new SHAs.
+Prints a `did:` summary with old→new SHAs for each.
 """
 import argparse
 import subprocess
@@ -40,33 +40,44 @@ def default_branch(path: Path) -> str:
     return "main"
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser(description="Bump a git submodule to origin/<default>.")
-    ap.add_argument("submodule", help="Path to the submodule (relative to repo root)")
-    args = ap.parse_args()
-
-    sub = Path(args.submodule)
-    if not sub.is_dir():
-        print(f"FAIL: {sub} does not exist", file=sys.stderr)
-        return 2
-    if not (sub / ".git").exists():
-        print(f"FAIL: {sub} is not a git submodule checkout", file=sys.stderr)
-        return 2
-
+def bump_one(sub: Path) -> tuple[str, str, bool]:
+    """Returns (before, after, staged)."""
     before, _ = run(["git", "rev-parse", "HEAD"], cwd=str(sub))
     default = default_branch(sub)
-
     run(["git", "fetch", "origin"], cwd=str(sub))
     run(["git", "checkout", f"origin/{default}"], cwd=str(sub))
-
     after, _ = run(["git", "rev-parse", "HEAD"], cwd=str(sub))
-
     if before == after:
-        print(f"did: {sub} already at {after[:12]}")
-        return 0
-
+        return before, after, False
     run(["git", "add", str(sub)])
-    print(f"did: {sub} {before[:12]} -> {after[:12]} (staged)")
+    return before, after, True
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Bump one or more git submodules to origin/<default>.")
+    ap.add_argument("submodules", nargs="+", help="Submodule paths (relative to repo root)")
+    args = ap.parse_args()
+
+    bumped = unchanged = 0
+    parts: list[str] = []
+    for sub_str in args.submodules:
+        sub = Path(sub_str)
+        if not sub.is_dir():
+            print(f"FAIL: {sub} does not exist", file=sys.stderr)
+            return 2
+        if not (sub / ".git").exists():
+            print(f"FAIL: {sub} is not a git submodule checkout", file=sys.stderr)
+            return 2
+        before, after, staged = bump_one(sub)
+        if staged:
+            parts.append(f"{sub} {before[:12]}->{after[:12]}")
+            bumped += 1
+        else:
+            parts.append(f"{sub} unchanged at {after[:12]}")
+            unchanged += 1
+
+    summary = " | ".join(parts)
+    print(f"did: bumped {bumped} | unchanged {unchanged} | {summary}")
     return 0
 
 
