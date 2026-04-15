@@ -32,16 +32,32 @@ class TestRepoCleanupPassthrough:
         mock_git.return_value = ""
         from statusline.repo_cleanup import run
         lines = ["line1", "line2"]
-        result = run({}, lines)
+        rows = []
+        result = run({}, lines, rows)
         assert result == lines
+        assert rows == []
 
     @patch("statusline.repo_cleanup.git_cmd")
-    def test_no_issues_passes_through(self, mock_git):
+    def test_no_issues_emits_no_row(self, mock_git):
         mock_git.side_effect = mock_side_effect(make_git_responses())
         from statusline.repo_cleanup import run
         lines = ["line1", "line2"]
-        result = run({}, lines)
+        rows = []
+        result = run({}, lines, rows)
         assert result == lines
+        assert rows == []
+
+    @patch("statusline.repo_cleanup.git_cmd")
+    def test_line_zero_untouched_when_warnings_present(self, mock_git):
+        """Warnings no longer splice into line 0 — they emit a standalone row."""
+        mock_git.side_effect = mock_side_effect(make_git_responses({
+            ("branch", "-vv"): "  stale abc [origin/stale: gone] old\n  main def [origin/main] ok",
+        }))
+        from statusline.repo_cleanup import run
+        lines = ["path-line"]
+        rows = []
+        result = run({}, lines, rows)
+        assert result[0] == "path-line"
 
 
 class TestRepoCleanupWarnings:
@@ -51,8 +67,11 @@ class TestRepoCleanupWarnings:
             ("branch", "-vv"): "  stale abc [origin/stale: gone] old\n  main def [origin/main] ok",
         }))
         from statusline.repo_cleanup import run
-        result = run({}, ["line1", "line2"])
-        assert "1 stale" in result[0]
+        rows = []
+        run({}, ["line1"], rows)
+        assert len(rows) == 1
+        assert rows[0].heading is True
+        assert "1 stale" in rows[0].columns[0]
 
     @patch("statusline.repo_cleanup.git_cmd")
     def test_merged_branches_detected(self, mock_git):
@@ -60,5 +79,7 @@ class TestRepoCleanupWarnings:
             ("branch", "--merged", "main"): "* main\n  feature-done\n",
         }))
         from statusline.repo_cleanup import run
-        result = run({}, ["line1", "line2"])
-        assert "1 merged" in result[0]
+        rows = []
+        run({}, ["line1"], rows)
+        assert len(rows) == 1
+        assert "1 merged" in rows[0].columns[0]

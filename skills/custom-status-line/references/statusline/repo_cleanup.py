@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
-"""Pipeline module: append repo cleanup warnings to line 1."""
+"""Pipeline module: emit repo cleanup warnings as a heading row.
+
+Produces a standalone warning row (e.g. "⚠ 2 merged, 1 remote-only") that
+sits immediately after base_info's git rows. Emits nothing when the repo
+is clean or not a git checkout.
+"""
 import re
 import subprocess
 
-from statusline.formatting import ORANGE, RST
+from statusline.formatting import ORANGE, RST, Row
 
 WARN = "\033[38;5;208m"
 
@@ -20,8 +25,14 @@ def git_cmd(*args: str) -> str:
         return ""
 
 
-def run(claude_data: dict, lines: list) -> list:
-    """Detect repo issues and append warnings to line 1."""
+def run(claude_data: dict, lines: list, rows: list = None) -> list:
+    """Detect repo issues and emit a warning row.
+
+    When called with a shared `rows` list (dispatcher path), appends a
+    heading-style Row. When called standalone (legacy fallback), returns
+    lines unchanged — the old behavior of splicing the warning onto
+    line 0 has been dropped in favor of a dedicated row.
+    """
     if not git_cmd("rev-parse", "--git-dir"):
         return lines
 
@@ -107,12 +118,8 @@ def run(claude_data: dict, lines: list) -> list:
     if not items:
         return lines
 
-    sep = f" {ORANGE}|{RST} "
     status = ", ".join(items)
-    warning = f"{sep}{WARN}\u26a0 {status}{RST}"
-    result = list(lines)
-    if result:
-        result[0] = (result[0] or "") + warning
-    else:
-        result.append(warning)
-    return result
+    warning = f"{WARN}\u26a0 {status}{RST}"
+    if rows is not None:
+        rows.append(Row(warning, heading=True))
+    return lines

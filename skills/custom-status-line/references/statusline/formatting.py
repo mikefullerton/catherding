@@ -35,17 +35,23 @@ class Row:
 
     Raw column values are stripped of leading/trailing whitespace on init.
     After format_rows(), each Row has a `formatted` list of padded strings.
+
+    A heading row (`heading=True`) is single-column and left-justified,
+    meant to label the block that follows. Heading rows do not contribute
+    to col-0 width and are rendered as bare `| <text>` with no padding or
+    column separators.
     """
 
     _SEP = " | "
     _BORDER = "| "
 
-    def __init__(self, *columns):
+    def __init__(self, *columns, heading=False):
         self.columns = [c.strip() if c else "" for c in columns]
         self.formatted = []
+        self.heading = heading
 
     def render(self):
-        """Render as '| col0 | col1 | col2 | ...'."""
+        """Render as '| col0 | col1 | col2 | ...', or '| col0' for headings."""
         return self._BORDER + self._SEP.join(self.formatted)
 
 
@@ -55,14 +61,21 @@ def compute_column_widths(rows: list) -> list:
     Returns a list of ints, one per column. Each width equals the longest
     visible string in that column — no extra padding. The separator " | "
     provides the spacing between columns.
+
+    Heading rows are excluded: a short label like "git" should not force
+    column 0 wider than the data rows beneath it, and heading text does
+    not participate in column alignment regardless of its length.
     """
     if not rows:
         return []
-    num_cols = max(len(r.columns) for r in rows)
+    data_rows = [r for r in rows if not getattr(r, "heading", False)]
+    if not data_rows:
+        return []
+    num_cols = max(len(r.columns) for r in data_rows)
     widths = []
     for col in range(num_cols):
         max_w = 0
-        for row in rows:
+        for row in data_rows:
             if col < len(row.columns) and row.columns[col]:
                 max_w = max(max_w, visible_len(row.columns[col]))
         widths.append(max_w)
@@ -74,10 +87,23 @@ def format_rows(rows: list, widths: list) -> None:
 
     Col 0 is right-aligned (pad_left), all others left-aligned (pad_right).
     Trailing empty columns are omitted; interior empty columns are padded.
+    Heading rows render their col-0 text raw (left-flush against the border,
+    no padding, no separators) and are skipped by the width-consistency check.
     After formatting, verifies all formatted columns at the same position
-    have the same visible length.
+    have the same visible length across non-heading rows.
     """
     for row in rows:
+        if getattr(row, "heading", False):
+            # Heading rows stand alone: render their columns raw with the
+            # standard separator, but don't participate in global column
+            # alignment. Single-col headings act as section labels; multi-col
+            # headings act as left-flush detail/warning rows decoupled from
+            # the main grid.
+            row.formatted = [c for c in row.columns if c]
+            if not row.formatted:
+                row.formatted = [""]
+            continue
+
         # Find last non-empty column
         last_col = len(row.columns) - 1
         while last_col > 0 and not row.columns[last_col]:
@@ -93,10 +119,11 @@ def format_rows(rows: list, widths: list) -> None:
                 row.formatted.append(pad_right(val, w))
 
     # Verify: all formatted columns at the same position have identical visible length
-    num_cols = max((len(r.formatted) for r in rows), default=0)
+    data_rows = [r for r in rows if not getattr(r, "heading", False)]
+    num_cols = max((len(r.formatted) for r in data_rows), default=0)
     for col in range(num_cols):
         lengths = set()
-        for row in rows:
+        for row in data_rows:
             if col < len(row.formatted):
                 lengths.add(visible_len(row.formatted[col]))
         if len(lengths) > 1:

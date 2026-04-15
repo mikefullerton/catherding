@@ -441,8 +441,7 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
     else:
         line1 = f"{BLUE}{display_path}{RST}"
 
-    # LINE 2 — git details
-    gs1 = ""
+    # LINE 2 — git (heading row) + git details row
     gs2 = ""
     gs3 = ""
     gs4 = ""
@@ -461,7 +460,6 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
                 else:
                     changed += 1
 
-        gs1 = "git"
         gs2 = f"files: {_c(changed, '~')} {_c(added, '+')} {_c(deleted, '-')}"
 
         has_remote = bool(git_cmd("rev-parse", "--verify", f"origin/{branch}"))
@@ -569,7 +567,8 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
 
     # --- Append rows to shared list ---
     if branch:
-        rows.append(Row(gs1, gs2, gs3, gs4))
+        rows.append(Row(f"{DIM}git{RST}", heading=True))
+        rows.append(Row(gs2, gs3, gs4, heading=True))
 
     model_row = Row(mc1, mc2, mc3)
     if yolo_col:
