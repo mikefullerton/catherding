@@ -2,7 +2,7 @@
 """Re-symlink every cc-* script from the repo into ~/.local/bin/.
 
 Usage:
-  cc-install                           # install from canonical repo (scripts/ + skill-scripts/)
+  cc-install                           # install from canonical repo (claude-optimizing/scripts-*/)
   cc-install --from <dir>              # install from an explicit directory (single dir)
   cc-install --dry-run                 # just print what would change
 
@@ -12,9 +12,10 @@ expects hook scripts there, not on PATH).
 
 By default, installs from every `claude-optimizing/scripts-*/` category dir
 (scripts-git, scripts-bash, scripts-xcode, scripts-claude, scripts-meta,
-scripts-hooks) plus the repo-root `skill-scripts/`. Pass `--from <dir>` to
-override with a single explicit source (useful for testing a worktree in
-isolation).
+scripts-hooks). Skill-internal scripts live under each skill's own
+`scripts/` subdir and are NOT on $PATH (the relevant skill invokes them
+directly). Pass `--from <dir>` to override with a single explicit source
+(useful for testing a worktree in isolation).
 
 Useful when:
   - a new script was added (so install.sh needs to re-run)
@@ -32,14 +33,9 @@ from pathlib import Path
 REPO_ROOT = Path.home() / "projects" / "active" / "cat-herding"
 # Scripts are organized into category directories under `claude-optimizing/`
 # (scripts-git/, scripts-bash/, scripts-xcode/, scripts-claude/, scripts-meta/,
-# scripts-hooks/). Skill-coupled ones live at repo-root under `skill-scripts/`.
-# Collect every cc-*.py across them.
-DEFAULT_SOURCES = sorted(
-    [
-        *(REPO_ROOT / "claude-optimizing").glob("scripts-*"),
-        REPO_ROOT / "skill-scripts",
-    ]
-)
+# scripts-hooks/). Skill-internal scripts live under each skill's own `scripts/`
+# subdir and are NOT installed to $PATH — the owning skill invokes them directly.
+DEFAULT_SOURCES = sorted((REPO_ROOT / "claude-optimizing").glob("scripts-*"))
 BIN_DIR = Path.home() / ".local" / "bin"
 HOOKS_DIR = Path.home() / ".claude" / "hooks"
 
@@ -62,7 +58,7 @@ def main() -> int:
     ap.add_argument(
         "--from", dest="source", default=None,
         help="Explicit source dir containing cc-*.py scripts "
-             "(default: scripts/ + skill-scripts/ under the cat-herding repo)",
+             "(default: claude-optimizing/scripts-*/ under the cat-herding repo)",
     )
     ap.add_argument("--dry-run", action="store_true", help="Print actions without applying them")
     args = ap.parse_args()

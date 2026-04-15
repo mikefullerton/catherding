@@ -52,7 +52,7 @@ esac
 head1 "Installing cc-* scripts..."
 mkdir -p "$BIN_DIR" "$HOOKS_DIR"
 installed=0
-for script in "$HERE"/scripts-*/cc-*.py "$REPO_DIR"/skill-scripts/cc-*.py; do
+for script in "$HERE"/scripts-*/cc-*.py; do
     [ -f "$script" ] || continue
     name="$(basename "$script" .py)"
     case "$name" in

@@ -16,13 +16,10 @@ from pathlib import Path
 
 
 REPO_ROOT = Path.home() / "projects" / "active" / "cat-herding"
-# Every `claude-optimizing/scripts-*/` category dir, plus repo-root `skill-scripts/`.
-CANONICAL_SOURCES = sorted(
-    [
-        *(REPO_ROOT / "claude-optimizing").glob("scripts-*"),
-        REPO_ROOT / "skill-scripts",
-    ]
-)
+# Every `claude-optimizing/scripts-*/` category dir. Skill-internal scripts
+# (e.g. skills/custom-status-line/scripts/) don't install to $PATH so cc-doctor
+# doesn't watch them.
+CANONICAL_SOURCES = sorted((REPO_ROOT / "claude-optimizing").glob("scripts-*"))
 BIN_DIR = Path.home() / ".local" / "bin"
 HOOKS_DIR = Path.home() / ".claude" / "hooks"
 
@@ -65,14 +62,14 @@ def main() -> int:
             continue
         # Stale = points outside the canonical script dirs AND outside any
         # cat-herding worktree. Worktrees use
-        # `.claude/worktrees/<name>/claude-optimizing/scripts-<area>/` or
-        # `.claude/worktrees/<name>/skill-scripts/`, which is fine while testing.
+        # `.claude/worktrees/<name>/claude-optimizing/scripts-<area>/`, which
+        # is fine while testing.
         import re
         real_s = str(real)
         is_canonical = any(real_s.startswith(str(src) + "/") for src in CANONICAL_SOURCES)
         is_worktree = (
             "/cat-herding/.claude/worktrees/" in real_s
-            and bool(re.search(r"/(scripts-[a-z]+|skill-scripts)/", real_s))
+            and bool(re.search(r"/claude-optimizing/scripts-[a-z]+/", real_s))
         )
         if not (is_canonical or is_worktree):
             stale += 1

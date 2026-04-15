@@ -52,7 +52,7 @@ What `install.sh` does:
 
 - Symlinks `skills/*` into `~/.claude/skills/` (distributable skills — `custom-status-line`, `yolo` — excluded from the scope of this doc, but installed alongside).
 - Runs `uv tool install -e` for every `skills/*/*/pyproject.toml` (CLI skills).
-- Copies every `cc-*.py` from each `claude-optimizing/scripts-<area>/` dir (git, bash, xcode, claude, meta, hooks) and from repo-root `skill-scripts/` into `~/.local/bin/cc-*` (extension stripped). `cc-*-hook.py` files route to `~/.claude/hooks/` instead.
+- Copies every `cc-*.py` from each `claude-optimizing/scripts-<area>/` dir (git, bash, xcode, claude, meta, hooks) into `~/.local/bin/cc-*` (extension stripped). `cc-*-hook.py` files route to `~/.claude/hooks/` instead. Skill-internal tools are invoked directly by their skill and never go on `$PATH`.
 - Activates the repo's pre-commit hook: `git config core.hooksPath .githooks`.
 
 Verify:
@@ -90,7 +90,7 @@ Always use Python for scripts. Never write bash/shell scripts (.sh). Exceptions:
 ## Workflow Scripts — PREFER over multi-step Bash
 
 The `cc-*` scripts (installed to `~/.local/bin/` from
-`~/projects/active/cat-herding/scripts/` and `.../skill-scripts/`) collapse
+`~/projects/active/cat-herding/claude-optimizing/scripts-*/`) collapse
 common multi-step Bash rituals into single calls. Use them instead of raw
 git/gh sequences whenever the scenario matches:
 
@@ -106,8 +106,9 @@ git/gh sequences whenever the scenario matches:
 - `cc-help` — catalog with summaries
 
 All scripts support `--help`, exit non-zero on failure, and return tight
-parseable output. Source: `~/projects/active/cat-herding/scripts/` (general
-workflow) and `~/projects/active/cat-herding/skill-scripts/` (skill-coupled).
+parseable output. Source: `~/projects/active/cat-herding/claude-optimizing/scripts-*/`
+(hook scripts routed to `~/.claude/hooks/`). Skill-internal tools live under
+each skill's own `scripts/` subdir and are not on `$PATH`.
 
 ## Worktree Workflow — MANDATORY
 

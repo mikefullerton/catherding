@@ -18,8 +18,7 @@ claude-optimizing/
 └── scripts-hooks/   (1)  ← Claude Code hook scripts (cc-*-hook.py)
 ```
 
-Not in this directory but installed alongside:
-- [`../skill-scripts/`](../skill-scripts/) — 2 skill-coupled scripts (`cc-install-statusline`, `cc-verify`) whose lifecycle tracks a skill in `../skills/`. The installer picks them up automatically.
+Skill-internal tools that only make sense inside a specific skill's runtime live under that skill's own `scripts/` subdir — e.g. [`../skills/custom-status-line/scripts/`](../skills/custom-status-line/scripts/) holds `verify.py`, `claude-fields.py`, and `graphify-status.py`. Those are invoked directly by the skill (not on `$PATH`, no `cc-` prefix).
 
 ## Design principles
 
@@ -42,13 +41,13 @@ Runs five idempotent steps, each labelled in its output:
 | Step | Effect |
 |---|---|
 | 0. Prereq check | Verifies `git`, `gh`, `python3` are on `PATH`; warns if `~/.local/bin` isn't on `PATH`; exits non-zero if anything is missing. |
-| 1. Symlink `cc-*` scripts | `ln -sfn` every `claude-optimizing/scripts-*/cc-*.py` and every `../skill-scripts/cc-*.py` into `~/.local/bin/`. `cc-*-hook.py` files route to `~/.claude/hooks/` instead. |
+| 1. Symlink `cc-*` scripts | `ln -sfn` every `claude-optimizing/scripts-*/cc-*.py` into `~/.local/bin/`. `cc-*-hook.py` files route to `~/.claude/hooks/` instead. Skill-internal tools under `skills/<name>/scripts/` are NOT touched — they're invoked directly by the owning skill. |
 | 2. Register Stop hook | Patches `~/.claude/settings.json` — appends `/usr/bin/python3 $HOME/.claude/hooks/cc-repo-hygiene-hook.py` under `hooks.Stop`, unless already present. |
 | 3. Merge guidance block | Reads `claude-additions.md` and inserts it into `~/.claude/CLAUDE.md` between `<!-- BEGIN claude-optimizing -->` / `<!-- END claude-optimizing -->` markers. On re-run, replaces the block in place. |
 | 4. Activate pre-commit | `git config core.hooksPath .githooks` in the containing repo, so committed `cc-*` scripts get `py_compile`-checked before the commit lands. |
 | 5. Verify | Runs `cc-doctor` if available; prints a clean-up summary. |
 
-`uninstall.sh` reverses each step and is similarly idempotent. It only removes symlinks that actually point into this tree (plus the repo-root `skill-scripts/`), so other installs on the same machine are untouched.
+`uninstall.sh` reverses each step and is similarly idempotent. It only removes symlinks that actually point into this tree, so other installs on the same machine are untouched.
 
 ## The script catalog
 
@@ -103,7 +102,7 @@ Every script supports `--help`. Exit codes are always meaningful.
 
 | Command | Purpose |
 |---|---|
-| `cc-install [--from DIR] [--dry-run]` | Idempotent re-symlink pass. By default scans every `claude-optimizing/scripts-*/` and `skill-scripts/`. |
+| `cc-install [--from DIR] [--dry-run]` | Idempotent re-symlink pass. Scans every `claude-optimizing/scripts-*/` by default. |
 | `cc-doctor` | Walk both `~/.local/bin/cc-*` and `~/.claude/hooks/cc-*-hook.py`; report broken, non-symlink, or stale entries. Exit non-zero on any problem. |
 | `cc-help [<name>]` | List all `cc-*` scripts with one-line summaries; pass a script name to see its full `--help`. |
 
@@ -113,12 +112,14 @@ Every script supports `--help`. Exit codes are always meaningful.
 |---|---|
 | `cc-repo-hygiene-hook.py` | `Stop` hook enforcer. Blocks the turn from ending if: uncommitted/untracked changes exist, local/remote branches are already merged, the default branch is behind the remote, or worktrees are stale. Installed to `~/.claude/hooks/cc-repo-hygiene-hook.py` by `install.sh`; registered in `~/.claude/settings.json` under `hooks.Stop`. |
 
-### Skill-coupled — `../skill-scripts/` (2)
+### Skill-internal tools
 
-| Command | Purpose |
-|---|---|
-| `cc-install-statusline` | Copy the custom-status-line Python package to `~/.claude-status-line/`, plus `session-tracker.py` to `~/.claude/hooks/`. Clears pycache, runs the skill's pytest suite. |
-| `cc-verify` | Status-line-specific test + lint + typecheck runner. Currently ad-hoc (no automation calls it). |
+Not on `$PATH`. Invoked directly by their owning skill.
+
+- [`../skills/custom-status-line/install.sh`](../skills/custom-status-line/install.sh) — deploys the status-line runtime + session-tracker hook. Wraps `references/` copies.
+- [`../skills/custom-status-line/scripts/verify.py`](../skills/custom-status-line/scripts/verify.py) — status-line pytest + lint + typecheck runner.
+- [`../skills/custom-status-line/scripts/claude-fields.py`](../skills/custom-status-line/scripts/claude-fields.py) — inspects Claude version field blobs in `~/claude-usage.db` (written by the status-line pipeline).
+- [`../skills/custom-status-line/scripts/graphify-status.py`](../skills/custom-status-line/scripts/graphify-status.py) — reads `~/.claude-status-line/graphify-savings-cache.json`.
 
 ## Adding a new script
 
@@ -131,4 +132,4 @@ Every script supports `--help`. Exit codes are always meaningful.
 ## Related
 
 - [`../install-readme.md`](../install-readme.md) — end-to-end reproduction guide for the full repo setup on a clean machine (this directory's `install.sh` automates sections 0/2/3/4 plus the pre-commit activation).
-- [`../skill-scripts/README.md`](../skill-scripts/README.md) — why `skill-scripts/` lives at the repo root instead of under `claude-optimizing/`.
+- [`../skills/custom-status-line/scripts/`](../skills/custom-status-line/scripts/) — skill-internal tools paired with the status-line (no cc- prefix, not on `$PATH`).

@@ -27,7 +27,7 @@ The `cc-*` scripts (installed to `~/.local/bin/` from the cat-herding repo) coll
 
 **Hooks (1):** `cc-repo-hygiene-hook` (installed to `~/.claude/hooks/`, not `$PATH`).
 
-All scripts support `--help`, exit non-zero on failure, and return tight parseable output. Sources under `~/projects/active/cat-herding/claude-optimizing/scripts-<area>/` (plus repo-root `skill-scripts/` for skill-coupled ones). Installed command name is `cc-<name>` (extension stripped); hook scripts keep `.py` because Claude Code invokes them as Python files.
+All scripts support `--help`, exit non-zero on failure, and return tight parseable output. Sources under `~/projects/active/cat-herding/claude-optimizing/scripts-<area>/`. Installed command name is `cc-<name>` (extension stripped); hook scripts keep `.py` because Claude Code invokes them as Python files. Skill-internal tools (e.g. `skills/custom-status-line/scripts/`) are not on `$PATH`; the owning skill invokes them directly.
 
 ## Worktree Workflow — MANDATORY
 

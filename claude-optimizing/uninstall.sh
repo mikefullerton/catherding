@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Reverse claude-optimizing/install.sh:
 #   1. Remove cc-* symlinks from ~/.local/bin/ and ~/.claude/hooks/
-#      (only symlinks that actually point into this claude-optimizing/ tree,
-#       or into the repo-root skill-scripts/ dir of the same repo)
+#      (only symlinks that actually point into this claude-optimizing/ tree)
 #   2. De-register the repo-hygiene Stop hook from ~/.claude/settings.json
 #   3. Strip the guidance block from ~/.claude/CLAUDE.md (between markers)
 #   4. Unset core.hooksPath if it still points at .githooks
@@ -30,7 +29,7 @@ for dir in "$BIN_DIR" "$HOOKS_DIR"; do
         [ -L "$entry" ] || continue
         target="$(readlink "$entry")"
         case "$target" in
-            "$HERE"/*|"$REPO_DIR"/skill-scripts/*)
+            "$HERE"/*)
                 rm "$entry"; removed=$((removed + 1)); info "$entry" ;;
         esac
     done
