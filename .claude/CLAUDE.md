@@ -13,7 +13,7 @@ claude-optimizing/         # Self-contained Claude-Code tooling layer (guidance 
   scripts-xcode/           # macOS / Xcode (cc-xcbuild, cc-xcgen, cc-applogs, …)
   scripts-claude/          # Claude Code meta (cc-usage-stats, cc-claude-fields, cc-memory, cc-graphify-status, cc-project-index)
   scripts-meta/            # Self-management (cc-install, cc-doctor, cc-help)
-  scripts-hooks/           # Claude Code hook scripts (cc-*-hook.py → ~/.claude/hooks/)
+  scripts-hooks/           # Claude Code hook scripts (cc-repo-hygiene-hook.py for Stop + cc-exit-worktree-hook.py for PostToolUse:ExitWorktree → ~/.claude/hooks/)
   claude-additions.md      # Guidance block appended to ~/.claude/CLAUDE.md by install.sh
   install.sh / uninstall.sh  # Deploy/remove guidance + scripts + hooks
 ```

@@ -15,7 +15,7 @@ claude-optimizing/
 ├── scripts-xcode/   (9)  ← macOS / Xcode
 ├── scripts-claude/  (5)  ← Claude Code meta
 ├── scripts-meta/    (3)  ← self-management (cc-install, cc-doctor, cc-help)
-└── scripts-hooks/   (1)  ← Claude Code hook scripts (cc-*-hook.py)
+└── scripts-hooks/   (2)  ← Claude Code hook scripts (cc-*-hook.py)
 ```
 
 Skill-internal tools that only make sense inside a specific skill's runtime live under that skill's own `scripts/` subdir — e.g. [`../skills/custom-status-line/scripts/`](../skills/custom-status-line/scripts/) holds `verify.py`, `claude-fields.py`, and `graphify-status.py`. Those are invoked directly by the skill (not on `$PATH`, no `cc-` prefix).
@@ -42,7 +42,7 @@ Runs five idempotent steps, each labelled in its output:
 |---|---|
 | 0. Prereq check | Verifies `git`, `gh`, `python3` are on `PATH`; warns if `~/.local/bin` isn't on `PATH`; exits non-zero if anything is missing. |
 | 1. Symlink `cc-*` scripts | `ln -sfn` every `claude-optimizing/scripts-*/cc-*.py` into `~/.local/bin/`. `cc-*-hook.py` files route to `~/.claude/hooks/` instead. Skill-internal tools under `skills/<name>/scripts/` are NOT touched — they're invoked directly by the owning skill. |
-| 2. Register Stop hook | Patches `~/.claude/settings.json` — appends `/usr/bin/python3 $HOME/.claude/hooks/cc-repo-hygiene-hook.py` under `hooks.Stop`, unless already present. |
+| 2. Register hooks | Patches `~/.claude/settings.json` idempotently with two entries: `cc-repo-hygiene-hook.py` under `hooks.Stop`, and `cc-exit-worktree-hook.py` under `hooks.PostToolUse` with matcher `ExitWorktree`. |
 | 3. Merge guidance block | Reads `claude-additions.md` and inserts it into `~/.claude/CLAUDE.md` between `<!-- BEGIN claude-optimizing -->` / `<!-- END claude-optimizing -->` markers. On re-run, replaces the block in place. |
 | 4. Activate pre-commit | `git config core.hooksPath .githooks` in the containing repo, so committed `cc-*` scripts get `py_compile`-checked before the commit lands. |
 | 5. Verify | Runs `cc-doctor` if available; prints a clean-up summary. |
@@ -106,11 +106,14 @@ Every script supports `--help`. Exit codes are always meaningful.
 | `cc-doctor` | Walk both `~/.local/bin/cc-*` and `~/.claude/hooks/cc-*-hook.py`; report broken, non-symlink, or stale entries. Exit non-zero on any problem. |
 | `cc-help [<name>]` | List all `cc-*` scripts with one-line summaries; pass a script name to see its full `--help`. |
 
-### Hook scripts — `scripts-hooks/` (1)
+### Hook scripts — `scripts-hooks/` (2)
 
 | File | Role |
 |---|---|
-| `cc-repo-hygiene-hook.py` | `Stop` hook enforcer. Blocks the turn from ending if: uncommitted/untracked changes exist, local/remote branches are already merged, the default branch is behind the remote, or worktrees are stale. Installed to `~/.claude/hooks/cc-repo-hygiene-hook.py` by `install.sh`; registered in `~/.claude/settings.json` under `hooks.Stop`. |
+| `cc-repo-hygiene-hook.py` | `Stop` hook enforcer. Blocks the turn from ending if: uncommitted/untracked changes exist, local/remote branches are already merged, the default branch is behind the remote, or worktrees are stale. |
+| `cc-exit-worktree-hook.py` | `PostToolUse` hook (matcher: `ExitWorktree`). Fires right after `ExitWorktree` returns; exits non-zero if a non-default-branch worktree is still on disk whose branch is already merged into `origin/<default>`, with a diagnostic that names the exact `cc-merge-worktree <pr>` to run. Blocks Claude's next tool call until the cleanup finishes. |
+
+Both are symlinked into `~/.claude/hooks/` by `install.sh` and registered in `~/.claude/settings.json` (Stop event / PostToolUse event respectively).
 
 ### Skill-internal tools
 

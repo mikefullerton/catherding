@@ -170,44 +170,45 @@ Claude re-reads `CLAUDE.md` at session start, so restart any running `claude` se
 
 ## 3. Global hooks — vendored in this repo, auto-installed
 
-Both hooks are now checked into this repo and installed automatically. No manual copies.
+Three hooks are vendored and installed automatically. No manual copies.
 
 ### 3.1 `cc-repo-hygiene-hook.py` (Stop hook — the enforcer)
 
 Source: `claude-optimizing/scripts-hooks/cc-repo-hygiene-hook.py`.
-Installed by `./install.sh` (step 1) to `~/.claude/hooks/cc-repo-hygiene-hook.py`.
+Installed by `./install.sh` (claude-optimizations component) to `~/.claude/hooks/cc-repo-hygiene-hook.py`.
 The `*-hook` suffix tells the installer to route the file into Claude Code's
 hooks directory (where the harness invokes it via stdin) rather than onto
 `$PATH` (where it would make no sense as a CLI command).
 
-Reads JSON from stdin (Claude Code hook protocol), runs several `git` queries against the session's `cwd`, and exits non-zero with a diagnostic message if the repo is dirty — blocking the turn from ending.
+Reads JSON from stdin, runs several `git` queries against the session's `cwd`, exits non-zero with a diagnostic if the repo is dirty — blocking the turn from ending.
 
-Behavior summary:
+Behaviour:
 - Parse stdin JSON, early-exit if `stop_hook_active` is set (re-entry guard).
 - Compute `cwd`; early-exit unless cwd is under `$HOME/projects/`.
 - Run `git status --porcelain`, `git branch --merged <default>`, `git rev-list`, `git worktree list` to check each of the 6 conditions in section 2.1.
 - If any fail, print a human-readable diagnostic to stderr and exit 2 (block).
 
-### 3.2 `session-tracker.py`
+### 3.2 `cc-exit-worktree-hook.py` (PostToolUse:ExitWorktree — the imperative)
+
+Source: `claude-optimizing/scripts-hooks/cc-exit-worktree-hook.py`.
+Installed by `./install.sh` (claude-optimizations component) to `~/.claude/hooks/cc-exit-worktree-hook.py`.
+
+Fires right after any `ExitWorktree` call. Detects the "I ran ExitWorktree but skipped `cc-merge-worktree`" case: a non-default-branch worktree still exists on disk **and** its branch is already merged into `origin/<default>`. In that case the hook exits 2 with a diagnostic pointing at the exact `cc-merge-worktree <pr>` to run — blocking Claude's next tool call until the cleanup finishes.
+
+Complements the Stop hook: Stop catches leftover worktree mess at turn-end; this one catches it immediately, so Claude resolves the problem in the next tool call rather than at the end of a long turn.
+
+### 3.3 `session-tracker.py`
 
 Source: `skills/custom-status-line/references/hooks/session-tracker.py`.
-Installed by `cc-install-statusline` to `~/.claude/hooks/session-tracker.py`.
+Installed by `skills/custom-status-line/install.sh` (custom-status-line component) to `~/.claude/hooks/session-tracker.py`.
 
-Writes per-session JSON markers to `~/.claude-status-line/sessions/` on SessionStart / UserPromptSubmit / Stop / SessionEnd. Powers the `all sessions | N active | M thinking | K waiting` row in the status line. Installed alongside the status line because it's purely status-line-state plumbing.
-
-Run once after the skill is set up:
-
-```bash
-cc-install-statusline           # copies statusline + hooks in one call
-```
+Writes per-session JSON markers to `~/.claude-status-line/sessions/` on SessionStart / UserPromptSubmit / Stop / SessionEnd. Powers the `all sessions | N active | M thinking | K waiting` row in the status line. Installed alongside the status line because it's purely status-line plumbing.
 
 ---
 
 ## 4. Global hook registration — `~/.claude/settings.json`
 
-The hooks above don't fire unless Claude Code is told to call them. Register the Stop hook (and the session tracker on relevant events) in your global settings.
-
-Open `~/.claude/settings.json` and ensure the `hooks` object contains these event groups — preserve any other groups (observability tools, plugins) already present:
+Hooks don't fire unless Claude Code is told to call them. `./install.sh` patches `~/.claude/settings.json` idempotently — the end state looks like the JSON below (preserve any other groups, e.g. observability tools or other plugins, already present):
 
 ```json
 {
@@ -223,6 +224,15 @@ Open `~/.claude/settings.json` and ensure the `hooks` object contains these even
         "hooks": [
           { "type": "command",
             "command": "python3 $HOME/.claude/hooks/session-tracker.py Stop" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "ExitWorktree",
+        "hooks": [
+          { "type": "command",
+            "command": "/usr/bin/python3 $HOME/.claude/hooks/cc-exit-worktree-hook.py" }
         ]
       }
     ],
@@ -314,7 +324,7 @@ If any step fails, re-read the corresponding section above — each one is isola
 cd ~/projects/active/cat-herding
 ./uninstall.sh                    # removes cc-* symlinks, unsymlinks skills, uninstalls CLIs
 # cc-repo-hygiene-hook is a symlink — removed by uninstall.sh above
-rm ~/.claude/hooks/session-tracker.py    # installed by cc-install-statusline
+rm ~/.claude/hooks/session-tracker.py    # installed by skills/custom-status-line/install.sh
 # Remove the `hooks` entries you added in section 4 from ~/.claude/settings.json
 # Remove repo/.claude/settings.local.json if you don't want auto-approvals
 git -C ~/projects/active/cat-herding config --unset core.hooksPath
