@@ -89,6 +89,13 @@ def compute_column_widths(rows: list) -> list:
             if col < len(row.columns) and row.columns[col]:
                 max_w = max(max_w, visible_len(row.columns[col]))
         widths.append(max_w)
+    # Visual gutter: right-aligned col 0 normally renders flush against the
+    # leading "| " border, which cramps the section against the pipe. Pad
+    # col 0 so the *longest* label has 4 leading spaces before its first
+    # char (shorter labels get proportionally more since col 0 is
+    # right-aligned). Only column 0, only data rows.
+    if widths and widths[0] > 0:
+        widths[0] += 4
     return widths
 
 

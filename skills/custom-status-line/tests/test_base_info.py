@@ -109,7 +109,7 @@ class TestRunOutputStructure:
         mock_git.return_value = ""
         from statusline.base_info import run
         lines = run(make_claude_data(), [])
-        assert "Opus" in lines[1] or "opus" in lines[1].lower()
+        assert "Opus" in lines[2] or "opus" in lines[2].lower()
 
     @patch("statusline.base_info.git_cmd")
     @patch("statusline.base_info.log_to_db")
@@ -117,7 +117,7 @@ class TestRunOutputStructure:
         mock_git.return_value = ""
         from statusline.base_info import run
         lines = run(make_claude_data(), [])
-        assert "all sessions" in lines[2]
+        assert "all sessions" in lines[3]
 
     @patch("statusline.base_info.git_cmd")
     @patch("statusline.base_info.log_to_db")

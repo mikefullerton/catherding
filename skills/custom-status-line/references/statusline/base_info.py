@@ -584,12 +584,26 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
             warning_text = ""
         rows.append(Row(gs2, gs3, gs4, trailing=warning_text))
 
+    # "Claude" section: model row, all-sessions row, and version-tracker
+    # upgrade rows (from version_check) grouped together under one heading.
+    rows.append(Row(f"{ORANGE}Claude{RST}", heading=True))
+
     model_row = Row(mc1, mc2, mc3)
     if yolo_col:
         model_row.columns.append(yolo_col)
     rows.append(model_row)
 
     rows.append(Row(sc1, sc2, sc3, sc4))
+
+    # Version-tracker rows emitted inline here so they sit at the end of the
+    # Claude section instead of being appended at the very bottom by the
+    # version-check pipeline stage. That stage detects these and no-ops.
+    try:
+        from statusline.version_check import _check_version
+        for vr in _check_version(claude):
+            rows.append(vr)
+    except Exception:
+        pass
 
     # Week-over-week comparison (show 3 variants so user can pick)
     wed_10am = get_wed_10am()
