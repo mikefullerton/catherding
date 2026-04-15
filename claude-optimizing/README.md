@@ -13,7 +13,7 @@ claude-optimizing/
 ├── scripts-git/    (10)  ← git / PR workflow
 ├── scripts-bash/    (2)  ← shell helpers
 ├── scripts-xcode/   (9)  ← macOS / Xcode
-├── scripts-claude/  (3)  ← Claude Code meta
+├── scripts-claude/  (5)  ← Claude Code meta
 ├── scripts-meta/    (3)  ← self-management (cc-install, cc-doctor, cc-help)
 └── scripts-hooks/   (1)  ← Claude Code hook scripts (cc-*-hook.py)
 ```
@@ -75,15 +75,15 @@ Every script supports `--help`. Exit codes are always meaningful.
 | `cc-grep <pattern>` | `rg` with sensible excludes (node_modules, build artifacts, etc.). |
 | `cc-rename <pattern> <replacement>` | Dry-run-by-default find-and-replace across repo files (`--apply` to write). |
 
-### Claude Code meta — `scripts-claude/` (3)
+### Claude Code meta — `scripts-claude/` (5)
 
 | Command | Purpose |
 |---|---|
 | `cc-usage-stats [--today\|--week\|--last-week\|--compare\|--history N]` | Token / cost stats from `~/.claude/usage.db`. |
 | `cc-claude-fields [--list\|--diff V1 V2\|--blob V\|--new-since V]` | Inspect stored Claude version field blobs in `~/claude-usage.db`. |
+| `cc-memory list` / `cc-memory add <type> <name> --description ...` | Manage per-project auto-memory (writes file + updates `MEMORY.md` atomically). |
+| `cc-graphify-status [--saving\|--collecting\|--total]` | Summary of graphify savings per project. |
 | `cc-project-index [--filter graphify\|git\|worktrees\|stale]` | Find projects under `~/projects/` by criteria. |
-
-Two cc-* commands in the same namespace — `cc-graphify-status` and `cc-memory` — are installed by the [graphify](~/projects/external/graphify) project, not by this repo. `cc-doctor` ignores any cc-* symlink whose target sits outside this repo, so those entries won't show up as stale here.
 
 ### macOS / Xcode — `scripts-xcode/` (9)
 
