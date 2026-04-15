@@ -7,7 +7,7 @@ Usage:
   cc-grep <pattern> path1 path2  # limit search to given paths
 
 Excludes: .build, DerivedData, xcuserdata, .swiftpm, graphify-out,
-.claude/worktrees/*/agentic-toolkit (submodule), .xcodeproj contents.
+.xcodeproj contents, node_modules.
 
 Passes through to `rg`; assumes ripgrep is installed.
 """
@@ -23,7 +23,6 @@ EXCLUDES = [
     "!.swiftpm/",
     "!graphify-out/",
     "!*.xcodeproj/",
-    "!.claude/worktrees/*/agentic-toolkit/",
     "!node_modules/",
 ]
 

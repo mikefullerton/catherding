@@ -35,7 +35,7 @@ All scripts support `--help`, exit non-zero on failure, and return tight parseab
 
 All changes go through worktree branches. Never commit directly to the default branch.
 
-1. **Start:** `EnterWorktree` to create a feature branch and switch into it.
+1. **Start:** `EnterWorktree` to create a feature branch and switch into it. Worktrees MUST live under `~/projects/worktrees/<project>/<branch>/` — never inside the project tree (no `.claude/worktrees/`, no `.worktrees/`). One subdirectory per project under `~/projects/worktrees/`.
 2. **Work:** commit and push as you go. Create a **draft PR** on first push.
 3. **Finish (MANDATORY):** after a PR merges, you MUST run `cc-merge-worktree <pr>`. This is the only supported way to complete the ritual. A PostToolUse hook on `ExitWorktree` (`~/.claude/hooks/cc-exit-worktree-hook.py`) detects merged worktrees left on disk and **blocks the next tool call** until `cc-merge-worktree` runs. Do not attempt to reproduce its steps manually — `cc-merge-worktree` handles the gh-inside-worktree quirks, submodule drift, draft-PR ready flipping, and upstream-matching dirt discards.
 
