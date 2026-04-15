@@ -1,10 +1,4 @@
 <!-- BEGIN claude-optimizing -->
-## Scripting Language — MANDATORY
-
-Always use Python for scripts. NEVER write bash/shell scripts (`.sh`). This includes hooks, utilities, automation, build helpers, and any standalone script. If an existing bash script needs modification, rewrite it in Python.
-
-**Exceptions:** `install.sh`, `uninstall.sh`, and `setup.sh` may be written as shell scripts.
-
 ## Token Efficiency — MANDATORY
 
 - **Prefer inline execution over parallel subagents** for planning and execution. Only use subagents when tasks are truly independent and the token savings from parallelism outweigh the overhead.
