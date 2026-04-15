@@ -37,8 +37,7 @@ All changes go through worktree branches. Never commit directly to the default b
 
 1. **Start:** `EnterWorktree` to create a feature branch and switch into it.
 2. **Work:** commit and push as you go. Create a **draft PR** on first push.
-
-Use `cc-merge-worktree <pr>` for the merge + cleanup ritual (handles gh's worktree quirks that `gh pr merge --delete-branch` misses).
+3. **Finish (MANDATORY):** after a PR merges, you MUST run `cc-merge-worktree <pr>`. This is the only supported way to complete the ritual. A PostToolUse hook on `ExitWorktree` (`~/.claude/hooks/cc-exit-worktree-hook.py`) detects merged worktrees left on disk and **blocks the next tool call** until `cc-merge-worktree` runs. Do not attempt to reproduce its steps manually — `cc-merge-worktree` handles the gh-inside-worktree quirks, submodule drift, draft-PR ready flipping, and upstream-matching dirt discards.
 
 ## Repo Hygiene — MANDATORY, NO EXCEPTIONS
 

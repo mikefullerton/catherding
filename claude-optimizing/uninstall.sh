@@ -38,7 +38,7 @@ info "total: $removed"
 
 # ---------- 2. De-register Stop hook ------------------------------------------
 
-head1 "De-registering Stop hook..."
+head1 "De-registering Stop + PostToolUse:ExitWorktree hooks..."
 if [ -f "$SETTINGS_JSON" ]; then
     python3 - "$SETTINGS_JSON" <<'PYEOF'
 import json, sys
@@ -47,24 +47,31 @@ from pathlib import Path
 path = Path(sys.argv[1])
 settings = json.loads(path.read_text())
 
-cmd = "/usr/bin/python3 $HOME/.claude/hooks/cc-repo-hygiene-hook.py"
-stop_groups = settings.get("hooks", {}).get("Stop", [])
+entries = [
+    ("Stop",        "/usr/bin/python3 $HOME/.claude/hooks/cc-repo-hygiene-hook.py"),
+    ("PostToolUse", "/usr/bin/python3 $HOME/.claude/hooks/cc-exit-worktree-hook.py"),
+]
 
 changed = False
-new_groups = []
-for grp in stop_groups:
-    hooks = [h for h in grp.get("hooks", []) if h.get("command") != cmd]
-    if len(hooks) != len(grp.get("hooks", [])):
+for event, cmd in entries:
+    groups = settings.get("hooks", {}).get(event, [])
+    new_groups = []
+    removed_here = False
+    for grp in groups:
+        hooks = [h for h in grp.get("hooks", []) if h.get("command") != cmd]
+        if len(hooks) != len(grp.get("hooks", [])):
+            removed_here = True
+        if hooks:
+            new_groups.append({**grp, "hooks": hooks})
+    if removed_here:
+        settings["hooks"][event] = new_groups
         changed = True
-    if hooks:
-        new_groups.append({**grp, "hooks": hooks})
+        print(f"  {event}: removed")
+    else:
+        print(f"  {event}: not present")
 
 if changed:
-    settings["hooks"]["Stop"] = new_groups
     path.write_text(json.dumps(settings, indent=2) + "\n")
-    print("  removed")
-else:
-    print("  not present")
 PYEOF
 else
     info "skip (no $SETTINGS_JSON)"

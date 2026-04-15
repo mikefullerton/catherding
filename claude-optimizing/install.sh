@@ -76,23 +76,40 @@ from pathlib import Path
 path = Path(sys.argv[1])
 settings = json.loads(path.read_text()) if path.exists() else {}
 
-cmd = "/usr/bin/python3 $HOME/.claude/hooks/cc-repo-hygiene-hook.py"
-settings.setdefault("hooks", {}).setdefault("Stop", [])
+# (event, matcher, command) tuples to register idempotently.
+entries = [
+    (
+        "Stop", "",
+        "/usr/bin/python3 $HOME/.claude/hooks/cc-repo-hygiene-hook.py",
+    ),
+    (
+        "PostToolUse", "ExitWorktree",
+        "/usr/bin/python3 $HOME/.claude/hooks/cc-exit-worktree-hook.py",
+    ),
+]
 
-already = any(
-    h.get("command") == cmd
-    for grp in settings["hooks"]["Stop"]
-    for h in grp.get("hooks", [])
-)
-if already:
-    print("  already registered")
-else:
-    settings["hooks"]["Stop"].append(
-        {"hooks": [{"type": "command", "command": cmd}]}
+settings.setdefault("hooks", {})
+changed = False
+for event, matcher, cmd in entries:
+    groups = settings["hooks"].setdefault(event, [])
+    already = any(
+        h.get("command") == cmd
+        for grp in groups
+        for h in grp.get("hooks", [])
     )
+    if already:
+        print(f"  {event} ({matcher or 'any'}): already registered")
+        continue
+    entry = {"hooks": [{"type": "command", "command": cmd}]}
+    if matcher:
+        entry["matcher"] = matcher
+    groups.append(entry)
+    print(f"  {event} ({matcher or 'any'}): added")
+    changed = True
+
+if changed:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(settings, indent=2) + "\n")
-    print(f"  added: {cmd}")
 PYEOF
 
 # ---------- 3. Merge guidance block into ~/.claude/CLAUDE.md ------------------
