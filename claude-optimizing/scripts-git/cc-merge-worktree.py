@@ -17,6 +17,9 @@ doesn't block the gate.
   6. Delete local branch (also skipped in the caller-inside case)
   7. Delete remote branch
   8. Final verification
+  9. Caller-inside case: if the worktree is clean, fast-forward its branch
+     to origin/<default> so ExitWorktree action:remove succeeds on the
+     first try without needing discard_changes=true
 
 Exits non-zero on any gate failure. Safe to re-run if a step failed midway.
 """
@@ -249,11 +252,54 @@ def main():
     print(f"done: {head_msg}")
 
     if caller_inside:
-        print(
-            f"NOTE: caller is inside {wt_path}; left worktree + local branch in place.\n"
-            "      Finalize via ExitWorktree action:remove (or `git worktree remove`) "
-            "after leaving the directory.",
-        )
+        # Squash-merge leaves the worktree branch with commits that don't
+        # appear on main by SHA. ExitWorktree's safety check then counts
+        # them as unmerged work and refuses to remove without
+        # discard_changes=true — extra churn for the caller.
+        #
+        # Collapse that: if the worktree is clean, fast-forward its branch
+        # to origin/<default>. The branch then contains zero commits not on
+        # main, so ExitWorktree action:remove succeeds on the first try.
+        # If the worktree is dirty, skip the reset and give the caller a
+        # ready-to-paste ExitWorktree call that includes discard_changes.
+        resettable = False
+        try:
+            _, unstaged_wt = run(
+                ["git", "diff", "--quiet"], check=False, cwd=wt_path,
+            )
+            _, staged_wt = run(
+                ["git", "diff", "--cached", "--quiet"], check=False, cwd=wt_path,
+            )
+            untracked_wt, _ = run(
+                ["git", "ls-files", "--others", "--exclude-standard"],
+                check=False, cwd=wt_path,
+            )
+            resettable = (
+                unstaged_wt == 0
+                and staged_wt == 0
+                and not untracked_wt.strip()
+            )
+        except OSError:
+            resettable = False
+
+        if resettable:
+            run(
+                ["git", "reset", "--hard", f"origin/{default_branch}"],
+                cwd=wt_path,
+            )
+            print(
+                f"NOTE: caller is inside {wt_path}. Worktree branch reset "
+                f"to origin/{default_branch} (commits already squash-merged).\n"
+                "      Finalize via ExitWorktree action:remove "
+                "(no discard_changes needed)."
+            )
+        else:
+            print(
+                f"NOTE: caller is inside {wt_path} with uncommitted changes; "
+                "left worktree + local branch in place.\n"
+                "      Finalize via ExitWorktree action:remove "
+                "discard_changes:true after leaving the directory."
+            )
 
 
 if __name__ == "__main__":
