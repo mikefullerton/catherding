@@ -627,8 +627,14 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
         rows.append(Row(f"{ORANGE}Usage{RST}", heading=True))
     if usage_cols:
         uc1, uc2, uc3, uc4, uc5, uc6, uc7 = usage_cols
+        # New top row surfaces the two "session-of-today" numbers together,
+        # so you can glance at today's usage and the daily-average target
+        # side-by-side without chasing values across the 7d/5h rows below.
+        rows.append(Row(uc3, uc4))
         rows.append(Row(uc1, uc4, uc5, uc6))
-        rows.append(Row(uc3, uc2, uc7))
+        # 5h quota row shifts one column to the left — today's % moved into
+        # the new top row, so 5h quota / remaining-time sit in col 0 / 1.
+        rows.append(Row(uc2, uc7))
     for r in week_rows:
         rows.append(r)
 
