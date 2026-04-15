@@ -63,10 +63,10 @@ def main() -> int:
             issues.append(f"  not executable: {real}")
             broken += 1
             continue
-        # Stale = points outside the canonical script dirs AND outside any
-        # cat-herding worktree. Worktrees use
-        # `.claude/worktrees/<name>/claude-optimizing/scripts-<area>/` or
-        # `.claude/worktrees/<name>/skill-scripts/`, which is fine while testing.
+        # A cc-* symlink that points OUTSIDE cat-herding isn't ours to manage
+        # — another repo (e.g. graphify) installed it into ~/.local/bin/ under
+        # the shared cc- namespace. Skip it silently; don't count toward ok
+        # or stale.
         import re
         real_s = str(real)
         is_canonical = any(real_s.startswith(str(src) + "/") for src in CANONICAL_SOURCES)
@@ -75,8 +75,7 @@ def main() -> int:
             and bool(re.search(r"/(scripts-[a-z]+|skill-scripts)/", real_s))
         )
         if not (is_canonical or is_worktree):
-            stale += 1
-            issues.append(f"  stale (points outside cat-herding): {entry} -> {real}")
+            continue  # externally managed — ignore
         ok += 1
 
     for line in issues:
