@@ -253,15 +253,22 @@ def main():
 
     if caller_inside:
         # Squash-merge leaves the worktree branch with commits that don't
-        # appear on main by SHA. ExitWorktree's safety check then counts
-        # them as unmerged work and refuses to remove without
+        # appear on origin/<default> by SHA. ExitWorktree's safety check
+        # counts them as unmerged work and refuses to remove without
         # discard_changes=true — extra churn for the caller.
         #
-        # Collapse that: if the worktree is clean, fast-forward its branch
-        # to origin/<default>. The branch then contains zero commits not on
-        # main, so ExitWorktree action:remove succeeds on the first try.
-        # If the worktree is dirty, skip the reset and give the caller a
-        # ready-to-paste ExitWorktree call that includes discard_changes.
+        # ExitWorktree compares the branch HEAD against a snapshot of the
+        # default branch captured at EnterWorktree time (NOT current
+        # origin/<default> — origin may have advanced while the session
+        # was running, so resetting to origin/<default> still leaves the
+        # branch visibly "ahead" of the snapshot). The best baseline we
+        # can recover is the merge-base: the branch's divergence point
+        # from <default>, which equals <default>'s tip at branch creation
+        # (since squash-merge never lands a SHA on the worktree branch
+        # itself, the merge-base doesn't move during the PR lifecycle).
+        #
+        # Reset the branch to that merge-base so ExitWorktree sees zero
+        # commits ahead and accepts action:remove on the first try.
         resettable = False
         try:
             _, unstaged_wt = run(
@@ -283,13 +290,19 @@ def main():
             resettable = False
 
         if resettable:
-            run(
-                ["git", "reset", "--hard", f"origin/{default_branch}"],
+            # merge-base against origin/<default> is robust even if local
+            # <default> has drifted; this branch's squash never added a
+            # commit to origin/<default>'s history, so the base is the
+            # branch creation point.
+            base_sha, _ = run(
+                ["git", "merge-base", "HEAD", f"origin/{default_branch}"],
                 cwd=wt_path,
             )
+            run(["git", "reset", "--hard", base_sha], cwd=wt_path)
             print(
                 f"NOTE: caller is inside {wt_path}. Worktree branch reset "
-                f"to origin/{default_branch} (commits already squash-merged).\n"
+                f"to branch-creation point {base_sha[:7]} (commits already "
+                "squash-merged to main).\n"
                 "      Finalize via ExitWorktree action:remove "
                 "(no discard_changes needed)."
             )
