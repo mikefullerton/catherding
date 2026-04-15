@@ -45,11 +45,19 @@ uninstall_skill() {
     fi
 }
 
+POLICY_SKILLS=(
+    new-repo-scaffold
+    file-organization-policies
+    llm-integration-policies
+    setup-and-install-scripts
+    apple-and-xcode-policies
+)
+
 echo ""
-echo "cat-herding uninstaller — three independent components:"
+echo "cat-herding uninstaller — independent components:"
 echo "  1. Claude optimizations"
-echo "  2. Custom status line"
-echo "  3. YOLO mode"
+echo "  2. YOLO mode"
+echo "  3. Developer-policy skills"
 echo ""
 
 if confirm "Uninstall Claude optimizations?"; then
@@ -60,6 +68,13 @@ if confirm "Uninstall YOLO?"; then
     echo "Removing yolo..."
     "$REPO_DIR/skills/yolo/uninstall.sh" 2>&1 | sed 's/^/    /'
     uninstall_skill "yolo"
+fi
+
+if confirm "Uninstall developer-policy skills?"; then
+    echo "Removing policy skills..."
+    for skill in "${POLICY_SKILLS[@]}"; do
+        uninstall_skill "$skill"
+    done
 fi
 
 echo ""

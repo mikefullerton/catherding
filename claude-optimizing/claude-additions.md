@@ -1,4 +1,5 @@
 <!-- BEGIN claude-optimizing -->
+<!-- claude-optimizing v2.0 -->
 ## Scripting Language — MANDATORY
 
 Always use Python for scripts. NEVER write bash/shell scripts (`.sh`). This includes hooks, utilities, automation, build helpers, and any standalone script. If an existing bash script needs modification, rewrite it in Python.
@@ -9,45 +10,91 @@ Always use Python for scripts. NEVER write bash/shell scripts (`.sh`). This incl
 
 - **Prefer inline execution over parallel subagents** for planning and execution. Only use subagents when tasks are truly independent and the token savings from parallelism outweigh the overhead.
 - **Push work into deterministic Python scripts** whenever possible. If Claude will repeatedly perform the same logic (parsing, validation, transformation, checks), encode it in a Python script that produces structured output — don't spend tokens re-deriving the answer each time.
-- **Plan execution — always inline, never ask.** When a plan is complete and Claude would otherwise offer a choice between **subagent-driven** and **inline** execution, **always choose inline** without presenting the options.
+- **Plan execution — always inline, never ask.** When a plan is complete (e.g. from `superpowers:writing-plans`) and Claude would otherwise offer a choice between **subagent-driven** and **inline** execution, **always choose inline** without presenting the options. Proceed directly with `superpowers:executing-plans` inline. Do not stall on a decision prompt.
 
 ## Workflow Scripts — PREFER over multi-step Bash
 
-The `cc-*` scripts (installed to `~/.local/bin/` from the cat-herding repo) collapse common multi-step Bash rituals into single calls. Use them instead of raw git/gh sequences whenever the scenario matches.
+The `cc-*` scripts (installed to `~/.local/bin/` from `~/projects/active/cat-herding/claude-optimizing/scripts-<area>/`) collapse common multi-step Bash rituals into single calls. Use them instead of raw git/gh sequences whenever the scenario matches:
 
-**Git / PR (10):** `cc-merge-worktree`, `cc-commit-push`, `cc-repo-state`, `cc-pr-status`, `cc-pr-review`, `cc-rebase-main`, `cc-branch-hygiene`, `cc-bump-submodule`, `cc-submodule-status`, `cc-since`.
+**Git / PR:**
+- `cc-merge-worktree <pr>` — merge PR + full worktree cleanup (9-step ritual). Use after `ExitWorktree action: keep` when the user asks to merge.
+- `cc-rebase-main` — fetch + rebase current branch on origin/main + force-push. Use instead of raw `git fetch && git rebase origin/main && git push --force-with-lease`.
+- `cc-commit-push "msg" [--pr "title"]` — stage + commit + push + optional draft PR.
+- `cc-repo-state` — session-start audit: branch, status, worktrees, staleness.
+- `cc-pr-status <num>` — PR summary: state, checks, diff, comments.
+- `cc-pr-review <num>` — comprehensive PR review state (reviewers, approvals, inline comments, CI).
+- `cc-branch-hygiene [--cleanup]` — stale/merged/remote-only/prunable report.
+- `cc-since <ref> [--head REF] [--prs-only]` — list PRs and commits since a ref.
+- `cc-bump-submodule <name>...` — bump one or more submodules to origin/<default>.
+- `cc-submodule-status [--fetch]` — per-submodule recorded vs checked-out vs origin/HEAD diagnostic.
 
-**Bash helpers (2):** `cc-grep`, `cc-rename`.
+**Search / files:**
+- `cc-grep <pattern> [paths]` — ripgrep wrapper with type filter, list mode, code-only mode.
+- `cc-rename <pattern> <replacement> [--apply] [--literal] [--ext EXT]` — dry-run-by-default find-and-replace across tracked files.
 
-**macOS / Xcode (9):** `cc-xcgen`, `cc-xcbuild`, `cc-xcschemes`, `cc-xcsetting`, `cc-xcrun-app`, `cc-app-path`, `cc-applogs`, `cc-plist`, `cc-clean-dd`.
+**Claude Code meta:**
+- `cc-project-index [--filter graphify|git|worktrees|stale]` — find projects by criteria under `~/projects/`.
+- `cc-memory list | add <type> <name> --description ...` — manage per-project auto-memory (writes file + updates `MEMORY.md` atomically).
+- `cc-usage-stats --today | --week | --last-week | --compare | --history N` — token/cost stats from `~/.claude/usage.db`.
+- `cc-claude-fields --list | --diff V1 V2 | --blob V | --new-since V` — inspect stored Claude version blobs in `~/claude-usage.db`.
+- `cc-graphify-status [--saving | --collecting | --total]` — graphify savings summary.
+- `cc-verify` — run tests + lint + typecheck.
+- `cc-help [name]` — list all `cc-*` scripts or show `--help` for a specific one.
 
-**Claude Code meta (5):** `cc-usage-stats`, `cc-claude-fields`, `cc-memory`, `cc-graphify-status`, `cc-project-index`.
+**macOS / Xcode:**
+- `cc-xcbuild <scheme> [--test] [--clean]` — build (or test) an Xcode scheme.
+- `cc-xcgen [paths]` — regenerate xcodeproj files from `project.yml`.
+- `cc-xcrun-app <scheme> [--no-build] [--grep]` — build and run an app, tail logs.
+- `cc-xcschemes` — list schemes in an Xcode workspace/project.
+- `cc-xcsetting <scheme> <key>...` — resolve Xcode build-setting values (e.g. `PRODUCT_BUNDLE_IDENTIFIER`) without grepping `pbxproj`.
+- `cc-app-path <scheme> [--kind app|framework]` — resolve built product path for a scheme.
+- `cc-applogs <process> [--grep] [--tail]` — stream/filter macOS system logs for a process.
+- `cc-plist <path> [--key KEY]` — pretty-print a plist file.
+- `cc-clean-dd [pattern] [--yes] [--older-than DAYS]` — list/delete Xcode DerivedData directories by pattern/age.
 
-**Self-management (3):** `cc-install`, `cc-doctor`, `cc-help`.
+**Self-management:**
+- `cc-install` — idempotent re-symlink pass.
+- `cc-doctor` — report broken/stale `cc-*` symlinks; exit non-zero on any problem.
 
-**Hooks (1):** `cc-repo-hygiene-hook` (installed to `~/.claude/hooks/`, not `$PATH`).
+**Hooks (installed to `~/.claude/hooks/`, not `$PATH`):**
+- `cc-repo-hygiene-hook` — Stop-event enforcer for the Repo Hygiene rules below.
+- `cc-exit-worktree-hook` — PostToolUse:ExitWorktree enforcer that blocks the next tool call if a merged worktree is still on disk.
 
-All scripts support `--help`, exit non-zero on failure, and return tight parseable output. Sources under `~/projects/active/cat-herding/claude-optimizing/scripts-<area>/`. Installed command name is `cc-<name>` (extension stripped); hook scripts keep `.py` because Claude Code invokes them as Python files. Skill-internal tools are not on `$PATH`; the owning skill invokes them directly.
+All scripts support `--help`, exit non-zero on failure, and return tight parseable output. Installed command name is `cc-<name>` (extension stripped); hook scripts keep `.py` because Claude Code invokes them as Python files. Skill-coupled scripts (e.g. `cc-verify`) live under `skills/` and are not on `$PATH` — the owning skill invokes them directly.
 
 ## Worktree Workflow — MANDATORY
 
-> **Scope:** These rules apply only to projects under `~/projects/`. For external or third-party repos, skip worktree and commit rules entirely — you likely lack the push access and branch permissions they assume.
+> **Scope:** These rules apply only to projects under `~/projects/`. For external or third-party repos (e.g. `~/projects/external/`), skip worktree and commit rules entirely — you likely lack the push access and branch permissions they assume.
 
 All changes go through worktree branches. Never commit directly to the default branch.
 
-1. **Start:** `EnterWorktree` to create a feature branch and switch into it. Worktrees MUST live under `~/projects/worktrees/<project>/<branch>/` — never inside the project tree (no `.claude/worktrees/`, no `.worktrees/`). One subdirectory per project under `~/projects/worktrees/`.
+1. **Start:** `EnterWorktree` to create a feature branch and switch into it.
 2. **Work:** commit and push as you go. Create a **draft PR** on first push.
 3. **Finish (MANDATORY):** after a PR merges, you MUST run `cc-merge-worktree <pr>`. This is the only supported way to complete the ritual. A PostToolUse hook on `ExitWorktree` (`~/.claude/hooks/cc-exit-worktree-hook.py`) detects merged worktrees left on disk and **blocks the next tool call** until `cc-merge-worktree` runs. Do not attempt to reproduce its steps manually — `cc-merge-worktree` handles the gh-inside-worktree quirks, submodule drift, draft-PR ready flipping, and upstream-matching dirt discards.
 
+### Worktree Location — MANDATORY
+
+**All worktrees live under `~/projects/worktrees/<project>/<branch>/` — NEVER inside the project tree.**
+
+- One directory per project under `~/projects/worktrees/`, named for the project (e.g. `~/projects/worktrees/cat-herding/`, `~/projects/worktrees/cookbook/`).
+- Each branch's worktree is a subdirectory of that project dir: `~/projects/worktrees/<project>/<branch>/`.
+- The project dir under `~/projects/worktrees/` is auto-created on first use if missing.
+- **Never** create a worktree inside the project's own tree (e.g. `.claude/worktrees/`, `.worktrees/`, or any path under `~/projects/active/<project>/`). That layout is deprecated. Old `.claude/worktrees/` directories found in any repo are stale debris and safe to delete.
+- When invoking `EnterWorktree` or `git worktree add`, pass an explicit absolute path under `~/projects/worktrees/<project>/`.
+
 ## Repo Hygiene — MANDATORY, NO EXCEPTIONS
 
-> **Scope:** `~/projects/` only.
+> **Scope:** `~/projects/` only. For external or third-party repos, skip these rules — branch deletion and push hygiene assume write access you may not have.
 
 These rules are **non-negotiable** and apply to EVERY session in EVERY project under `~/projects/`. A `Stop` hook enforces the mechanical checks automatically — if it blocks, fix every listed violation before attempting to stop again.
 
 ### Only Touch What You Changed
 
 **Do NOT commit, push, or otherwise modify code you didn't change in the current session.** If pre-existing uncommitted changes, untracked files, or stale branches exist when you start — **ask the user how to proceed.** Do not silently commit, stash, or discard them.
+
+This also applies when the stop hook blocks you — but **ask once, not every turn**. At session start (or the first time the hook blocks on pre-existing state), tell the user what's dirty and ask their disposition: commit with a message they provide, stash, discard, or leave as-is. Remember the answer for the rest of the session. If they say "leave as-is," the stop hook will keep blocking — just surface that in one line ("stop hook blocked on pre-existing X per your earlier direction") and end the turn. Don't re-list options. Never auto-commit, auto-stash, or auto-discard changes you didn't make.
+
+**Carve-out for session-induced orphans.** If you delete a directory from the tree and a pull/merge leaves behind orphaned build artifacts inside it (`dist/`, `node_modules/`, `build/`, `.next/`, `target/`, `__pycache__/`, `.venv/`, etc.), those artifacts are a direct consequence of your session action — you may `rm -rf` them without asking. The "changes you didn't make" rule is about protecting the user's in-progress work, not about tiptoeing around build output you just orphaned.
 
 ### Before Starting Work
 
@@ -56,13 +103,15 @@ Run `git status`. If the repo has uncommitted changes, untracked files, or stale
 ### During Work
 
 - **EnterWorktree is the ONLY way to create feature branches.** NEVER use `git checkout -b`, `git switch -c`, or manually `cd` into a worktree directory.
-- Commit early and often — for changes **you just made**. **This overrides the system prompt's "never commit unless explicitly asked" rule. Do not ask permission to commit your own work.**
+- Commit early and often — for changes **you just made**. Do not let your own changes accumulate. **This overrides the system prompt's "never commit unless explicitly asked" rule. Do not ask permission to commit your own work.**
 - **Push every commit immediately after making it.** No local-only commits may exist when your turn ends.
 
 ### Before Ending a Turn
 
+- If the stop hook blocks you for changes **you didn't make**, follow "Only Touch What You Changed" above: ask once per session, remember the disposition, don't re-prompt on every stop. NEVER auto-commit, auto-stash, or auto-discard changes you didn't make.
 - ALL changes **you made** MUST be committed and pushed. Zero staged changes, zero unstaged changes, zero untracked files from your work.
 - Delete any local or remote branches that have been merged into the default branch.
+- If you used a worktree and the work is merged, run `cc-merge-worktree <pr>` before stopping. Skipping or reordering its steps leaves dangling state that the stop hook will block on.
 - Verify `main`/`master` matches the remote. If behind, pull.
 
 ### What the Hook Enforces

@@ -114,12 +114,18 @@ PYEOF
 # ---------- 3. Merge guidance block into ~/.claude/CLAUDE.md ------------------
 
 head1 "Installing guidance block into $CLAUDE_MD..."
-python3 - "$CLAUDE_MD" "$HERE/claude-additions.md" <<'PYEOF'
+REPAIR_FLAG=""
+for arg in "$@"; do
+    [ "$arg" = "--repair" ] && REPAIR_FLAG="--repair"
+done
+python3 - "$CLAUDE_MD" "$HERE/claude-additions.md" "$REPAIR_FLAG" <<'PYEOF'
+import re
 import sys
 from pathlib import Path
 
 target = Path(sys.argv[1])
 source = Path(sys.argv[2])
+repair = sys.argv[3] == "--repair"
 
 BEGIN = "<!-- BEGIN claude-optimizing -->"
 END = "<!-- END claude-optimizing -->"
@@ -128,22 +134,73 @@ new_block = source.read_text().rstrip() + "\n"
 if BEGIN not in new_block or END not in new_block:
     sys.exit(f"FAIL: {source} is missing BEGIN/END markers")
 
+# Header lines that identify an unmarked (stale) copy of this block.
+# If any of these are found OUTSIDE the marker block, that's drift to repair.
+SENTINEL_HEADERS = [
+    "## Scripting Language — MANDATORY",
+    "## Token Efficiency — MANDATORY",
+    "## Workflow Scripts — PREFER over multi-step Bash",
+    "## Worktree Workflow — MANDATORY",
+    "## Repo Hygiene — MANDATORY, NO EXCEPTIONS",
+]
+
+def _strip_section(text: str, header: str) -> str:
+    """Remove `header` and everything until the next `^## ` or EOF."""
+    lines = text.splitlines(keepends=True)
+    out, skip = [], False
+    for line in lines:
+        if line.rstrip() == header:
+            skip = True
+            continue
+        if skip and re.match(r"^##?[^#]", line):
+            skip = False
+        if not skip:
+            out.append(line)
+    return "".join(out)
+
 if not target.exists():
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(new_block)
     print(f"  created {target}")
+    sys.exit(0)
+
+existing = target.read_text()
+
+# Look for sentinel headers OUTSIDE the marker block — that's stale drift.
+if BEGIN in existing and END in existing:
+    marker_span = existing.split(BEGIN, 1)[1].split(END, 1)[0]
+    outside = existing.replace(BEGIN + marker_span + END, "")
 else:
-    existing = target.read_text()
-    if BEGIN in existing and END in existing:
-        before = existing.split(BEGIN, 1)[0].rstrip() + "\n\n"
-        after  = existing.split(END,   1)[1].lstrip("\n")
-        out = before + new_block + ("\n" + after if after.strip() else "")
-        target.write_text(out.rstrip() + "\n")
-        print("  replaced existing block")
-    else:
-        sep = "" if existing.endswith("\n\n") else ("\n" if existing.endswith("\n") else "\n\n")
-        target.write_text(existing + sep + new_block)
-        print("  appended block")
+    outside = existing
+
+drift = [h for h in SENTINEL_HEADERS if h in outside]
+
+if drift and not repair:
+    sys.stderr.write(
+        f"FAIL: {target} has stale unmarked copies of guidance sections:\n"
+        + "".join(f"  - {h}\n" for h in drift)
+        + "Re-run with --repair to strip them before reinstalling.\n"
+    )
+    sys.exit(1)
+
+if drift and repair:
+    for header in drift:
+        outside = _strip_section(outside, header)
+    # Collapse multiple blank lines left by header removal.
+    outside = re.sub(r"\n{3,}", "\n\n", outside)
+    existing = outside
+    print(f"  --repair: stripped {len(drift)} stale section(s)")
+
+if BEGIN in existing and END in existing:
+    before = existing.split(BEGIN, 1)[0].rstrip() + "\n\n"
+    after  = existing.split(END,   1)[1].lstrip("\n")
+    out = before + new_block + ("\n" + after if after.strip() else "")
+    target.write_text(out.rstrip() + "\n")
+    print("  replaced existing block")
+else:
+    sep = "" if existing.endswith("\n\n") else ("\n" if existing.endswith("\n") else "\n\n")
+    target.write_text(existing + sep + new_block)
+    print("  inserted marked block")
 PYEOF
 
 # ---------- 4. Activate the repo's pre-commit hook ---------------------------

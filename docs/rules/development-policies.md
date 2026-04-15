@@ -100,9 +100,7 @@ If a repo requires steps a developer must take to use it — automated scripts, 
 
 ## Scripting Language
 
-**Always use Python for scripts.** NEVER write bash/shell scripts (.sh). This includes hooks, utilities, automation, build helpers, and any standalone script. If an existing bash script needs modification, rewrite it in Python.
-
-**Exceptions:** `install.sh`, `uninstall.sh`, and `setup.sh` may be written as shell scripts.
+Python-only rule is canonical in the global `claude-optimizing` guidance block (`~/.claude/CLAUDE.md`) — see that block for the mandate and `.sh` exceptions.
 
 **Python version:** Target Python 3.12 as the minimum. Install via `brew install python@3.12`.
 
