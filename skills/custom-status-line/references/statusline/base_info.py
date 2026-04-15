@@ -591,14 +591,20 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
 
     rows.append(Row(sc1, sc2, sc3, sc4))
 
+    # Week-over-week comparison (show 3 variants so user can pick)
+    wed_10am = get_wed_10am()
+    week_rows = get_week_comparison_rows(wed_10am, datetime.now())
+
+    # "Usage" section: rate-limit rows (if rate_limits present) and/or the
+    # week-over-week comparison row. Heading sits above whichever rows exist
+    # so the weekly-spend context is always visually grouped.
+    if usage_cols or week_rows:
+        rows.append(Row(f"{DIM}Usage{RST}", heading=True))
     if usage_cols:
         uc1, uc2, uc3, uc4, uc5, uc6, uc7 = usage_cols
         rows.append(Row(uc1, uc4, uc5, uc6))
         rows.append(Row(uc3, uc2, uc7))
-
-    # Week-over-week comparison (show 3 variants so user can pick)
-    wed_10am = get_wed_10am()
-    for r in get_week_comparison_rows(wed_10am, datetime.now()):
+    for r in week_rows:
         rows.append(r)
 
     # --- Non-columnar output ---
