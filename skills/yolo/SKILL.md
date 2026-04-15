@@ -140,7 +140,7 @@ If the user selects "No, cancel", print "YOLO hooks not installed." and stop.
 ### Step 3: Run install script
 
 ```bash
-bash ${CLAUDE_SKILL_DIR}/references/yolo-install.sh "${CLAUDE_SKILL_DIR}"
+bash ${CLAUDE_SKILL_DIR}/install.sh
 ```
 
 ### Step 4: Report result
@@ -164,7 +164,7 @@ Removes YOLO hooks from settings.json, deletes hook scripts, and removes the sta
 ### Step 1: Run uninstall script (without --all first, to check)
 
 ```bash
-bash ${CLAUDE_SKILL_DIR}/references/yolo-uninstall.sh
+bash ${CLAUDE_SKILL_DIR}/uninstall.sh
 ```
 
 If `{"status":"not_installed"}`, print "YOLO hooks are not installed. Nothing to remove." and stop.
@@ -183,7 +183,7 @@ Use AskUserQuestion:
 If "Yes", run:
 
 ```bash
-bash ${CLAUDE_SKILL_DIR}/references/yolo-uninstall.sh --all
+bash ${CLAUDE_SKILL_DIR}/uninstall.sh --all
 ```
 
 Print: "Session data removed."

@@ -5,7 +5,7 @@ This doc walks through reproducing **everything in this repo that influences how
 Two layers are involved:
 
 1. **This repo** (auto-installed via `./install.sh`): 31 `cc-*` workflow scripts, the pre-commit syntax check, and the `/home/.local/bin` wiring.
-2. **Global state** that lives outside this repo (user has to stage manually): `~/.claude/CLAUDE.md` policy, `~/.claude/hooks/*` enforcement, the global `~/.claude/settings.json` hook registration, and a handful of Claude Code plugins.
+2. **Global state** that lives outside this repo (user has to stage manually): `~/.claude/CLAUDE.md` policy, `~/.claude/hooks/*` enforcement, and the global `~/.claude/settings.json` hook registration.
 
 Follow the sections in order.
 
@@ -52,7 +52,7 @@ What `install.sh` does:
 
 - Symlinks `skills/*` into `~/.claude/skills/` (distributable skills — `custom-status-line`, `yolo` — excluded from the scope of this doc, but installed alongside).
 - Runs `uv tool install -e` for every `skills/*/*/pyproject.toml` (CLI skills).
-- Copies every `cc-*.py` from each category dir (`scripts-git/`, `scripts-bash/`, `scripts-xcode/`, `scripts-claude/`, `scripts-meta/`, `scripts-hooks/`) and `skill-scripts/` into `~/.local/bin/cc-*` (extension stripped). `cc-*-hook.py` files route to `~/.claude/hooks/` instead.
+- Copies every `cc-*.py` from each `claude-optimizing/scripts-<area>/` dir (git, bash, xcode, claude, meta, hooks) into `~/.local/bin/cc-*` (extension stripped). `cc-*-hook.py` files route to `~/.claude/hooks/` instead. Skill-internal tools are invoked directly by their skill and never go on `$PATH`.
 - Activates the repo's pre-commit hook: `git config core.hooksPath .githooks`.
 
 Verify:
@@ -90,7 +90,7 @@ Always use Python for scripts. Never write bash/shell scripts (.sh). Exceptions:
 ## Workflow Scripts — PREFER over multi-step Bash
 
 The `cc-*` scripts (installed to `~/.local/bin/` from
-`~/projects/active/cat-herding/scripts/` and `.../skill-scripts/`) collapse
+`~/projects/active/cat-herding/claude-optimizing/scripts-*/`) collapse
 common multi-step Bash rituals into single calls. Use them instead of raw
 git/gh sequences whenever the scenario matches:
 
@@ -106,8 +106,9 @@ git/gh sequences whenever the scenario matches:
 - `cc-help` — catalog with summaries
 
 All scripts support `--help`, exit non-zero on failure, and return tight
-parseable output. Source: `~/projects/active/cat-herding/scripts/` (general
-workflow) and `~/projects/active/cat-herding/skill-scripts/` (skill-coupled).
+parseable output. Source: `~/projects/active/cat-herding/claude-optimizing/scripts-*/`
+(hook scripts routed to `~/.claude/hooks/`). Skill-internal tools live under
+each skill's own `scripts/` subdir and are not on `$PATH`.
 
 ## Worktree Workflow — MANDATORY
 
@@ -169,44 +170,45 @@ Claude re-reads `CLAUDE.md` at session start, so restart any running `claude` se
 
 ## 3. Global hooks — vendored in this repo, auto-installed
 
-Both hooks are now checked into this repo and installed automatically. No manual copies.
+Three hooks are vendored and installed automatically. No manual copies.
 
 ### 3.1 `cc-repo-hygiene-hook.py` (Stop hook — the enforcer)
 
-Source: `scripts-hooks/cc-repo-hygiene-hook.py`.
-Installed by `./install.sh` (step 1) to `~/.claude/hooks/cc-repo-hygiene-hook.py`.
+Source: `claude-optimizing/scripts-hooks/cc-repo-hygiene-hook.py`.
+Installed by `./install.sh` (claude-optimizations component) to `~/.claude/hooks/cc-repo-hygiene-hook.py`.
 The `*-hook` suffix tells the installer to route the file into Claude Code's
 hooks directory (where the harness invokes it via stdin) rather than onto
 `$PATH` (where it would make no sense as a CLI command).
 
-Reads JSON from stdin (Claude Code hook protocol), runs several `git` queries against the session's `cwd`, and exits non-zero with a diagnostic message if the repo is dirty — blocking the turn from ending.
+Reads JSON from stdin, runs several `git` queries against the session's `cwd`, exits non-zero with a diagnostic if the repo is dirty — blocking the turn from ending.
 
-Behavior summary:
+Behaviour:
 - Parse stdin JSON, early-exit if `stop_hook_active` is set (re-entry guard).
 - Compute `cwd`; early-exit unless cwd is under `$HOME/projects/`.
 - Run `git status --porcelain`, `git branch --merged <default>`, `git rev-list`, `git worktree list` to check each of the 6 conditions in section 2.1.
 - If any fail, print a human-readable diagnostic to stderr and exit 2 (block).
 
-### 3.2 `session-tracker.py`
+### 3.2 `cc-exit-worktree-hook.py` (PostToolUse:ExitWorktree — the imperative)
+
+Source: `claude-optimizing/scripts-hooks/cc-exit-worktree-hook.py`.
+Installed by `./install.sh` (claude-optimizations component) to `~/.claude/hooks/cc-exit-worktree-hook.py`.
+
+Fires right after any `ExitWorktree` call. Detects the "I ran ExitWorktree but skipped `cc-merge-worktree`" case: a non-default-branch worktree still exists on disk **and** its branch is already merged into `origin/<default>`. In that case the hook exits 2 with a diagnostic pointing at the exact `cc-merge-worktree <pr>` to run — blocking Claude's next tool call until the cleanup finishes.
+
+Complements the Stop hook: Stop catches leftover worktree mess at turn-end; this one catches it immediately, so Claude resolves the problem in the next tool call rather than at the end of a long turn.
+
+### 3.3 `session-tracker.py`
 
 Source: `skills/custom-status-line/references/hooks/session-tracker.py`.
-Installed by `cc-install-statusline` to `~/.claude/hooks/session-tracker.py`.
+Installed by `skills/custom-status-line/install.sh` (custom-status-line component) to `~/.claude/hooks/session-tracker.py`.
 
-Writes per-session JSON markers to `~/.claude-status-line/sessions/` on SessionStart / UserPromptSubmit / Stop / SessionEnd. Powers the `all sessions | N active | M thinking | K waiting` row in the status line. Installed alongside the status line because it's purely status-line-state plumbing.
-
-Run once after the skill is set up:
-
-```bash
-cc-install-statusline           # copies statusline + hooks in one call
-```
+Writes per-session JSON markers to `~/.claude-status-line/sessions/` on SessionStart / UserPromptSubmit / Stop / SessionEnd. Powers the `all sessions | N active | M thinking | K waiting` row in the status line. Installed alongside the status line because it's purely status-line plumbing.
 
 ---
 
 ## 4. Global hook registration — `~/.claude/settings.json`
 
-The hooks above don't fire unless Claude Code is told to call them. Register the Stop hook (and the session tracker on relevant events) in your global settings.
-
-Open `~/.claude/settings.json` and ensure the `hooks` object contains these event groups — preserve any other groups (observability tools, plugins) already present:
+Hooks don't fire unless Claude Code is told to call them. `./install.sh` patches `~/.claude/settings.json` idempotently — the end state looks like the JSON below (preserve any other groups, e.g. observability tools or other plugins, already present):
 
 ```json
 {
@@ -222,6 +224,15 @@ Open `~/.claude/settings.json` and ensure the `hooks` object contains these even
         "hooks": [
           { "type": "command",
             "command": "python3 $HOME/.claude/hooks/session-tracker.py Stop" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "ExitWorktree",
+        "hooks": [
+          { "type": "command",
+            "command": "/usr/bin/python3 $HOME/.claude/hooks/cc-exit-worktree-hook.py" }
         ]
       }
     ],
@@ -281,28 +292,7 @@ Repeat for every repo under `~/projects/` where you want the same convenience. A
 
 ---
 
-## 6. Claude Code plugins that add git/bash surface
-
-These are optional but recommended — they plug in slash-commands, PR-review agents, and process skills that guide git flows. Install via Claude Code's plugin manager:
-
-```bash
-# In a Claude Code session (or via `claude plugin install` if supported headless):
-/plugin install commit-commands@claude-plugins-official      # /commit, /commit-push-pr, /clean_gone
-/plugin install github@claude-plugins-official               # gh PR/issue helpers
-/plugin install pr-review-toolkit@claude-plugins-official    # review-pr + specialist review agents
-/plugin install superpowers@claude-plugins-official          # using-git-worktrees, finishing-a-development-branch, executing-plans, writing-plans, etc.
-```
-
-Disable plugins you don't want:
-
-```bash
-/plugin disable security-guidance@claude-plugins-official
-/plugin disable vercel@claude-plugins-official
-```
-
----
-
-## 7. Verify end-to-end
+## 6. Verify end-to-end
 
 ```bash
 # Scripts
@@ -334,10 +324,9 @@ If any step fails, re-read the corresponding section above — each one is isola
 cd ~/projects/active/cat-herding
 ./uninstall.sh                    # removes cc-* symlinks, unsymlinks skills, uninstalls CLIs
 # cc-repo-hygiene-hook is a symlink — removed by uninstall.sh above
-rm ~/.claude/hooks/session-tracker.py    # installed by cc-install-statusline
+rm ~/.claude/hooks/session-tracker.py    # installed by skills/custom-status-line/install.sh
 # Remove the `hooks` entries you added in section 4 from ~/.claude/settings.json
 # Remove repo/.claude/settings.local.json if you don't want auto-approvals
 git -C ~/projects/active/cat-herding config --unset core.hooksPath
 ```
 
-Plugins can be removed via `/plugin uninstall <name>@<marketplace>`.

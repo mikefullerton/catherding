@@ -1,49 +1,72 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# Top-level uninstaller. Prompts [Y/n] for each of the three components.
+# Pass --yes to accept every prompt, --no to decline, or answer interactively.
+# Non-tty stdin defaults to --yes.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 SKILLS_DIR="$HOME/.claude/skills"
 
-echo "Removing skills..."
-for skill in "$REPO_DIR"/skills/*/; do
-    name="$(basename "$skill")"
-    target="$SKILLS_DIR/$name"
-    if [ -L "$target" ] && [ "$(readlink "$target")" = "$skill" ]; then
+mode="ask"
+if [ ! -t 0 ]; then
+    mode="yes"   # non-interactive default; explicit --no/--yes overrides below
+fi
+case "${1:-}" in
+    --yes|-y) mode="yes" ;;
+    --no|-n)  mode="no"  ;;
+esac
+
+confirm() {
+    local prompt="$1"
+    case "$mode" in
+        yes) echo "  $prompt [Y/n] yes (--yes)"; return 0 ;;
+        no)  echo "  $prompt [Y/n] no (--no)";   return 1 ;;
+    esac
+    local ans
+    read -r -p "  $prompt [Y/n] " ans
+    case "${ans,,}" in
+        ""|y|yes) return 0 ;;
+        *)        return 1 ;;
+    esac
+}
+
+uninstall_skill() {
+    local name="$1"
+    local skill_dir="$REPO_DIR/skills/$name"
+    local target="$SKILLS_DIR/$name"
+
+    if [ -L "$target" ] && [ "$(readlink "$target")" = "$skill_dir" ]; then
         rm "$target"
-        echo "  $name"
+        echo "    unsymlinked ~/.claude/skills/$name"
     elif [ -L "$target" ]; then
-        echo "  SKIP $name (symlink points elsewhere)"
+        echo "    SKIP unsymlink (points elsewhere: $(readlink "$target"))"
     else
-        echo "  SKIP $name (not installed)"
+        echo "    SKIP unsymlink (not installed)"
     fi
-done
+}
 
 echo ""
-echo "Removing CLIs..."
-for pyproject in "$REPO_DIR"/skills/*/*/pyproject.toml; do
-    [ -f "$pyproject" ] || continue
-    pkg_name="$(grep '^name' "$pyproject" | head -1 | sed 's/.*= *"\(.*\)"/\1/')"
-    if uv tool list 2>/dev/null | grep -q "^$pkg_name "; then
-        echo "  $pkg_name"
-        uv tool uninstall "$pkg_name" 2>&1 | sed 's/^/    /'
-    else
-        echo "  SKIP $pkg_name (not installed)"
-    fi
-done
-
+echo "cat-herding uninstaller — three independent components:"
+echo "  1. Claude optimizations"
+echo "  2. Custom status line"
+echo "  3. YOLO mode"
 echo ""
-echo "Removing workflow scripts from ~/.local/bin/cc-*..."
-for script in "$REPO_DIR"/scripts/*.py; do
-    [ -f "$script" ] || continue
-    name="$(basename "$script" .py)"
-    target="$HOME/.local/bin/cc-$name"
-    if [ -e "$target" ] || [ -L "$target" ]; then
-        rm "$target"
-        echo "  cc-$name"
-    else
-        echo "  SKIP cc-$name (not installed)"
-    fi
-done
+
+if confirm "Uninstall Claude optimizations?"; then
+    "$REPO_DIR/claude-optimizing/uninstall.sh"
+fi
+
+if confirm "Uninstall custom status line?"; then
+    echo "Removing custom-status-line..."
+    "$REPO_DIR/skills/custom-status-line/uninstall.sh" 2>&1 | sed 's/^/    /'
+    uninstall_skill "custom-status-line"
+fi
+
+if confirm "Uninstall YOLO?"; then
+    echo "Removing yolo..."
+    "$REPO_DIR/skills/yolo/uninstall.sh" 2>&1 | sed 's/^/    /'
+    uninstall_skill "yolo"
+fi
 
 echo ""
 echo "Done."
