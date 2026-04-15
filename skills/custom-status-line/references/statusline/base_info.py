@@ -261,12 +261,13 @@ def get_week_comparison_rows(wed_10am: datetime, now: datetime):
 
     from statusline.formatting import Row
 
-    return [Row(
-        "usage last week",
-        f"{last_tok} / {last_cost_s}",
-        f"this wk: {this_tok} / {this_cost_s}",
-        delta_str,
-    )]
+    # Split into two rows so the week-over-week comparison has breathing
+    # room: primary row is last week's totals, new last row surfaces this
+    # week's totals alongside the %-delta in cols 0/1.
+    return [
+        Row("usage last week", f"{last_tok} / {last_cost_s}"),
+        Row(f"this wk: {this_tok} / {this_cost_s}", delta_str),
+    ]
 
 
 def query_daily_costs(db: sqlite3.Connection, since_str: str) -> dict:
