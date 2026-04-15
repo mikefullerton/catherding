@@ -16,8 +16,8 @@ import sys
 from pathlib import Path
 
 def _find_repo_root() -> Path:
-    """Locate the cat-herding repo — see install-statusline.py for rationale."""
-    marker = Path("scripts/cc-install.py")
+    """Locate the cat-herding repo by walking up from cwd for a marker."""
+    marker = Path("claude-optimizing/scripts-meta/cc-install.py")
     p = Path.cwd().resolve()
     for candidate in (p, *p.parents):
         if (candidate / marker).is_file():
