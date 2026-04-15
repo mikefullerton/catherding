@@ -109,7 +109,12 @@ class TestRunOutputStructure:
         mock_git.return_value = ""
         from statusline.base_info import run
         lines = run(make_claude_data(), [])
-        assert "Opus" in lines[2] or "opus" in lines[2].lower()
+        # Model name appears in the "Claude" section heading row now, and the
+        # data row beneath it is labeled "Current Session". Search the whole
+        # rendered output rather than a positional index.
+        blob = "\n".join(lines).lower()
+        assert "opus" in blob
+        assert "current session" in blob
 
     @patch("statusline.base_info.git_cmd")
     @patch("statusline.base_info.log_to_db")

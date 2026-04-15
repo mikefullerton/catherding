@@ -518,7 +518,7 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
     else:
         mc3 = f"{pct_display} / {ctx_label} ctx"
 
-    # YOLO indicator (trailing on line 3)
+    # YOLO indicator (trailing on the model row)
     yolo_col = ""
     if session_id:
         yolo_path = os.path.expanduser(f"~/.claude-yolo-sessions/{session_id}.json")
@@ -584,11 +584,20 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
             warning_text = ""
         rows.append(Row(gs2, gs3, gs4, trailing=warning_text))
 
-    # "Claude" section: model row, all-sessions row, and version-tracker
-    # upgrade rows (from version_check) grouped together under one heading.
-    rows.append(Row(f"{ORANGE}Claude{RST}", heading=True))
+    # "Claude" section: heading includes the model name (colored like the
+    # data-row label below) plus the running Claude CLI version, so the
+    # whole header reads at a glance as "Claude <Model> v<X.Y.Z>".
+    claude_version = claude.get("version") or ""
+    header_bits = [f"{ORANGE}Claude{RST}", mc1]
+    if claude_version:
+        header_bits.append(f"{ORANGE}v{claude_version}{RST}")
+    rows.append(Row(" ".join(header_bits), heading=True))
 
-    model_row = Row(mc1, mc2, mc3)
+    # The model row no longer repeats the model name in col 0 — "Current
+    # Session" makes it clear that mc2/mc3 (duration, context usage) belong
+    # to the session rather than the model itself.
+    current_session_label = f"{DIM}Current Session{RST}"
+    model_row = Row(current_session_label, mc2, mc3)
     if yolo_col:
         model_row.columns.append(yolo_col)
     rows.append(model_row)
