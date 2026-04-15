@@ -80,10 +80,10 @@ Every script supports `--help`. Exit codes are always meaningful.
 | Command | Purpose |
 |---|---|
 | `cc-usage-stats [--today\|--week\|--last-week\|--compare\|--history N]` | Token / cost stats from `~/.claude/usage.db`. |
-| `cc-memory list` / `cc-memory add <type> <name> --description ...` | Manage per-project auto-memory (writes file + updates `MEMORY.md` atomically). |
+| `cc-claude-fields [--list\|--diff V1 V2\|--blob V\|--new-since V]` | Inspect stored Claude version field blobs in `~/claude-usage.db`. |
 | `cc-project-index [--filter graphify\|git\|worktrees\|stale]` | Find projects under `~/projects/` by criteria. |
 
-Two cc-* commands in the same namespace — `cc-claude-fields` and `cc-graphify-status` — are installed by the [graphify](~/projects/external/graphify) project, not by this repo. They read state the graphify pipeline populates and are managed by graphify's own installer. `cc-doctor` ignores any cc-* symlink whose target sits outside this repo, so those two entries won't show up as stale here.
+Two cc-* commands in the same namespace — `cc-graphify-status` and `cc-memory` — are installed by the [graphify](~/projects/external/graphify) project, not by this repo. `cc-doctor` ignores any cc-* symlink whose target sits outside this repo, so those entries won't show up as stale here.
 
 ### macOS / Xcode — `scripts-xcode/` (9)
 

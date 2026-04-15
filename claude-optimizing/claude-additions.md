@@ -21,7 +21,7 @@ The `cc-*` scripts (installed to `~/.local/bin/` from the cat-herding repo) coll
 
 **macOS / Xcode (9):** `cc-xcgen`, `cc-xcbuild`, `cc-xcschemes`, `cc-xcsetting`, `cc-xcrun-app`, `cc-app-path`, `cc-applogs`, `cc-plist`, `cc-clean-dd`.
 
-**Claude Code meta (3):** `cc-usage-stats`, `cc-memory`, `cc-project-index`.
+**Claude Code meta (3):** `cc-usage-stats`, `cc-claude-fields`, `cc-project-index`.
 
 **Self-management (3):** `cc-install`, `cc-doctor`, `cc-help`.
 

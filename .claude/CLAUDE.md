@@ -11,7 +11,7 @@ claude-optimizing/         # Self-contained Claude-Code tooling layer (guidance 
   scripts-git/             # Git / PR workflow (cc-merge-worktree, cc-commit-push, …)
   scripts-bash/            # Shell helpers (cc-grep, cc-rename)
   scripts-xcode/           # macOS / Xcode (cc-xcbuild, cc-xcgen, cc-applogs, …)
-  scripts-claude/          # Claude Code meta (cc-usage-stats, cc-memory, cc-project-index)
+  scripts-claude/          # Claude Code meta (cc-usage-stats, cc-claude-fields, cc-project-index)
   scripts-meta/            # Self-management (cc-install, cc-doctor, cc-help)
   scripts-hooks/           # Claude Code hook scripts (cc-*-hook.py → ~/.claude/hooks/)
   claude-additions.md      # Guidance block appended to ~/.claude/CLAUDE.md by install.sh
