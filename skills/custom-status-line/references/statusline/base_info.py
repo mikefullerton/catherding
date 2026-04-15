@@ -262,11 +262,12 @@ def get_week_comparison_rows(wed_10am: datetime, now: datetime):
     from statusline.formatting import Row
 
     # Split into two rows so the week-over-week comparison has breathing
-    # room: primary row is last week's totals, new last row surfaces this
-    # week's totals alongside the %-delta in cols 0/1.
+    # room. Each row: label | tokens-and-cost | (delta on "this week" row).
+    # Matching (label, value) column layout on both rows keeps the token /
+    # cost figures stacked in a shared col 1.
     return [
         Row("usage last week", f"{last_tok} / {last_cost_s}"),
-        Row(f"this wk: {this_tok} / {this_cost_s}", delta_str),
+        Row("this week", f"{this_tok} / {this_cost_s}", delta_str),
     ]
 
 
