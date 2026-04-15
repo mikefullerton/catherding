@@ -590,7 +590,8 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
     claude_version = claude.get("version") or ""
     header_bits = [f"{ORANGE}Claude{RST}"]
     if claude_version:
-        header_bits.append(f"{DIM}v{claude_version}{RST}")
+        header_bits.append(f"{DIM}(v{claude_version}){RST}")
+    header_bits.append(f"{DIM}-{RST}")
     header_bits.append(mc1)
     rows.append(Row(" ".join(header_bits), heading=True))
 
