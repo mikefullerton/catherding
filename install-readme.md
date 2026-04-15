@@ -1,6 +1,6 @@
 # Reproducing the Git + Bash Setup on a Clean Machine
 
-This doc walks through reproducing **everything in this repo that influences how Claude Code issues git and bash commands** on a fresh machine. It does **not** cover graphify, status-line, or YOLO setup — each of those has its own install path (`/custom-status-line install`, `/yolo`, etc.).
+This doc walks through reproducing **everything in this repo that influences how Claude Code issues git and bash commands** on a fresh machine. It does **not** cover graphify or YOLO setup — each of those has its own install path (`/yolo`, etc.). The `custom-status-line` skill moved to the stenographer repo.
 
 Two layers are involved:
 
@@ -50,7 +50,7 @@ cd ~/projects/active/cat-herding
 
 What `install.sh` does:
 
-- Symlinks `skills/*` into `~/.claude/skills/` (distributable skills — `custom-status-line`, `yolo` — excluded from the scope of this doc, but installed alongside).
+- Symlinks `skills/*` into `~/.claude/skills/` (distributable skill — `yolo` — excluded from the scope of this doc, but installed alongside).
 - Runs `uv tool install -e` for every `skills/*/*/pyproject.toml` (CLI skills).
 - Copies every `cc-*.py` from each `claude-optimizing/scripts-<area>/` dir (git, bash, xcode, claude, meta, hooks) into `~/.local/bin/cc-*` (extension stripped). `cc-*-hook.py` files route to `~/.claude/hooks/` instead. Skill-internal tools are invoked directly by their skill and never go on `$PATH`.
 - Activates the repo's pre-commit hook: `git config core.hooksPath .githooks`.
@@ -199,10 +199,7 @@ Complements the Stop hook: Stop catches leftover worktree mess at turn-end; this
 
 ### 3.3 `session-tracker.py`
 
-Source: `skills/custom-status-line/references/hooks/session-tracker.py`.
-Installed by `skills/custom-status-line/install.sh` (custom-status-line component) to `~/.claude/hooks/session-tracker.py`.
-
-Writes per-session JSON markers to `~/.claude-status-line/sessions/` on SessionStart / UserPromptSubmit / Stop / SessionEnd. Powers the `all sessions | N active | M thinking | K waiting` row in the status line. Installed alongside the status line because it's purely status-line plumbing.
+Lives in the stenographer repo under `skills/custom-status-line/references/hooks/session-tracker.py` and installs to `~/.claude/hooks/session-tracker.py` via that skill's `install.sh`.
 
 ---
 
@@ -324,7 +321,7 @@ If any step fails, re-read the corresponding section above — each one is isola
 cd ~/projects/active/cat-herding
 ./uninstall.sh                    # removes cc-* symlinks, unsymlinks skills, uninstalls CLIs
 # cc-repo-hygiene-hook is a symlink — removed by uninstall.sh above
-rm ~/.claude/hooks/session-tracker.py    # installed by skills/custom-status-line/install.sh
+rm ~/.claude/hooks/session-tracker.py    # installed by stenographer's skills/custom-status-line/install.sh
 # Remove the `hooks` entries you added in section 4 from ~/.claude/settings.json
 # Remove repo/.claude/settings.local.json if you don't want auto-approvals
 git -C ~/projects/active/cat-herding config --unset core.hooksPath

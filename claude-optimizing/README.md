@@ -18,7 +18,7 @@ claude-optimizing/
 └── scripts-hooks/   (2)  ← Claude Code hook scripts (cc-*-hook.py)
 ```
 
-Skill-internal tools that only make sense inside a specific skill's runtime live under that skill's own `scripts/` subdir — e.g. [`../skills/custom-status-line/scripts/`](../skills/custom-status-line/scripts/) holds `verify.py`, `claude-fields.py`, and `graphify-status.py`. Those are invoked directly by the skill (not on `$PATH`, no `cc-` prefix).
+Skill-internal tools that only make sense inside a specific skill's runtime live under that skill's own `scripts/` subdir. Those are invoked directly by the skill (not on `$PATH`, no `cc-` prefix).
 
 ## Design principles
 
@@ -115,15 +115,6 @@ Every script supports `--help`. Exit codes are always meaningful.
 
 Both are symlinked into `~/.claude/hooks/` by `install.sh` and registered in `~/.claude/settings.json` (Stop event / PostToolUse event respectively).
 
-### Skill-internal tools
-
-Not on `$PATH`. Invoked directly by their owning skill.
-
-- [`../skills/custom-status-line/install.sh`](../skills/custom-status-line/install.sh) — deploys the status-line runtime + session-tracker hook. Wraps `references/` copies.
-- [`../skills/custom-status-line/scripts/verify.py`](../skills/custom-status-line/scripts/verify.py) — status-line pytest + lint + typecheck runner.
-- [`../skills/custom-status-line/scripts/claude-fields.py`](../skills/custom-status-line/scripts/claude-fields.py) — inspects Claude version field blobs in `~/claude-usage.db` (written by the status-line pipeline).
-- [`../skills/custom-status-line/scripts/graphify-status.py`](../skills/custom-status-line/scripts/graphify-status.py) — reads `~/.claude-status-line/graphify-savings-cache.json`.
-
 ## Adding a new script
 
 1. Pick the right category dir. If none fits, create a new `claude-optimizing/scripts-<area>/` — the installer globs `scripts-*/`, so no loop updates are needed.
@@ -135,4 +126,3 @@ Not on `$PATH`. Invoked directly by their owning skill.
 ## Related
 
 - [`../install-readme.md`](../install-readme.md) — end-to-end reproduction guide for the full repo setup on a clean machine (this directory's `install.sh` automates sections 0/2/3/4 plus the pre-commit activation).
-- [`../skills/custom-status-line/scripts/`](../skills/custom-status-line/scripts/) — skill-internal tools paired with the status-line (no cc- prefix, not on `$PATH`).

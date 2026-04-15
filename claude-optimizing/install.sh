@@ -5,9 +5,8 @@
 # CLAUDE.md guidance), 3 (vendor hooks + symlinks), 4 (hook registration in
 # settings.json), and the pre-commit activation from section 1.
 #
-# Does NOT install the custom-status-line or yolo skills — those are user-facing
-# skills under `skills/` at the repo root, installed by the repo's top-level
-# install.sh (and by `skills/custom-status-line/install.sh` for the status-line).
+# Does NOT install the yolo skill — that's a user-facing skill under `skills/`
+# at the repo root, installed by the repo's top-level install.sh.
 # Does NOT install Claude Code plugins (commit-commands, github, etc.) — those
 # require the `/plugin install` flow from inside a live Claude session.
 #
@@ -179,8 +178,7 @@ head1 "Done."
 cat <<'EOF'
 
 Not covered by this script (run from the repo root if needed):
-  • Status line + session-tracker hook — ./skills/custom-status-line/install.sh
-  • YOLO mode                          — ./skills/yolo/install.sh
+  • YOLO mode — ./skills/yolo/install.sh
   • Per-repo Bash allow-list — create .claude/settings.local.json in each repo:
         { "permissions": { "allow": ["Bash(git add:*)","Bash(git commit:*)",
           "Bash(git push:*)","Bash(git:*)","Bash(cp:*)"] } }

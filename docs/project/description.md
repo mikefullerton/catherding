@@ -8,7 +8,7 @@ Cat Herding provides personal workflow extensions for Claude Code: YOLO mode for
 
 ## Key Features
 
-- 2 distributable skills (yolo, custom-status-line)
+- 1 distributable skill (yolo)
 - Internal skills for linting and authoring (lint-skill, lint-rule, lint-agent, optimize-rules, etc.)
 - Configuration rules for CLI versioning and plugin development
 
