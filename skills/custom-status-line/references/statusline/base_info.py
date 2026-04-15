@@ -532,14 +532,29 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
                 gs4 = f"main: {_c(commits, UP)}{_c(behind_main, DN)}"
 
     # LINE 3 — model (col1=model, col2=duration, col3=context)
-    ctx_size = int(_cw.get("context_window_size") or 200000)
-    # `(extended)` should only render when the window really is the 1M extended
-    # one. A 200k window with exceeds_200k_tokens=true is internally
-    # contradictory — treat the flag as meaningful only on >200k windows.
-    exceeds_200k = bool(claude.get("exceeds_200k_tokens")) and ctx_size > 200000
-    ctx_label = "1M" if ctx_size > 200000 else "200k"
-    used_pct = 100 - rem_pct
-    pct_display = f"{used_pct}%" if rem_pct_known else "?%"
+    # When `exceeds_200k_tokens` is True the session is in the 1M extended-context
+    # window, but Claude Code's payload often still reports context_window_size=200000
+    # AND clamps used_percentage to 100. Re-derive both honestly: pin the window to
+    # 1M and compute used % from current_usage tokens directly.
+    EXTENDED_CTX = 1_000_000
+    DEFAULT_CTX = 200_000
+    exceeds_200k = bool(claude.get("exceeds_200k_tokens"))
+    if exceeds_200k:
+        ctx_size = EXTENDED_CTX
+        ctx_label = "1M"
+        _cu = _cw.get("current_usage") or {}
+        in_use = sum(
+            (_cu.get(k) or 0)
+            for k in ("cache_read_input_tokens", "cache_creation_input_tokens", "input_tokens")
+        )
+        used_pct = round(in_use / EXTENDED_CTX * 100, 1)
+        pct_display = f"{used_pct}%"
+        rem_pct_known = True
+    else:
+        ctx_size = int(_cw.get("context_window_size") or DEFAULT_CTX)
+        ctx_label = "1M" if ctx_size > DEFAULT_CTX else "200k"
+        used_pct = 100 - rem_pct
+        pct_display = f"{used_pct}%" if rem_pct_known else "?%"
 
     mc1 = f"{GREEN}{model_name}{RST}" if "opus" in model_name.lower() else f"{RED}{model_name}{RST}"
     mc2 = duration
