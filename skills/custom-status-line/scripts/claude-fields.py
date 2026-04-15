@@ -39,6 +39,30 @@ def load_blob(db, version):
     return json.loads(row[0])
 
 
+def load_fields(db, version):
+    """Return the union of field paths observed for a version.
+
+    Prefers the stored `field_paths` column (union across all captures) so
+    that conditional fields — only present in some contexts — don't appear
+    as spurious additions/removals in diffs. Falls back to deriving paths
+    from the first-seen blob when the column is missing (pre-migration DBs).
+    """
+    try:
+        row = db.execute(
+            "SELECT field_paths, fields FROM claude_versions "
+            "WHERE claude_version=?",
+            (version,),
+        ).fetchone()
+    except sqlite3.OperationalError:
+        blob = load_blob(db, version)
+        return None if blob is None else sorted(set(extract_paths(blob)))
+    if not row:
+        return None
+    if row[0]:
+        return sorted(json.loads(row[0]))
+    return sorted(set(extract_paths(json.loads(row[1]))))
+
+
 def main():
     ap = argparse.ArgumentParser(description="Inspect Claude version data.")
     g = ap.add_mutually_exclusive_group(required=True)
@@ -71,14 +95,13 @@ def main():
 
     elif args.diff:
         v1, v2 = args.diff
-        b1 = load_blob(db, v1)
-        b2 = load_blob(db, v2)
-        if not b1 or not b2:
-            missing = [v for v, b in [(v1, b1), (v2, b2)] if not b]
+        p1 = load_fields(db, v1)
+        p2 = load_fields(db, v2)
+        if p1 is None or p2 is None:
+            missing = [v for v, p in [(v1, p1), (v2, p2)] if p is None]
             print(f"not found: {missing}", file=sys.stderr)
             sys.exit(1)
-        f1 = set(extract_paths(b1))
-        f2 = set(extract_paths(b2))
+        f1, f2 = set(p1), set(p2)
         added = sorted(f2 - f1)
         removed = sorted(f1 - f2)
         print(f"{v1} -> {v2}")
@@ -94,23 +117,21 @@ def main():
             print("  identical")
 
     elif args.new_since:
-        prev_blob = load_blob(db, args.new_since)
-        if not prev_blob:
+        prev_paths = load_fields(db, args.new_since)
+        if prev_paths is None:
             print(f"version not found: {args.new_since}", file=sys.stderr)
             sys.exit(1)
-        prev_fields = set(extract_paths(prev_blob))
-        rows = db.execute("""
-            SELECT claude_version, fields FROM claude_versions
-            WHERE claude_version > ?
-            ORDER BY claude_version ASC
-        """, (args.new_since,)).fetchall()
-        if not rows:
+        versions = [r[0] for r in db.execute(
+            "SELECT claude_version FROM claude_versions "
+            "WHERE claude_version > ? ORDER BY claude_version ASC",
+            (args.new_since,),
+        ).fetchall()]
+        if not versions:
             print(f"no versions newer than {args.new_since}")
             return
-        cur_fields = set(prev_fields)
-        for v, fields_json in rows:
-            blob = json.loads(fields_json)
-            fields = set(extract_paths(blob))
+        cur_fields = set(prev_paths)
+        for v in versions:
+            fields = set(load_fields(db, v))
             added = sorted(fields - cur_fields)
             removed = sorted(cur_fields - fields)
             print(f"{v}")
@@ -121,11 +142,10 @@ def main():
             cur_fields = fields
 
     elif args.version:
-        blob = load_blob(db, args.version)
-        if not blob:
+        paths = load_fields(db, args.version)
+        if paths is None:
             print(f"version not found: {args.version}", file=sys.stderr)
             sys.exit(1)
-        paths = sorted(extract_paths(blob))
         print(f"{args.version}: {len(paths)} fields")
         for p in paths:
             print(f"  {p}")

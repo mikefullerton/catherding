@@ -123,6 +123,7 @@ def run(claude_data, lines, rows=None):
     if not row_cols:
         return lines
 
+    rows.append(Row("{}graphify stats{}".format(ORANGE, RST), heading=True))
     for cols in row_cols:
         rows.append(Row(*cols))
 

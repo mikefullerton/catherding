@@ -352,14 +352,14 @@ def get_usage_columns(claude_data: dict) -> tuple:
         return ""
 
     wk_col = _quota_color(rate_7d)
-    c1 = f"weekly: {wk_col}{rate_7d:.1f}%{RST}" if wk_col else f"weekly: {rate_7d:.1f}%"
+    c1 = f"7d quota: {wk_col}{rate_7d:.1f}%{RST}" if wk_col else f"7d quota: {rate_7d:.1f}%"
     resets_at = int(
         ((claude_data.get("rate_limits") or {})
          .get("five_hour") or {})
         .get("resets_at") or 0
     )
     fh_col = _quota_color(rate_5h)
-    c2 = f"5h: {fh_col}{rate_5h:.1f}%{RST}" if fh_col else f"5h: {rate_5h:.1f}%"
+    c2 = f"5h quota: {fh_col}{rate_5h:.1f}%{RST}" if fh_col else f"5h quota: {rate_5h:.1f}%"
     c7 = ""
     if resets_at > 0:
         remaining_s = resets_at - now.timestamp()
@@ -441,8 +441,7 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
     else:
         line1 = f"{BLUE}{display_path}{RST}"
 
-    # LINE 2 — git details
-    gs1 = ""
+    # LINE 2 — git (heading row) + git details row
     gs2 = ""
     gs3 = ""
     gs4 = ""
@@ -461,7 +460,6 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
                 else:
                     changed += 1
 
-        gs1 = "git"
         gs2 = f"files: {_c(changed, '~')} {_c(added, '+')} {_c(deleted, '-')}"
 
         has_remote = bool(git_cmd("rev-parse", "--verify", f"origin/{branch}"))
@@ -520,7 +518,7 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
     else:
         mc3 = f"{pct_display} / {ctx_label} ctx"
 
-    # YOLO indicator (trailing on line 3)
+    # YOLO indicator (trailing on the model row)
     yolo_col = ""
     if session_id:
         yolo_path = os.path.expanduser(f"~/.claude-yolo-sessions/{session_id}.json")
@@ -569,23 +567,77 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
 
     # --- Append rows to shared list ---
     if branch:
-        rows.append(Row(gs1, gs2, gs3, gs4))
+        # "git" is a section label — standalone heading (no grid alignment).
+        rows.append(Row(f"{ORANGE}git{RST}", heading=True))
+        # Detail row participates in the shared column grid one column to the
+        # left of where it used to sit: the old empty col 0 indent is gone,
+        # so files/remote/main now occupy col 0/1/2 and align with the model,
+        # sessions, usage, graphify-savings, and version-check rows below.
+        #
+        # Repo-hygiene warning (stale/merged branches, done worktrees) is
+        # attached as free-form trailing text so it sits at the end of the
+        # git line without widening any grid column.
+        try:
+            from statusline.repo_cleanup import compute_warning_text
+            warning_text = compute_warning_text()
+        except Exception:
+            warning_text = ""
+        rows.append(Row(gs2, gs3, gs4, trailing=warning_text))
 
-    model_row = Row(mc1, mc2, mc3)
+    # "Claude" section: heading includes the model name (colored like the
+    # data-row label below) plus the running Claude CLI version, so the
+    # whole header reads at a glance as "Claude <Model> v<X.Y.Z>".
+    claude_version = claude.get("version") or ""
+    header_bits = [f"{ORANGE}Claude{RST}"]
+    if claude_version:
+        header_bits.append(f"{DIM}(v{claude_version}){RST}")
+    header_bits.append(f"{DIM}-{RST}")
+    header_bits.append(mc1)
+    rows.append(Row(" ".join(header_bits), heading=True))
+
+    # The model row no longer repeats the model name in col 0 — "Current
+    # Session" makes it clear that mc2/mc3 (duration, context usage) belong
+    # to the session rather than the model itself.
+    current_session_label = f"{DIM}Current Session{RST}"
+    model_row = Row(current_session_label, mc2, mc3)
     if yolo_col:
         model_row.columns.append(yolo_col)
     rows.append(model_row)
 
     rows.append(Row(sc1, sc2, sc3, sc4))
 
-    if usage_cols:
-        uc1, uc2, uc3, uc4, uc5, uc6, uc7 = usage_cols
-        rows.append(Row(uc1, uc4, uc5, uc6))
-        rows.append(Row(uc3, uc2, uc7))
+    # Version-tracker rows emitted inline here so they sit at the end of the
+    # Claude section instead of being appended at the very bottom by the
+    # version-check pipeline stage. That stage detects these and no-ops.
+    try:
+        from statusline.version_check import _check_version
+        for vr in _check_version(claude):
+            rows.append(vr)
+    except Exception:
+        pass
 
     # Week-over-week comparison (show 3 variants so user can pick)
     wed_10am = get_wed_10am()
-    for r in get_week_comparison_rows(wed_10am, datetime.now()):
+    week_rows = get_week_comparison_rows(wed_10am, datetime.now())
+
+    # "Usage" section: rate-limit rows (if rate_limits present) and/or the
+    # week-over-week comparison row. Heading sits above whichever rows exist
+    # so the weekly-spend context is always visually grouped.
+    if usage_cols or week_rows:
+        rows.append(Row(f"{ORANGE}Usage{RST}", heading=True))
+    if usage_cols:
+        uc1, uc2, uc3, uc4, uc5, uc6, uc7 = usage_cols
+        # New top row surfaces the two "session-of-today" numbers together,
+        # so you can glance at today's usage and the daily-average target
+        # side-by-side without chasing values across the 7d/5h rows below.
+        rows.append(Row(uc3, uc4))
+        # daily ave sits in the new top row (with today's %), so the 7d
+        # quota row drops it — that way each value is surfaced exactly once.
+        rows.append(Row(uc1, uc5, uc6))
+        # 5h quota row shifts one column to the left — today's % moved into
+        # the new top row, so 5h quota / remaining-time sit in col 0 / 1.
+        rows.append(Row(uc2, uc7))
+    for r in week_rows:
         rows.append(r)
 
     # --- Non-columnar output ---

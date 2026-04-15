@@ -31,6 +31,39 @@ class TestGetDb:
         assert version == DB_VERSION
         db2.close()
 
+    def test_v4_to_v5_backfills_field_paths(self, tmp_path):
+        """A pre-existing v4 DB (no field_paths column) gets backfilled from blobs."""
+        import sqlite3
+        import json
+        db_path = str(tmp_path / "legacy.db")
+        # Simulate a v4 database with a row missing field_paths.
+        legacy = sqlite3.connect(db_path)
+        legacy.executescript("""
+            CREATE TABLE claude_versions (
+                claude_version TEXT PRIMARY KEY,
+                fields TEXT NOT NULL,
+                fields_count INTEGER NOT NULL,
+                first_seen TEXT NOT NULL
+            );
+        """)
+        blob = {"version": "2.1.100", "model": {"id": "opus"}}
+        legacy.execute(
+            "INSERT INTO claude_versions VALUES (?, ?, ?, ?)",
+            ("2.1.100", json.dumps(blob), 3, "2026-04-01 00:00:00"),
+        )
+        legacy.execute("PRAGMA user_version=4")
+        legacy.commit()
+        legacy.close()
+
+        # get_db runs the v4→v5 migration.
+        db = get_db(db_path)
+        row = get_version(db, "2.1.100")
+        assert "version" in row["field_paths"]
+        assert "model" in row["field_paths"]
+        assert "model.id" in row["field_paths"]
+        assert row["fields_count"] == len(row["field_paths"])
+        db.close()
+
 
 SESSION_KWARGS = dict(
     session_id="sess-1", session_name="test", model_id="opus-4",
@@ -137,10 +170,11 @@ SAMPLE_CLAUDE_DATA = {
 class TestInsertVersion:
     def test_inserts_new_version(self, tmp_path):
         db = get_db(str(tmp_path / "test.db"))
-        insert_version(db, "2.1.105", SAMPLE_CLAUDE_DATA, 5)
+        insert_version(db, "2.1.105", SAMPLE_CLAUDE_DATA)
         row = db.execute("SELECT claude_version, fields_count FROM claude_versions").fetchone()
         assert row[0] == "2.1.105"
-        assert row[1] == 5
+        # fields_count is derived from the union of extracted paths, not caller-supplied.
+        assert row[1] == len(set(_extract_paths(SAMPLE_CLAUDE_DATA)))
         db.close()
 
     def test_stores_blob_as_json(self, tmp_path):
@@ -154,14 +188,41 @@ class TestInsertVersion:
         assert parsed == SAMPLE_CLAUDE_DATA
         db.close()
 
-    def test_ignores_duplicate(self, tmp_path):
+    def test_preserves_first_blob_on_second_capture(self, tmp_path):
+        """Only one row per version; first-seen blob is preserved."""
+        import json
         db = get_db(str(tmp_path / "test.db"))
         insert_version(db, "2.1.105", SAMPLE_CLAUDE_DATA, 5)
-        # Insert again with different data — should be ignored
-        insert_version(db, "2.1.105", {"version": "changed"}, 99)
-        row = db.execute("SELECT fields_count FROM claude_versions").fetchone()
-        assert row[0] == 5
+        insert_version(db, "2.1.105", {"version": "changed", "extra": 1}, 99)
+
         assert db.execute("SELECT count(*) FROM claude_versions").fetchone()[0] == 1
+        stored_blob = json.loads(
+            db.execute("SELECT fields FROM claude_versions").fetchone()[0]
+        )
+        assert stored_blob == SAMPLE_CLAUDE_DATA
+        db.close()
+
+    def test_merges_field_paths_across_captures(self, tmp_path):
+        """Second capture with new conditional fields adds to the union, not overwrites."""
+        db = get_db(str(tmp_path / "test.db"))
+        # First capture: no rate_limits (conditional field absent)
+        insert_version(db, "2.1.105", SAMPLE_CLAUDE_DATA)
+        first = get_version(db, "2.1.105")
+        assert "rate_limits" not in first["field_paths"]
+
+        # Second capture in a different context: rate_limits present
+        insert_version(db, "2.1.105", {
+            **SAMPLE_CLAUDE_DATA,
+            "rate_limits": {"five_hour": {"used_percentage": 10}},
+        })
+        merged = get_version(db, "2.1.105")
+        assert "rate_limits" in merged["field_paths"]
+        assert "rate_limits.five_hour" in merged["field_paths"]
+        assert "rate_limits.five_hour.used_percentage" in merged["field_paths"]
+        # Prior fields still present
+        assert "model.id" in merged["field_paths"]
+        # fields_count reflects the union size
+        assert merged["fields_count"] == len(merged["field_paths"])
         db.close()
 
 
@@ -173,10 +234,10 @@ class TestGetVersion:
 
     def test_returns_parsed_row(self, tmp_path):
         db = get_db(str(tmp_path / "test.db"))
-        insert_version(db, "2.1.105", SAMPLE_CLAUDE_DATA, 5)
+        insert_version(db, "2.1.105", SAMPLE_CLAUDE_DATA)
         result = get_version(db, "2.1.105")
         assert result["claude_version"] == "2.1.105"
-        assert result["fields_count"] == 5
+        assert result["fields_count"] == len(set(_extract_paths(SAMPLE_CLAUDE_DATA)))
         assert result["blob"] == SAMPLE_CLAUDE_DATA
         assert result["first_seen"]
         db.close()

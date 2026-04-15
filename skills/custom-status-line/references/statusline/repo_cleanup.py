@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
-"""Pipeline module: append repo cleanup warnings to line 1."""
+"""Pipeline module: emit repo cleanup warnings as a heading row.
+
+Produces a standalone warning row (e.g. "⚠ 2 merged, 1 remote-only") that
+sits immediately after base_info's git rows. Emits nothing when the repo
+is clean or not a git checkout.
+"""
 import re
 import subprocess
 
-from statusline.formatting import ORANGE, RST
+from statusline.formatting import RED, RST, Row
 
-WARN = "\033[38;5;208m"
+WARN = RED
 
 
 def git_cmd(*args: str) -> str:
@@ -20,10 +25,15 @@ def git_cmd(*args: str) -> str:
         return ""
 
 
-def run(claude_data: dict, lines: list) -> list:
-    """Detect repo issues and append warnings to line 1."""
+def compute_warning_text():
+    """Return the raw warning string (ANSI-colored), or "" when clean.
+
+    Shared by base_info (which appends it as trailing text on the git
+    detail row so it sits at the end of that line) and the legacy `run`
+    entry point below.
+    """
     if not git_cmd("rev-parse", "--git-dir"):
-        return lines
+        return ""
 
     # Detect default branch
     default_branch = ""
@@ -36,7 +46,7 @@ def run(claude_data: dict, lines: list) -> list:
                 default_branch = candidate
                 break
     if not default_branch:
-        return lines
+        return ""
 
     items = []
 
@@ -108,14 +118,17 @@ def run(claude_data: dict, lines: list) -> list:
             items.append(f"{finished} done wt")
 
     if not items:
-        return lines
+        return ""
 
-    sep = f" {ORANGE}|{RST} "
     status = ", ".join(items)
-    warning = f"{sep}{WARN}\u26a0 {status}{RST}"
-    result = list(lines)
-    if result:
-        result[0] = (result[0] or "") + warning
-    else:
-        result.append(warning)
-    return result
+    return f"{WARN}\u26a0 {status}{RST}"
+
+
+def run(claude_data: dict, lines: list, rows: list = None) -> list:
+    """Pipeline entry point — legacy no-op.
+
+    base_info now attaches the warning as trailing text on the git
+    detail row, so this stage is effectively a no-op. Kept so pipeline
+    configs that still list "repo-cleanup" don't fail to import.
+    """
+    return lines

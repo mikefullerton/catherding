@@ -59,7 +59,7 @@ def _check_version(claude_data):
             new_fields = sorted(current_fields - prev_fields)
             removed_fields = sorted(prev_fields - current_fields)
 
-            v1 = f"claude {ver['claude_version']}"
+            v1 = f"new version: {ver['claude_version']}"
             count = len(new_fields)
             if count > 0:
                 v2 = f"{GREEN}{count} new field{'s' if count != 1 else ''}{RST}"
@@ -83,9 +83,20 @@ def _check_version(claude_data):
 
 
 def run(claude_data, lines, rows=None):
-    """Append version upgrade rows to the shared rows list."""
+    """Append version upgrade rows to the shared rows list.
+
+    base_info now emits version rows inline inside its "Claude" section, so
+    if any row already looks like a version row ("claude X.Y.Z" in col 0),
+    this stage no-ops to avoid duplicates. When base_info hasn't emitted
+    them (old layouts, test harnesses), this falls back to the legacy
+    end-of-status-line emission path.
+    """
     if rows is None:
         rows = []
+
+    for r in rows:
+        if r.columns and r.columns[0].lstrip().startswith("new version:"):
+            return lines
 
     global _last_check_time, _cached_version_rows
 

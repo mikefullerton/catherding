@@ -3,14 +3,27 @@ import json
 import sqlite3
 from datetime import datetime
 
-DB_VERSION = 4
+DB_VERSION = 5
+
+
+def _extract_paths(obj, prefix=""):
+    """Recursively extract all dotted field paths from a JSON object."""
+    paths = []
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            p = f"{prefix}.{k}" if prefix else k
+            paths.append(p)
+            paths.extend(_extract_paths(v, p))
+    elif isinstance(obj, list) and obj:
+        paths.extend(_extract_paths(obj[0], prefix + "[]"))
+    return paths
 
 
 def get_db(path: str) -> sqlite3.Connection:
     """Open database, run migrations if needed, return connection."""
     db = sqlite3.connect(path)
     version = db.execute("PRAGMA user_version").fetchone()[0]
-    if version < DB_VERSION:
+    if version < 4:
         db.executescript("""
             DROP TABLE IF EXISTS sessions;
             DROP TABLE IF EXISTS weekly_usage;
@@ -38,7 +51,7 @@ def get_db(path: str) -> sqlite3.Connection:
                 cache_read_tokens INTEGER NOT NULL DEFAULT 0,
                 context_used_pct INTEGER NOT NULL
             );
-            CREATE TABLE claude_versions (
+            CREATE TABLE IF NOT EXISTS claude_versions (
                 claude_version TEXT PRIMARY KEY,
                 fields TEXT NOT NULL,
                 fields_count INTEGER NOT NULL,
@@ -59,6 +72,32 @@ def get_db(path: str) -> sqlite3.Connection:
                 projected_pct REAL NOT NULL
             );
         """)
+        db.execute("PRAGMA user_version=4")
+        db.commit()
+
+    if version < 5:
+        # Add field_paths column: union of all field paths observed across
+        # captures. Backfill from the first-seen blob. Subsequent captures
+        # merge into this set so conditional fields (rate_limits, worktree.*)
+        # that only appear in some contexts don't cause spurious "removed" diffs.
+        cols = {r[1] for r in db.execute("PRAGMA table_info(claude_versions)")}
+        if "field_paths" not in cols:
+            db.execute("ALTER TABLE claude_versions ADD COLUMN field_paths TEXT")
+            rows = db.execute(
+                "SELECT claude_version, fields FROM claude_versions"
+            ).fetchall()
+            for ver, blob_json in rows:
+                try:
+                    blob = json.loads(blob_json)
+                except (json.JSONDecodeError, TypeError):
+                    continue
+                paths = sorted(set(_extract_paths(blob)))
+                db.execute(
+                    "UPDATE claude_versions "
+                    "SET field_paths=?, fields_count=? "
+                    "WHERE claude_version=?",
+                    (json.dumps(paths), len(paths), ver),
+                )
         db.execute(f"PRAGMA user_version={DB_VERSION}")
         db.commit()
     return db
@@ -122,36 +161,35 @@ def append_weekly_usage(db: sqlite3.Connection, **kw) -> None:
     db.commit()
 
 
-def _extract_paths(obj, prefix=""):
-    """Recursively extract all dotted field paths from a JSON object."""
-    paths = []
-    if isinstance(obj, dict):
-        for k, v in obj.items():
-            p = f"{prefix}.{k}" if prefix else k
-            paths.append(p)
-            paths.extend(_extract_paths(v, p))
-    elif isinstance(obj, list) and obj:
-        paths.extend(_extract_paths(obj[0], prefix + "[]"))
-    return paths
-
-
 def _parse_version_row(row):
-    """Parse a claude_versions DB row into a dict with extracted field paths."""
+    """Parse a claude_versions DB row into a dict.
+
+    Uses the stored `field_paths` union (merged across captures) rather than
+    re-deriving paths from the first-seen blob. Falls back to the blob if the
+    column is missing (pre-migration safety).
+    """
     blob = json.loads(row[1])
+    stored_paths = row[4]
+    if stored_paths:
+        field_paths = sorted(json.loads(stored_paths))
+    else:
+        field_paths = sorted(set(_extract_paths(blob)))
     return {
         "claude_version": row[0],
         "blob": blob,
-        "field_paths": sorted(_extract_paths(blob)),
+        "field_paths": field_paths,
         "fields_count": row[2],
         "first_seen": row[3],
     }
 
 
+_VERSION_COLS = "claude_version, fields, fields_count, first_seen, field_paths"
+
+
 def get_version(db: sqlite3.Connection, version: str):
     """Fetch a claude_versions row, or None if not found."""
     row = db.execute(
-        "SELECT claude_version, fields, fields_count, first_seen "
-        "FROM claude_versions WHERE claude_version=?",
+        f"SELECT {_VERSION_COLS} FROM claude_versions WHERE claude_version=?",
         (version,),
     ).fetchone()
     if not row:
@@ -160,28 +198,58 @@ def get_version(db: sqlite3.Connection, version: str):
 
 
 def insert_version(db: sqlite3.Connection, version: str,
-                   claude_data: dict, fields_count: int) -> None:
-    """Insert a claude_versions row if it doesn't already exist.
+                   claude_data: dict, fields_count: int = None) -> None:
+    """Record a capture of a Claude version.
 
-    Stores the full claude_data JSON blob so it can be read as
-    self-contained JSON (as if it came from a file).
+    On first capture: stores the full claude_data JSON blob and the set of
+    field paths extracted from it.
+
+    On subsequent captures: the blob is left unchanged (first-seen wins), but
+    the set of field paths is merged (union). This prevents conditional fields
+    — `rate_limits.*`, `worktree.*`, `context_window.current_usage.*` — that
+    only appear in some contexts from looking like Anthropic removed them when
+    a later capture happens to lack them.
+
+    The `fields_count` argument is accepted for backwards compatibility but
+    ignored: the stored count always reflects the union size.
     """
+    del fields_count  # computed from the union
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    db.execute(
-        "INSERT OR IGNORE INTO claude_versions "
-        "(claude_version, fields, fields_count, first_seen) "
-        "VALUES (?, ?, ?, ?)",
-        (version, json.dumps(claude_data, indent=2), fields_count, now),
-    )
+    new_paths = set(_extract_paths(claude_data))
+
+    existing = db.execute(
+        "SELECT field_paths FROM claude_versions WHERE claude_version=?",
+        (version,),
+    ).fetchone()
+
+    if existing is None:
+        paths = sorted(new_paths)
+        db.execute(
+            "INSERT INTO claude_versions "
+            "(claude_version, fields, fields_count, first_seen, field_paths) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (version, json.dumps(claude_data, indent=2),
+             len(paths), now, json.dumps(paths)),
+        )
+    else:
+        prior = set(json.loads(existing[0])) if existing[0] else set()
+        merged = prior | new_paths
+        if merged != prior:
+            paths = sorted(merged)
+            db.execute(
+                "UPDATE claude_versions "
+                "SET field_paths=?, fields_count=? "
+                "WHERE claude_version=?",
+                (json.dumps(paths), len(paths), version),
+            )
     db.commit()
 
 
 def get_versions_after(db: sqlite3.Connection, version: str) -> list:
     """Get all claude_versions rows with version > given, ordered ascending."""
     rows = db.execute(
-        "SELECT claude_version, fields, fields_count, first_seen "
-        "FROM claude_versions WHERE claude_version > ? "
-        "ORDER BY claude_version ASC",
+        f"SELECT {_VERSION_COLS} FROM claude_versions "
+        "WHERE claude_version > ? ORDER BY claude_version ASC",
         (version,),
     ).fetchall()
     return [_parse_version_row(r) for r in rows]

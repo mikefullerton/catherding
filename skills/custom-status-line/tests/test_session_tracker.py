@@ -74,7 +74,7 @@ def test_counts_thinking_and_waiting(mock_log, mock_git, sessions_dir):
     write_session(sessions_dir, "s3", "thinking")
 
     lines = run(make_claude_data(), [])
-    session_line = lines[2]
+    session_line = lines[3]
     assert "3 active" in session_line
     assert "2 thinking" in session_line
     assert "1 waiting" in session_line
@@ -87,7 +87,7 @@ def test_session_line_at_position_2(mock_log, mock_git, sessions_dir):
 
     lines = run(make_claude_data(), [])
     assert len(lines) >= 3
-    assert "all sessions" in lines[2]
+    assert "all sessions" in lines[3]
 
 
 @patch("statusline.base_info.git_cmd", return_value="")
@@ -97,7 +97,7 @@ def test_stale_sessions_removed(mock_log, mock_git, sessions_dir):
     write_session(sessions_dir, "stale", "thinking", age_s=STALE_THRESHOLD + 60)
 
     lines = run(make_claude_data(), [])
-    assert "1 active" in lines[2]
+    assert "1 active" in lines[3]
     assert not (sessions_dir / "stale.json").exists()
     assert (sessions_dir / "fresh.json").exists()
 
@@ -109,7 +109,7 @@ def test_ignores_non_json_files(mock_log, mock_git, sessions_dir):
     (sessions_dir / "readme.txt").write_text("ignore me")
 
     lines = run(make_claude_data(), [])
-    assert "1 active" in lines[2]
+    assert "1 active" in lines[3]
 
 
 @patch("statusline.base_info.git_cmd", return_value="")
@@ -119,7 +119,7 @@ def test_handles_corrupt_json(mock_log, mock_git, sessions_dir):
     (sessions_dir / "bad.json").write_text("not json{{{")
 
     lines = run(make_claude_data(), [])
-    assert "1 active" in lines[2]
+    assert "1 active" in lines[3]
 
 
 @patch("statusline.base_info.git_cmd", return_value="")
@@ -138,8 +138,8 @@ def test_columns_aligned(mock_log, mock_git, sessions_dir):
         positions = [i for i, c in enumerate(plain) if c == "|"]
         return positions[1:]  # skip leading border
 
-    model_pipes = pipe_positions(lines[1])
-    session_pipes = pipe_positions(lines[2])
+    model_pipes = pipe_positions(lines[2])
+    session_pipes = pipe_positions(lines[3])
 
     # Both lines have col0, so pipe positions should match directly.
     shared = min(len(model_pipes), len(session_pipes))
