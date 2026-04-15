@@ -573,18 +573,16 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
         # left of where it used to sit: the old empty col 0 indent is gone,
         # so files/remote/main now occupy col 0/1/2 and align with the model,
         # sessions, usage, graphify-savings, and version-check rows below.
-        rows.append(Row(gs2, gs3, gs4))
-        # Repo-hygiene warning (stale/merged branches, done worktrees). Emit
-        # it here so it renders directly below the git detail row instead of
-        # drifting to the end of the status line. Warning is a heading row —
-        # it stands alone and doesn't perturb column widths.
+        #
+        # Repo-hygiene warning (stale/merged branches, done worktrees) is
+        # attached as free-form trailing text so it sits at the end of the
+        # git line without widening any grid column.
         try:
-            from statusline.repo_cleanup import compute_warning_row
-            warning_row = compute_warning_row()
+            from statusline.repo_cleanup import compute_warning_text
+            warning_text = compute_warning_text()
         except Exception:
-            warning_row = None
-        if warning_row is not None:
-            rows.append(warning_row)
+            warning_text = ""
+        rows.append(Row(gs2, gs3, gs4, trailing=warning_text))
 
     model_row = Row(mc1, mc2, mc3)
     if yolo_col:

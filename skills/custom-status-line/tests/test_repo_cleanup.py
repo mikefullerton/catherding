@@ -26,69 +26,40 @@ def mock_side_effect(responses):
     return side_effect
 
 
-class TestComputeWarningRow:
+class TestComputeWarningText:
     @patch("statusline.repo_cleanup.git_cmd")
-    def test_no_git_repo_returns_none(self, mock_git):
+    def test_no_git_repo_returns_empty(self, mock_git):
         mock_git.return_value = ""
-        from statusline.repo_cleanup import compute_warning_row
-        assert compute_warning_row() is None
+        from statusline.repo_cleanup import compute_warning_text
+        assert compute_warning_text() == ""
 
     @patch("statusline.repo_cleanup.git_cmd")
-    def test_no_issues_returns_none(self, mock_git):
+    def test_no_issues_returns_empty(self, mock_git):
         mock_git.side_effect = mock_side_effect(make_git_responses())
-        from statusline.repo_cleanup import compute_warning_row
-        assert compute_warning_row() is None
+        from statusline.repo_cleanup import compute_warning_text
+        assert compute_warning_text() == ""
 
     @patch("statusline.repo_cleanup.git_cmd")
     def test_stale_branches_detected(self, mock_git):
         mock_git.side_effect = mock_side_effect(make_git_responses({
             ("branch", "-vv"): "  stale abc [origin/stale: gone] old\n  main def [origin/main] ok",
         }))
-        from statusline.repo_cleanup import compute_warning_row
-        row = compute_warning_row()
-        assert row is not None
-        assert row.heading is True
-        assert "1 stale" in row.columns[0]
+        from statusline.repo_cleanup import compute_warning_text
+        text = compute_warning_text()
+        assert "1 stale" in text
+        assert "\u26a0" in text
 
     @patch("statusline.repo_cleanup.git_cmd")
     def test_merged_branches_detected(self, mock_git):
         mock_git.side_effect = mock_side_effect(make_git_responses({
             ("branch", "--merged", "main"): "* main\n  feature-done\n",
         }))
-        from statusline.repo_cleanup import compute_warning_row
-        row = compute_warning_row()
-        assert row is not None
-        assert "1 merged" in row.columns[0]
+        from statusline.repo_cleanup import compute_warning_text
+        assert "1 merged" in compute_warning_text()
 
 
-class TestRunLegacyPipeline:
-    @patch("statusline.repo_cleanup.git_cmd")
-    def test_run_without_rows_returns_lines(self, mock_git):
-        mock_git.return_value = ""
+class TestRunLegacy:
+    def test_run_returns_lines_unchanged(self):
         from statusline.repo_cleanup import run
-        lines = ["line1"]
-        assert run({}, lines) == lines
-
-    @patch("statusline.repo_cleanup.git_cmd")
-    def test_run_appends_warning_when_invoked_standalone(self, mock_git):
-        mock_git.side_effect = mock_side_effect(make_git_responses({
-            ("branch", "-vv"): "  stale abc [origin/stale: gone] old\n  main def [origin/main] ok",
-        }))
-        from statusline.repo_cleanup import run
-        rows = []
-        run({}, ["line1"], rows)
-        assert len(rows) == 1
-        assert "1 stale" in rows[0].columns[0]
-
-    @patch("statusline.repo_cleanup.git_cmd")
-    def test_run_skips_warning_when_base_info_already_emitted(self, mock_git):
-        """Prevent double-emission when base_info and repo_cleanup both run."""
-        mock_git.side_effect = mock_side_effect(make_git_responses({
-            ("branch", "-vv"): "  stale abc [origin/stale: gone] old\n  main def [origin/main] ok",
-        }))
-        from statusline.repo_cleanup import run
-        from statusline.formatting import Row
-        rows = [Row("\u26a0 pre-existing", heading=True)]
-        run({}, ["line1"], rows)
-        # No duplicate appended
-        assert len(rows) == 1
+        assert run({}, ["a", "b"]) == ["a", "b"]
+        assert run({}, ["a", "b"], []) == ["a", "b"]

@@ -25,16 +25,15 @@ def git_cmd(*args: str) -> str:
         return ""
 
 
-def compute_warning_row():
-    """Inspect the current repo and return a warning Row, or None if clean.
+def compute_warning_text():
+    """Return the raw warning string (ANSI-colored), or "" when clean.
 
-    Shared by base_info (which emits the warning directly after its git
-    detail row so the two stay visually adjacent) and the legacy `run`
-    entry point (kept for compatibility with pipeline configs that still
-    list "repo-cleanup" as a stage).
+    Shared by base_info (which appends it as trailing text on the git
+    detail row so it sits at the end of that line) and the legacy `run`
+    entry point below.
     """
     if not git_cmd("rev-parse", "--git-dir"):
-        return None
+        return ""
 
     # Detect default branch
     default_branch = ""
@@ -47,7 +46,7 @@ def compute_warning_row():
                 default_branch = candidate
                 break
     if not default_branch:
-        return None
+        return ""
 
     items = []
 
@@ -116,28 +115,17 @@ def compute_warning_row():
             items.append(f"{finished} done wt")
 
     if not items:
-        return None
+        return ""
 
     status = ", ".join(items)
-    warning = f"{WARN}\u26a0 {status}{RST}"
-    return Row(warning, heading=True)
+    return f"{WARN}\u26a0 {status}{RST}"
 
 
 def run(claude_data: dict, lines: list, rows: list = None) -> list:
-    """Pipeline entry point — kept for legacy pipeline configs.
+    """Pipeline entry point — legacy no-op.
 
-    base_info now emits the warning inline next to the git rows, so this
-    stage is effectively a no-op when base_info has already run. It still
-    appends the warning when invoked standalone with a rows list so old
-    pipelines that don't include base_info behave the same as before.
+    base_info now attaches the warning as trailing text on the git
+    detail row, so this stage is effectively a no-op. Kept so pipeline
+    configs that still list "repo-cleanup" don't fail to import.
     """
-    if rows is None:
-        return lines
-    # If base_info already emitted a warning row, don't duplicate it.
-    for r in rows:
-        if getattr(r, "heading", False) and r.columns and "\u26a0" in r.columns[0]:
-            return lines
-    warning_row = compute_warning_row()
-    if warning_row is not None:
-        rows.append(warning_row)
     return lines

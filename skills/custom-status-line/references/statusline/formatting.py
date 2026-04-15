@@ -45,14 +45,24 @@ class Row:
     _SEP = " | "
     _BORDER = "| "
 
-    def __init__(self, *columns, heading=False):
+    def __init__(self, *columns, heading=False, trailing=""):
         self.columns = [c.strip() if c else "" for c in columns]
         self.formatted = []
         self.heading = heading
+        # Free-form text appended after the last column with a " | "
+        # separator. Unlike a regular column, trailing text does not
+        # participate in width calculation, so a long annotation on one
+        # row (e.g. a repo-hygiene warning after the git detail row) can
+        # sit at the end of that row without forcing every other row's
+        # matching column to pad out to its width.
+        self.trailing = trailing.strip() if trailing else ""
 
     def render(self):
         """Render as '| col0 | col1 | col2 | ...', or '| col0' for headings."""
-        return self._BORDER + self._SEP.join(self.formatted)
+        out = self._BORDER + self._SEP.join(self.formatted)
+        if self.trailing:
+            out += self._SEP + self.trailing
+        return out
 
 
 def compute_column_widths(rows: list) -> list:
