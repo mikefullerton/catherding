@@ -631,7 +631,9 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
         # so you can glance at today's usage and the daily-average target
         # side-by-side without chasing values across the 7d/5h rows below.
         rows.append(Row(uc3, uc4))
-        rows.append(Row(uc1, uc4, uc5, uc6))
+        # daily ave sits in the new top row (with today's %), so the 7d
+        # quota row drops it — that way each value is surfaced exactly once.
+        rows.append(Row(uc1, uc5, uc6))
         # 5h quota row shifts one column to the left — today's % moved into
         # the new top row, so 5h quota / remaining-time sit in col 0 / 1.
         rows.append(Row(uc2, uc7))
