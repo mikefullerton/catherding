@@ -266,7 +266,7 @@ def get_week_comparison_rows(wed_10am: datetime, now: datetime):
     # Matching (label, value) column layout on both rows keeps the token /
     # cost figures stacked in a shared col 1.
     return [
-        Row("usage last week", f"{last_tok} / {last_cost_s}"),
+        Row("last week", f"{last_tok} / {last_cost_s}"),
         Row("this week", f"{this_tok} / {this_cost_s}", delta_str),
     ]
 
@@ -369,7 +369,12 @@ def get_usage_columns(claude_data: dict) -> tuple:
     fh_col = _quota_color(rate_5h)
     c2_label = "5h quota"
     c2_pct = f"{fh_col}{rate_5h:.1f}%{RST}" if fh_col else f"{rate_5h:.1f}%"
-    c7 = ""
+    # Always produce a value for the 5h countdown column. Anthropic's hook
+    # sometimes ships a stale `resets_at` timestamp that's already in the
+    # past — we used to emit "" in that case, which let format_rows trim
+    # the trailing column and the countdown vanished. A dim "—" keeps the
+    # column present and makes the stale-data case visibly distinct.
+    c7 = f"{DIM}\u2014{RST}"
     if resets_at > 0:
         remaining_s = resets_at - now.timestamp()
         if remaining_s > 0:
