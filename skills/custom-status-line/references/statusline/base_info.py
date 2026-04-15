@@ -567,8 +567,24 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
 
     # --- Append rows to shared list ---
     if branch:
+        # "git" is a section label — standalone heading (no grid alignment).
         rows.append(Row(f"{DIM}git{RST}", heading=True))
-        rows.append(Row(gs2, gs3, gs4, heading=True))
+        # Detail row participates in the shared column grid one column to the
+        # left of where it used to sit: the old empty col 0 indent is gone,
+        # so files/remote/main now occupy col 0/1/2 and align with the model,
+        # sessions, usage, graphify-savings, and version-check rows below.
+        rows.append(Row(gs2, gs3, gs4))
+        # Repo-hygiene warning (stale/merged branches, done worktrees). Emit
+        # it here so it renders directly below the git detail row instead of
+        # drifting to the end of the status line. Warning is a heading row —
+        # it stands alone and doesn't perturb column widths.
+        try:
+            from statusline.repo_cleanup import compute_warning_row
+            warning_row = compute_warning_row()
+        except Exception:
+            warning_row = None
+        if warning_row is not None:
+            rows.append(warning_row)
 
     model_row = Row(mc1, mc2, mc3)
     if yolo_col:
