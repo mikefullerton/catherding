@@ -8,7 +8,7 @@ import os
 import time
 
 from statusline.formatting import YELLOW, GREEN, DIM, RST, Row
-from statusline.db import get_db, get_version, insert_version, get_versions_after, _extract_paths
+from statusline.db import get_db, get_version, insert_version, get_versions_after
 
 # The version the status line was last upgraded to use. Update this constant
 # (and commit) when acknowledging new fields after a Claude upgrade.
@@ -34,10 +34,15 @@ def _check_version(claude_data):
         return []
 
     try:
-        # Insert current version if not already in DB
-        if not get_version(db, current_version):
-            field_paths = sorted(_extract_paths(claude_data))
-            insert_version(db, current_version, claude_data, len(field_paths))
+        # Record this capture. insert_version is an upsert-merge: first
+        # call inserts the blob + initial path set; subsequent calls merge
+        # the newly-extracted paths into the stored union. Calling it on
+        # every invocation is what lets conditional fields (rate_limits.*,
+        # worktree.*, context_window.current_usage.*) accumulate across
+        # captures taken in different contexts — without this, the first
+        # capture's path set is frozen forever and any later version's
+        # diff reports those conditional fields as "removed".
+        insert_version(db, current_version, claude_data)
 
         # Get all versions newer than what the status line was built for
         new_versions = get_versions_after(db, BUILT_FOR_VERSION)
