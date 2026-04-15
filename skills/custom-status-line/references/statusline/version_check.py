@@ -59,7 +59,7 @@ def _check_version(claude_data):
             new_fields = sorted(current_fields - prev_fields)
             removed_fields = sorted(prev_fields - current_fields)
 
-            v1 = f"claude {ver['claude_version']}"
+            v1 = f"new version: {ver['claude_version']}"
             count = len(new_fields)
             if count > 0:
                 v2 = f"{GREEN}{count} new field{'s' if count != 1 else ''}{RST}"
@@ -95,7 +95,7 @@ def run(claude_data, lines, rows=None):
         rows = []
 
     for r in rows:
-        if r.columns and r.columns[0].lstrip().startswith("claude "):
+        if r.columns and r.columns[0].lstrip().startswith("new version:"):
             return lines
 
     global _last_check_time, _cached_version_rows
