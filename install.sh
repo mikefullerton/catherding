@@ -1,21 +1,37 @@
 #!/usr/bin/env bash
-# Top-level installer. Prompts [Y/n] for each of the three independent
-# components this repo ships. Pass --yes to accept every prompt, --no to
-# decline every prompt, or answer interactively. Non-tty stdin behaves like
-# --yes so CI / pipe-fed installs still work.
+# Top-level installer. Prompts [Y/n] for each of the independent components
+# this repo ships. Pass --yes to accept every prompt, --no to decline every
+# prompt, or answer interactively. Non-tty stdin behaves like --yes so CI /
+# pipe-fed installs still work.
+#
+# Extra flags forwarded to claude-optimizing/install.sh: --repair (strip stale
+# unmarked sections from ~/.claude/CLAUDE.md before reinstalling the block).
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 SKILLS_DIR="$HOME/.claude/skills"
 
+# Policy skills: read-time skills (no runtime install step, just symlink).
+POLICY_SKILLS=(
+    new-repo-scaffold
+    file-organization-policies
+    llm-integration-policies
+    setup-and-install-scripts
+    apple-and-xcode-policies
+)
+
 mode="ask"
+forward_args=()
 if [ ! -t 0 ]; then
     mode="yes"   # non-interactive default; explicit --no/--yes overrides below
 fi
-case "${1:-}" in
-    --yes|-y) mode="yes" ;;
-    --no|-n)  mode="no"  ;;
-esac
+for arg in "$@"; do
+    case "$arg" in
+        --yes|-y) mode="yes" ;;
+        --no|-n)  mode="no"  ;;
+        --repair) forward_args+=(--repair) ;;
+    esac
+done
 
 confirm() {
     # confirm "<prompt>" — return 0 for yes, 1 for no. Default yes.
@@ -48,15 +64,15 @@ install_skill() {
 }
 
 echo ""
-echo "cat-herding installer — three independent components:"
+echo "cat-herding installer — independent components:"
 echo "  1. Claude optimizations (cc-* scripts, Stop hook, global CLAUDE.md guidance)"
-echo "  2. Custom status line"
-echo "  3. YOLO mode"
+echo "  2. YOLO mode"
+echo "  3. Developer-policy skills (global-install, read-time only)"
 echo ""
 
 # ---- 1. Claude optimizations ------------------------------------------------
 if confirm "Install Claude optimizations?"; then
-    "$REPO_DIR/claude-optimizing/install.sh"
+    "$REPO_DIR/claude-optimizing/install.sh" ${forward_args[@]+"${forward_args[@]}"}
 fi
 
 # ---- 2. YOLO ---------------------------------------------------------------
@@ -64,6 +80,14 @@ if confirm "Install YOLO?"; then
     echo "Installing yolo..."
     install_skill "yolo"
     "$REPO_DIR/skills/yolo/install.sh" 2>&1 | sed 's/^/    /'
+fi
+
+# ---- 3. Developer-policy skills --------------------------------------------
+if confirm "Install developer-policy skills?"; then
+    echo "Installing policy skills..."
+    for skill in "${POLICY_SKILLS[@]}"; do
+        install_skill "$skill"
+    done
 fi
 
 echo ""
