@@ -352,14 +352,14 @@ def get_usage_columns(claude_data: dict) -> tuple:
         return ""
 
     wk_col = _quota_color(rate_7d)
-    c1 = f"weekly: {wk_col}{rate_7d:.1f}%{RST}" if wk_col else f"weekly: {rate_7d:.1f}%"
+    c1 = f"7d quota: {wk_col}{rate_7d:.1f}%{RST}" if wk_col else f"7d quota: {rate_7d:.1f}%"
     resets_at = int(
         ((claude_data.get("rate_limits") or {})
          .get("five_hour") or {})
         .get("resets_at") or 0
     )
     fh_col = _quota_color(rate_5h)
-    c2 = f"5h: {fh_col}{rate_5h:.1f}%{RST}" if fh_col else f"5h: {rate_5h:.1f}%"
+    c2 = f"5h quota: {fh_col}{rate_5h:.1f}%{RST}" if fh_col else f"5h quota: {rate_5h:.1f}%"
     c7 = ""
     if resets_at > 0:
         remaining_s = resets_at - now.timestamp()
