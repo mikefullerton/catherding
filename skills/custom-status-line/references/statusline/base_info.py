@@ -261,12 +261,14 @@ def get_week_comparison_rows(wed_10am: datetime, now: datetime):
 
     from statusline.formatting import Row
 
-    return [Row(
-        "usage last week",
-        f"{last_tok} / {last_cost_s}",
-        f"this wk: {this_tok} / {this_cost_s}",
-        delta_str,
-    )]
+    # Split into two rows so the week-over-week comparison has breathing
+    # room. Each row: label | tokens-and-cost | (delta on "this week" row).
+    # Matching (label, value) column layout on both rows keeps the token /
+    # cost figures stacked in a shared col 1.
+    return [
+        Row("last week", f"{last_tok} / {last_cost_s}"),
+        Row("this week", f"{this_tok} / {this_cost_s}", delta_str),
+    ]
 
 
 def query_daily_costs(db: sqlite3.Connection, since_str: str) -> dict:
@@ -351,23 +353,62 @@ def get_usage_columns(claude_data: dict) -> tuple:
             return YELLOW
         return ""
 
+    # Per-row (label, pct) pairs. Splitting the percentage into its own
+    # column lets the three usage rows share a common "pct" column gutter,
+    # which keeps the numbers visually aligned while the labels stay flush
+    # on the label column.
     wk_col = _quota_color(rate_7d)
-    c1 = f"7d quota: {wk_col}{rate_7d:.1f}%{RST}" if wk_col else f"7d quota: {rate_7d:.1f}%"
+    c1_label = "7d quota"
+    c1_pct = f"{wk_col}{rate_7d:.1f}%{RST}" if wk_col else f"{rate_7d:.1f}%"
+
     resets_at = int(
         ((claude_data.get("rate_limits") or {})
          .get("five_hour") or {})
         .get("resets_at") or 0
     )
     fh_col = _quota_color(rate_5h)
-    c2 = f"5h quota: {fh_col}{rate_5h:.1f}%{RST}" if fh_col else f"5h quota: {rate_5h:.1f}%"
-    c7 = ""
-    if resets_at > 0:
-        remaining_s = resets_at - now.timestamp()
+    c2_label = "5h quota"
+    c2_pct = f"{fh_col}{rate_5h:.1f}%{RST}" if fh_col else f"{rate_5h:.1f}%"
+    # Anthropic's hook intermittently ships a `five_hour.resets_at`
+    # timestamp that's already in the past (observed: up to 5 days stale).
+    # When that happens, fall back to the most recent future-pointing
+    # reset captured in the local weekly_usage table — every hook payload
+    # with a fresh value gets logged there, so the DB accumulates a
+    # reliable running history even when a specific payload is stale.
+    # A 5-hour window tops out at 5h in the future, so anything beyond
+    # that is either a bogus synthetic value or a test artifact and we
+    # ignore it. 18000s = 5h; add a small buffer for clock skew.
+    now_ts = int(now.timestamp())
+    max_reset = now_ts + 6 * 3600
+    effective_reset = resets_at if now_ts < resets_at <= max_reset else 0
+    if effective_reset == 0:
+        try:
+            local_db = sqlite3.connect(
+                os.path.expanduser("~/claude-usage.db"), timeout=2,
+            )
+            row = local_db.execute(
+                "SELECT MAX(five_hour_resets_at) FROM weekly_usage "
+                "WHERE five_hour_resets_at > ? AND five_hour_resets_at <= ?",
+                (now_ts, max_reset),
+            ).fetchone()
+            local_db.close()
+            if row and row[0]:
+                effective_reset = int(row[0])
+        except Exception:
+            pass
+
+    # Always produce a value for the 5h countdown column so format_rows
+    # doesn't trim it off the end — dim "—" when truly unknown.
+    c7 = f"{DIM}\u2014{RST}"
+    if effective_reset > 0:
+        remaining_s = effective_reset - now.timestamp()
         if remaining_s > 0:
             remaining_m = int(remaining_s // 60)
             h, m = divmod(remaining_m, 60)
             c7 = f"{h}h {m:02d}m left" if h > 0 else f"{m}m left"
-    c3 = f"today: {today_pct:.1f}%"
+
+    c3_label = "today"
+    c3_pct = f"{today_pct:.1f}%"
     remaining_minutes = max(0, int(remaining_days * 24 * 60))
     rd, rem = divmod(remaining_minutes, 24 * 60)
     rh, rm = divmod(rem, 60)
@@ -387,7 +428,12 @@ def get_usage_columns(claude_data: dict) -> tuple:
         c4 = f"daily ave: {daily_avg_pct:.1f}%"
         c6 = f"{RED}{projected:.1f}%{RST} projected" if projected > 100.0 else f"{projected:.1f}% projected"
 
-    return (c1, c2, c3, c4, c5, c6, c7)
+    return (
+        (c1_label, c1_pct),
+        (c2_label, c2_pct),
+        (c3_label, c3_pct),
+        c4, c5, c6, c7,
+    )
 
 
 # --- Version tracker helpers ---
@@ -627,16 +673,15 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
         rows.append(Row(f"{ORANGE}Usage{RST}", heading=True))
     if usage_cols:
         uc1, uc2, uc3, uc4, uc5, uc6, uc7 = usage_cols
-        # New top row surfaces the two "session-of-today" numbers together,
-        # so you can glance at today's usage and the daily-average target
-        # side-by-side without chasing values across the 7d/5h rows below.
-        rows.append(Row(uc3, uc4))
-        # daily ave sits in the new top row (with today's %), so the 7d
-        # quota row drops it — that way each value is surfaced exactly once.
-        rows.append(Row(uc1, uc5, uc6))
-        # 5h quota row shifts one column to the left — today's % moved into
-        # the new top row, so 5h quota / remaining-time sit in col 0 / 1.
-        rows.append(Row(uc2, uc7))
+        c1_label, c1_pct = uc1
+        c2_label, c2_pct = uc2
+        c3_label, c3_pct = uc3
+        # Three-column layout for the usage quota rows: label | pct | …rest.
+        # Splitting the pct out of the label means all three rows share the
+        # same pct-column gutter, so the numbers stack visually.
+        rows.append(Row(c3_label, c3_pct, uc4))          # today | X% | daily ave: Y%
+        rows.append(Row(c1_label, c1_pct, uc5, uc6))     # 7d quota | X% | Nd Xh left | projected
+        rows.append(Row(c2_label, c2_pct, uc7))          # 5h quota | X% | Nh Xm left
     for r in week_rows:
         rows.append(r)
 
