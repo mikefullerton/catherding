@@ -5,7 +5,7 @@ Personal collection of Claude Code skills, hooks, and workflow scripts.
 ## Repository Structure
 
 ```
-skills/           # Distributable skills (yolo, custom-status-line)
+skills/           # Distributable skills (yolo)
 .claude/skills/   # Internal skills (lint-skill, lint-rule, lint-agent, optimize-rules, install-worktree-rule, port-swiftui-to-appkit)
 claude-optimizing/         # Self-contained Claude-Code tooling layer (guidance + scripts + hooks)
   scripts-git/             # Git / PR workflow (cc-merge-worktree, cc-commit-push, …)
@@ -22,9 +22,9 @@ claude-optimizing/         # Self-contained Claude-Code tooling layer (guidance 
 
 | Skill | Purpose |
 |-------|---------|
-| `/custom-status-line install` | Install composable status line pipeline |
-| `/custom-status-line uninstall` | Remove status line pipeline |
 | `/yolo` | Toggle per-session YOLO mode |
+
+> `custom-status-line` moved to the [stenographer](https://github.com/agentic-cookbook/stenographer) repo.
 
 ## Git Workflow
 

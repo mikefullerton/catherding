@@ -59,14 +59,7 @@ if confirm "Install Claude optimizations?"; then
     "$REPO_DIR/claude-optimizing/install.sh"
 fi
 
-# ---- 2. Custom status line --------------------------------------------------
-if confirm "Install custom status line?"; then
-    echo "Installing custom-status-line..."
-    install_skill "custom-status-line"
-    "$REPO_DIR/skills/custom-status-line/install.sh" --skip-tests 2>&1 | sed 's/^/    /'
-fi
-
-# ---- 3. YOLO ---------------------------------------------------------------
+# ---- 2. YOLO ---------------------------------------------------------------
 if confirm "Install YOLO?"; then
     echo "Installing yolo..."
     install_skill "yolo"

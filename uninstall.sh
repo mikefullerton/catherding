@@ -56,12 +56,6 @@ if confirm "Uninstall Claude optimizations?"; then
     "$REPO_DIR/claude-optimizing/uninstall.sh"
 fi
 
-if confirm "Uninstall custom status line?"; then
-    echo "Removing custom-status-line..."
-    "$REPO_DIR/skills/custom-status-line/uninstall.sh" 2>&1 | sed 's/^/    /'
-    uninstall_skill "custom-status-line"
-fi
-
 if confirm "Uninstall YOLO?"; then
     echo "Removing yolo..."
     "$REPO_DIR/skills/yolo/uninstall.sh" 2>&1 | sed 's/^/    /'

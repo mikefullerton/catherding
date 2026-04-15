@@ -1,12 +1,13 @@
 # Cat Herding
 
-Opinionated tooling that turns Claude Code into a disciplined, cost-aware development partner. Three independent components, each installable on its own:
+Opinionated tooling that turns Claude Code into a disciplined, cost-aware development partner. Two independent components, each installable on its own:
 
 | Component | What it does | Source |
 |---|---|---|
 | **Claude optimizations** | 30 `cc-*` shell commands, a Stop hook, a PostToolUse hook, and a guidance block for `~/.claude/CLAUDE.md` | [`claude-optimizing/`](claude-optimizing/) |
-| **Custom status line** | Multi-row terminal status line (path, git, usage/quotas, session count, context %) with a composable pipeline | [`skills/custom-status-line/`](skills/custom-status-line/) |
 | **YOLO** | Per-session auto-approval of all permission prompts, with configurable deny-list | [`skills/yolo/`](skills/yolo/) |
+
+> The `custom-status-line` skill previously lived here. It moved to the [stenographer](https://github.com/agentic-cookbook/stenographer) repo — see `skills/custom-status-line/` there.
 
 ---
 
@@ -71,43 +72,7 @@ Without these hooks, the rules above are advisory only. With them, the rules are
 
 ---
 
-## 2. Custom status line — `skills/custom-status-line/`
-
-Replaces the default one-line Claude Code status line with a multi-row terminal panel. Typical contents:
-
-```
-~/projects/active/cat-herding on main | ⚠2 remote-only
-                  git | files:~0 +0 -0     | remote: in sync       | 0% / 200k ctx           | YOLO 🔥
-              Opus 4.6 | 5h:35m             |                       |
-         all sessions  | 2 active           | 0 thinking            | 2 waiting
-         weekly: 13.3% | 5h: 8.1%           | daily ave: 2.1%       | 5d 11h 02m left | 14.7% projected
-          today: 13.1% | 5h: 8.1%           | 19h 55m left          |
-      usage last week  | 4489.1M / $9184.04 | this wk: 3894.0M / $7271.72 | -13%
-```
-
-Each row is produced by a **pipeline module** — an independent Python script or shell hook the dispatcher calls in order. Modules include base info (path + git + model + YOLO indicator), rate-limit / quota rows (with colour thresholds: red ≥95 %, yellow ≥80 %), active-sessions count, graphify savings summary, progress indicators, and week-over-week usage comparisons.
-
-### Install
-
-- `./install.sh` (top-level) prompts for it.
-- Or run `skills/custom-status-line/install.sh` directly. It copies the Python package to `~/.claude-status-line/statusline/`, helper scripts to `~/.claude-status-line/scripts/`, and `session-tracker.py` to `~/.claude/hooks/`. Then runs the skill's pytest suite (`--skip-tests` to skip).
-- Uninstall via `skills/custom-status-line/uninstall.sh`.
-
-### Extending the pipeline
-
-The skill documents a plugin convention — drop an executable script into `~/.claude-status-line/scripts/` and add an entry to `pipeline.json`. See [`skills/custom-status-line/how-to-add-status-line-scripts.md`](skills/custom-status-line/how-to-add-status-line-scripts.md).
-
-### Skill-internal developer tools (not on `$PATH`)
-
-- `scripts/verify.py` — runs the skill's pytest + lint + typecheck.
-- `scripts/claude-fields.py` — inspects Claude version field blobs in `~/claude-usage.db`.
-- `scripts/graphify-status.py` — reads `~/.claude-status-line/graphify-savings-cache.json`.
-
-Invoke with `python3 skills/custom-status-line/scripts/<name>.py`.
-
----
-
-## 3. YOLO — `skills/yolo/`
+## 2. YOLO — `skills/yolo/`
 
 Auto-approves every permission prompt for a whole Claude Code session once enabled. Useful when you've already vetted what Claude will do and don't want to click "Approve" on every shell call. Per-session (not always-on) and tamper-aware.
 
@@ -144,13 +109,7 @@ cat-herding/
 │   ├── claude-additions.md            ← merged into ~/.claude/CLAUDE.md
 │   └── scripts-{git,bash,xcode,claude,meta,hooks}/   ← 30 cc-* scripts
 ├── skills/
-│   ├── custom-status-line/            ← component 2
-│   │   ├── install.sh / uninstall.sh
-│   │   ├── SKILL.md
-│   │   ├── references/                ← runtime source files + 3 hook scripts
-│   │   ├── scripts/                   ← skill-internal dev tools (not on PATH)
-│   │   └── tests/
-│   └── yolo/                          ← component 3
+│   └── yolo/                          ← component 2
 │       ├── install.sh / uninstall.sh
 │       ├── SKILL.md
 │       └── references/                ← hook scripts + deny defaults + indicator
@@ -168,5 +127,4 @@ cat-herding/
 Everything here exists to **reduce the number of Bash calls Claude makes per turn**. Each repeated Bash invocation costs tokens (conversation cache + tool-result text); a deterministic script replacing five Bash turns saves real money. The three components cover the three repeating costs:
 
 - **Claude optimizations** — the scripts themselves.
-- **Custom status line** — so Claude can see its own cost + quota state without asking.
 - **YOLO** — so Claude doesn't pause on every permission prompt, which otherwise forces the user back into the loop for trivial operations.

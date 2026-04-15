@@ -17,8 +17,7 @@ from pathlib import Path
 
 REPO_ROOT = Path.home() / "projects" / "active" / "cat-herding"
 # Every `claude-optimizing/scripts-*/` category dir. Skill-internal scripts
-# (e.g. skills/custom-status-line/scripts/) don't install to $PATH so cc-doctor
-# doesn't watch them.
+# don't install to $PATH so cc-doctor doesn't watch them.
 CANONICAL_SOURCES = sorted((REPO_ROOT / "claude-optimizing").glob("scripts-*"))
 BIN_DIR = Path.home() / ".local" / "bin"
 HOOKS_DIR = Path.home() / ".claude" / "hooks"
