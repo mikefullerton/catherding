@@ -76,7 +76,10 @@ def run(claude_data: dict, lines: list) -> list:
                 remotes.add(re.sub(r"^origin/", "", name))
         locals_ = set()
         for line in local_branches.splitlines():
-            locals_.add(line.lstrip("* ").strip())
+            # git prefixes checked-out branches with '*' and branches checked
+            # out in a linked worktree with '+'. Strip both so the local name
+            # matches the remote counterpart.
+            locals_.add(line.lstrip("*+ ").strip())
         remote_only = len(remotes - locals_)
         if remote_only > 0:
             items.append(f"{remote_only} remote-only")
