@@ -645,15 +645,8 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
             warning_text = ""
         rows.append(Row(gs2, gs3, gs4, trailing=warning_text))
 
-    # "Claude" section: heading includes the model name (colored like the
-    # data-row label below) plus the running Claude CLI version, so the
-    # whole header reads at a glance as "Claude <Model> v<X.Y.Z>".
-    claude_version = claude.get("version") or ""
-    header_bits = [f"{ORANGE}Claude{RST}"]
-    if claude_version:
-        header_bits.append(f"{DIM}(v{claude_version}){RST}")
-    header_bits.append(f"{DIM}-{RST}")
-    header_bits.append(mc1)
+    # "Claude" section: heading is "Claude - <Model>".
+    header_bits = [f"{ORANGE}Claude{RST}", f"{DIM}-{RST}", mc1]
     rows.append(Row(" ".join(header_bits), heading=True))
 
     # The model row no longer repeats the model name in col 0 — "Current
