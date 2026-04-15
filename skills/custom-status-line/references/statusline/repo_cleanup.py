@@ -8,9 +8,9 @@ is clean or not a git checkout.
 import re
 import subprocess
 
-from statusline.formatting import ORANGE, RST, Row
+from statusline.formatting import RED, RST, Row
 
-WARN = "\033[38;5;208m"
+WARN = RED
 
 
 def git_cmd(*args: str) -> str:

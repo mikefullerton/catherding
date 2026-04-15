@@ -568,7 +568,7 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
     # --- Append rows to shared list ---
     if branch:
         # "git" is a section label — standalone heading (no grid alignment).
-        rows.append(Row(f"{DIM}git{RST}", heading=True))
+        rows.append(Row(f"{ORANGE}git{RST}", heading=True))
         # Detail row participates in the shared column grid one column to the
         # left of where it used to sit: the old empty col 0 indent is gone,
         # so files/remote/main now occupy col 0/1/2 and align with the model,
@@ -599,7 +599,7 @@ def run(claude_data: dict, lines: list, rows: list = None) -> list:
     # week-over-week comparison row. Heading sits above whichever rows exist
     # so the weekly-spend context is always visually grouped.
     if usage_cols or week_rows:
-        rows.append(Row(f"{DIM}Usage{RST}", heading=True))
+        rows.append(Row(f"{ORANGE}Usage{RST}", heading=True))
     if usage_cols:
         uc1, uc2, uc3, uc4, uc5, uc6, uc7 = usage_cols
         rows.append(Row(uc1, uc4, uc5, uc6))
