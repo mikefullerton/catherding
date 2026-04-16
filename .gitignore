@@ -15,3 +15,6 @@ graphify-out/
 
 # status line runtime state (not distributable)
 claude_version.json
+
+# Claude Code scheduled tasks runtime lock
+.claude/scheduled_tasks.lock
