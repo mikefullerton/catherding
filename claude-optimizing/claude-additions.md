@@ -72,16 +72,6 @@ All changes go through worktree branches. Never commit directly to the default b
 2. **Work:** commit and push as you go. Create a **draft PR** on first push.
 3. **Finish (MANDATORY):** after a PR merges, you MUST run `cc-merge-worktree <pr>`. This is the only supported way to complete the ritual. A PostToolUse hook on `ExitWorktree` (`~/.claude/hooks/cc-exit-worktree-hook.py`) detects merged worktrees left on disk and **blocks the next tool call** until `cc-merge-worktree` runs. Do not attempt to reproduce its steps manually — `cc-merge-worktree` handles the gh-inside-worktree quirks, submodule drift, draft-PR ready flipping, and upstream-matching dirt discards.
 
-### Worktree Location — MANDATORY
-
-**All worktrees live under `~/projects/worktrees/<project>/<branch>/` — NEVER inside the project tree.**
-
-- One directory per project under `~/projects/worktrees/`, named for the project (e.g. `~/projects/worktrees/cat-herding/`, `~/projects/worktrees/cookbook/`).
-- Each branch's worktree is a subdirectory of that project dir: `~/projects/worktrees/<project>/<branch>/`.
-- The project dir under `~/projects/worktrees/` is auto-created on first use if missing.
-- **Never** create a worktree inside the project's own tree (e.g. `.claude/worktrees/`, `.worktrees/`, or any path under `~/projects/active/<project>/`). That layout is deprecated. Old `.claude/worktrees/` directories found in any repo are stale debris and safe to delete.
-- When invoking `EnterWorktree` or `git worktree add`, pass an explicit absolute path under `~/projects/worktrees/<project>/`.
-
 ## Repo Hygiene — MANDATORY, NO EXCEPTIONS
 
 > **Scope:** `~/projects/` only. For external or third-party repos, skip these rules — branch deletion and push hygiene assume write access you may not have.

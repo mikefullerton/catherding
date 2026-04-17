@@ -119,14 +119,14 @@ def main() -> int:
             broken += 1
             continue
         # Stale = points outside the canonical script dirs AND outside any
-        # cat-herding worktree. Worktrees live at
-        # `~/projects/worktrees/cat-herding/<name>/claude-optimizing/scripts-<area>/`,
+        # cat-herding worktree. EnterWorktree creates worktrees under
+        # `<cat-herding>/.claude/worktrees/<name>/claude-optimizing/scripts-<area>/`,
         # which is fine while testing.
         import re
         real_s = str(real)
         is_canonical = any(real_s.startswith(str(src) + "/") for src in CANONICAL_SOURCES)
         is_worktree = (
-            "/projects/worktrees/cat-herding/" in real_s
+            "/cat-herding/.claude/worktrees/" in real_s
             and bool(re.search(r"/claude-optimizing/scripts-[a-z]+/", real_s))
         )
         if not (is_canonical or is_worktree):
