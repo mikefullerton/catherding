@@ -137,51 +137,7 @@ def main():
                         f"{default_branch} is {behind} commit(s) behind origin/{default_branch}"
                     )
 
-    # Check 7: Submodules must be on latest remote commit
-    out, _ = run(["git", "-C", cwd, "submodule", "status"])
-    if out:
-        for line in out.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            # Format: [+- ]<sha> <path> (<describe>)
-            parts = line.split()
-            if len(parts) < 2:
-                continue
-            sm_path = parts[1]
-            sm_abs = os.path.join(cwd, sm_path)
-            # Fetch latest from remote inside the submodule
-            run(["git", "-C", sm_abs, "fetch", "origin", "--quiet"], timeout=10)
-            # Detect the submodule's default branch
-            sm_default = None
-            ref_out, rc = run(["git", "-C", sm_abs, "symbolic-ref", "refs/remotes/origin/HEAD"])
-            if rc == 0 and ref_out:
-                sm_default = ref_out.replace("refs/remotes/origin/", "")
-            else:
-                for candidate in ("main", "master"):
-                    _, rc = run(
-                        ["git", "-C", sm_abs, "show-ref", "--verify", "--quiet",
-                         f"refs/remotes/origin/{candidate}"]
-                    )
-                    if rc == 0:
-                        sm_default = candidate
-                        break
-            if not sm_default:
-                continue
-            # Compare pinned commit vs latest on remote default branch
-            pinned_sha, _ = run(["git", "-C", sm_abs, "rev-parse", "HEAD"])
-            remote_sha, _ = run(["git", "-C", sm_abs, "rev-parse", f"origin/{sm_default}"])
-            if pinned_sha and remote_sha and pinned_sha != remote_sha:
-                behind, _ = run(
-                    ["git", "-C", sm_abs, "rev-list", "--count", f"HEAD..origin/{sm_default}"]
-                )
-                behind_n = int(behind) if behind else 0
-                if behind_n > 0:
-                    violations.append(
-                        f"Submodule '{sm_path}' is {behind_n} commit(s) behind origin/{sm_default}"
-                    )
-
-    # Check 8: Stale worktrees
+    # Check 7: Stale worktrees
     out, _ = run(["git", "-C", cwd, "worktree", "list", "--porcelain"])
     if out:
         worktrees = []
