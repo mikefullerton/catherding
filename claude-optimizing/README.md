@@ -79,7 +79,7 @@ Every script supports `--help`. Exit codes are always meaningful.
 | Command | Purpose |
 |---|---|
 | `cc-usage-stats [--today\|--week\|--last-week\|--compare\|--history N]` | Token / cost stats from `~/.claude/usage.db`. |
-| `cc-claude-fields [--list\|--diff V1 V2\|--blob V\|--new-since V]` | Inspect stored Claude version field blobs in `~/claude-usage.db`. |
+| `cc-claude-fields [--list\|--diff V1 V2\|--blob V\|--new-since V]` | Inspect stored Claude version field blobs in `~/.claude-status-line/claude-usage.db`. |
 | `cc-memory list` / `cc-memory add <type> <name> --description ...` | Manage per-project auto-memory (writes file + updates `MEMORY.md` atomically). |
 | `cc-graphify-status [--saving\|--collecting\|--total]` | Summary of graphify savings per project. |
 | `cc-project-index [--filter graphify\|git\|worktrees\|stale]` | Find projects under `~/projects/` by criteria. |

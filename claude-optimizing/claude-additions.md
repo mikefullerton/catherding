@@ -36,7 +36,7 @@ The `cc-*` scripts (installed to `~/.local/bin/` from `~/projects/active/catherd
 - `cc-project-index [--filter graphify|git|worktrees|stale]` — find projects by criteria under `~/projects/`.
 - `cc-memory list | add <type> <name> --description ...` — manage per-project auto-memory (writes file + updates `MEMORY.md` atomically).
 - `cc-usage-stats --today | --week | --last-week | --compare | --history N` — token/cost stats from `~/.claude/usage.db`.
-- `cc-claude-fields --list | --diff V1 V2 | --blob V | --new-since V` — inspect stored Claude version blobs in `~/claude-usage.db`.
+- `cc-claude-fields --list | --diff V1 V2 | --blob V | --new-since V` — inspect stored Claude version blobs in `~/.claude-status-line/claude-usage.db`.
 - `cc-graphify-status [--saving | --collecting | --total]` — graphify savings summary.
 - `cc-verify` — run tests + lint + typecheck.
 - `cc-help [name]` — list all `cc-*` scripts or show `--help` for a specific one.
