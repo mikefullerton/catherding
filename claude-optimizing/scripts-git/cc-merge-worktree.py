@@ -96,12 +96,18 @@ def discard_if_matches_upstream(default_branch, cwd):
     """
     run(["git", "fetch", "origin", default_branch], cwd=cwd)
 
-    status, _ = run(["git", "status", "--porcelain=v1"], cwd=cwd)
+    # Bypass run()'s .strip() — porcelain=v1 lines are "XY filename" where
+    # X/Y may be spaces. Stripping eats the leading space and shifts the
+    # filename slice by one, corrupting the path.
+    status = subprocess.run(
+        ["git", "status", "--porcelain=v1"],
+        capture_output=True, text=True, check=True, cwd=cwd,
+    ).stdout
     dirty_paths = []
     for line in status.splitlines():
         if not line or line.startswith("??"):
             continue
-        dirty_paths.append(line[3:].strip())
+        dirty_paths.append(line[3:])
 
     if not dirty_paths:
         return True
@@ -242,6 +248,12 @@ def main():
 
     # 9. Delete remote branch (harmless if already gone)
     run(["git", "push", "origin", "--delete", wt_branch], check=False)
+
+    # 9b. Prune stale refs/remotes/origin/* tracking refs left behind when
+    # the remote branch was deleted by GitHub's delete_branch_on_merge
+    # setting (so step 9 was a no-op and didn't auto-prune the local
+    # tracking ref as a side effect).
+    run(["git", "fetch", "--prune", "origin"], check=False)
 
     # 10. Final verification
     still_there, _ = run(["git", "ls-remote", "--heads", "origin", wt_branch], check=False)
