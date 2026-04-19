@@ -14,8 +14,8 @@ Opinionated tooling that turns Claude Code into a disciplined, cost-aware develo
 ## Install
 
 ```bash
-git clone <this-repo-url> ~/projects/active/cat-herding
-cd ~/projects/active/cat-herding
+git clone <this-repo-url> ~/projects/active/catherding
+cd ~/projects/active/catherding
 ./install.sh
 ```
 
@@ -78,7 +78,7 @@ Auto-approves every permission prompt for a whole Claude Code session once enabl
 
 ### Lifecycle
 
-1. `claude plugin install @cat-herding/yolo` (or `./install.sh` in this repo) deploys three shell hooks into `~/.claude/hooks/`:
+1. `claude plugin install @catherding/yolo` (or `./install.sh` in this repo) deploys three shell hooks into `~/.claude/hooks/`:
    - `yolo-approve-all.sh` — `PermissionRequest` hook. When the session is yolo-enabled, approves the request unless the command matches the configurable deny list.
    - `yolo-session-start.sh` — writes a per-session state marker at `~/.claude-yolo-sessions/<session-id>.json`.
    - `yolo-session-cleanup.sh` — removes the marker on `SessionEnd`.
@@ -98,7 +98,7 @@ A JSON file at `~/.claude-yolo-sessions/yolo-deny.json` containing regex-ish com
 ## Repo layout
 
 ```
-cat-herding/
+catherding/
 ├── install.sh                         ← per-component [Y/n] prompts
 ├── uninstall.sh
 ├── README.md                          ← this file

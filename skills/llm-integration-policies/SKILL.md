@@ -37,4 +37,4 @@ Extensions (skills, rules, agents, MCP integrations, commands, plugins, hooks) a
 
 ## Reference
 
-Full rationale: `~/projects/active/cat-herding/docs/rules/development-policies.md` (section: "LLMs").
+Full rationale: `~/projects/active/catherding/docs/rules/development-policies.md` (section: "LLMs").

@@ -43,8 +43,8 @@ gh auth login
 
 ```bash
 mkdir -p ~/projects/active
-git clone <this-repo-url> ~/projects/active/cat-herding
-cd ~/projects/active/cat-herding
+git clone <this-repo-url> ~/projects/active/catherding
+cd ~/projects/active/catherding
 ./install.sh
 ```
 
@@ -90,7 +90,7 @@ Always use Python for scripts. Never write bash/shell scripts (.sh). Exceptions:
 ## Workflow Scripts — PREFER over multi-step Bash
 
 The `cc-*` scripts (installed to `~/.local/bin/` from
-`~/projects/active/cat-herding/claude-optimizing/scripts-*/`) collapse
+`~/projects/active/catherding/claude-optimizing/scripts-*/`) collapse
 common multi-step Bash rituals into single calls. Use them instead of raw
 git/gh sequences whenever the scenario matches:
 
@@ -106,7 +106,7 @@ git/gh sequences whenever the scenario matches:
 - `cc-help` — catalog with summaries
 
 All scripts support `--help`, exit non-zero on failure, and return tight
-parseable output. Source: `~/projects/active/cat-herding/claude-optimizing/scripts-*/`
+parseable output. Source: `~/projects/active/catherding/claude-optimizing/scripts-*/`
 (hook scripts routed to `~/.claude/hooks/`). Skill-internal tools live under
 each skill's own `scripts/` subdir and are not on `$PATH`.
 
@@ -270,7 +270,7 @@ Restart any running Claude sessions. A new turn's Stop event will now hit the hy
 This file tells Claude Code which bash patterns to auto-approve **without prompting** in this specific repo. It's not checked in to the repo. Create it after cloning:
 
 ```bash
-cat > ~/projects/active/cat-herding/.claude/settings.local.json <<'EOF'
+cat > ~/projects/active/catherding/.claude/settings.local.json <<'EOF'
 {
   "permissions": {
     "allow": [
@@ -297,7 +297,7 @@ cc-doctor                         # all symlinks ok
 cc-help | head                    # catalog renders
 
 # Repo-local git behaviour
-cd ~/projects/active/cat-herding
+cd ~/projects/active/catherding
 git status                        # clean
 git config core.hooksPath         # → .githooks
 echo 'x' > /tmp/bad.py && \
@@ -318,12 +318,12 @@ If any step fails, re-read the corresponding section above — each one is isola
 ## Uninstall
 
 ```bash
-cd ~/projects/active/cat-herding
+cd ~/projects/active/catherding
 ./uninstall.sh                    # removes cc-* symlinks, unsymlinks skills, uninstalls CLIs
 # cc-repo-hygiene-hook is a symlink — removed by uninstall.sh above
 rm ~/.claude/hooks/session-tracker.py    # installed by stenographer's skills/custom-status-line/install.sh
 # Remove the `hooks` entries you added in section 4 from ~/.claude/settings.json
 # Remove repo/.claude/settings.local.json if you don't want auto-approvals
-git -C ~/projects/active/cat-herding config --unset core.hooksPath
+git -C ~/projects/active/catherding config --unset core.hooksPath
 ```
 

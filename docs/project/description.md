@@ -23,4 +23,4 @@ Active development.
 
 ## Related Projects
 
-- [dev-tools](../../../tools/dev-tools/docs/project/description.md) — project scaffolding, deployment, and infrastructure skills (moved from this repo)
+- [devtools](../../../tools/devtools/docs/project/description.md) — project scaffolding, deployment, and infrastructure skills (moved from this repo)

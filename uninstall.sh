@@ -54,7 +54,7 @@ POLICY_SKILLS=(
 )
 
 echo ""
-echo "cat-herding uninstaller — independent components:"
+echo "catherding uninstaller — independent components:"
 echo "  1. Claude optimizations"
 echo "  2. YOLO mode"
 echo "  3. Developer-policy skills"

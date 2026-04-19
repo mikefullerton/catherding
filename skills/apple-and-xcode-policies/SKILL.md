@@ -63,4 +63,4 @@ Platform-specific code, projects, and tooling live *exclusively* under their pla
 
 ## Reference
 
-Full rationale: `~/projects/active/cat-herding/docs/rules/development-policies.md` (section: "Apple [macOS only]").
+Full rationale: `~/projects/active/catherding/docs/rules/development-policies.md` (section: "Apple [macOS only]").

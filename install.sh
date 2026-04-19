@@ -64,7 +64,7 @@ install_skill() {
 }
 
 echo ""
-echo "cat-herding installer — independent components:"
+echo "catherding installer — independent components:"
 echo "  1. Claude optimizations (cc-* scripts, Stop hook, global CLAUDE.md guidance)"
 echo "  2. YOLO mode"
 echo "  3. Developer-policy skills (global-install, read-time only)"

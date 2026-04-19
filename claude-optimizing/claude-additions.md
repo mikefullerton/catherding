@@ -14,7 +14,7 @@ Always use Python for scripts. NEVER write bash/shell scripts (`.sh`). This incl
 
 ## Workflow Scripts — PREFER over multi-step Bash
 
-The `cc-*` scripts (installed to `~/.local/bin/` from `~/projects/active/cat-herding/claude-optimizing/scripts-<area>/`) collapse common multi-step Bash rituals into single calls. Use them instead of raw git/gh sequences whenever the scenario matches:
+The `cc-*` scripts (installed to `~/.local/bin/` from `~/projects/active/catherding/claude-optimizing/scripts-<area>/`) collapse common multi-step Bash rituals into single calls. Use them instead of raw git/gh sequences whenever the scenario matches:
 
 **Git / PR:**
 - `cc-merge-worktree <pr>` — merge PR + full worktree cleanup (9-step ritual). Use after `ExitWorktree action: keep` when the user asks to merge.
@@ -106,7 +106,7 @@ Run `git status`. If the repo has uncommitted changes, untracked files, or stale
 
 ### What the Hook Enforces
 
-The `Stop` hook (`~/.claude/hooks/cc-repo-hygiene-hook.py`, vendored from cat-herding `claude-optimizing/scripts-hooks/cc-repo-hygiene-hook.py`) will **block the turn from ending** if any of these are true:
+The `Stop` hook (`~/.claude/hooks/cc-repo-hygiene-hook.py`, vendored from catherding `claude-optimizing/scripts-hooks/cc-repo-hygiene-hook.py`) will **block the turn from ending** if any of these are true:
 
 1. Staged or unstaged changes exist
 2. Untracked files exist (not in `.gitignore`)
