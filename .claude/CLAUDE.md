@@ -14,9 +14,14 @@ claude-optimizing/         # Self-contained Claude-Code tooling layer (guidance 
   scripts-claude/          # Claude Code meta (cc-usage-stats, cc-claude-fields, cc-memory, cc-graphify-status, cc-project-index)
   scripts-meta/            # Self-management (cc-install, cc-doctor, cc-help)
   scripts-hooks/           # Claude Code hook scripts (cc-repo-hygiene-hook.py for Stop + cc-exit-worktree-hook.py for PostToolUse:ExitWorktree → ~/.claude/hooks/)
+  tests/                   # pytest harness for the cc-* scripts (uses agentic-cookbook/catherdingtests as a real-GitHub sandbox)
   claude-additions.md      # Guidance block appended to ~/.claude/CLAUDE.md by install.sh
   install.sh / uninstall.sh  # Deploy/remove guidance + scripts + hooks
 ```
+
+## Tests
+
+The `cc-*` scripts have a real-GitHub test harness at `claude-optimizing/tests/`. It uses [`agentic-cookbook/catherdingtests`](https://github.com/agentic-cookbook/catherdingtests) as a sandbox repo (creates real branches, PRs, and merges). Run `pytest tests/ -v` from `claude-optimizing/`. See `claude-optimizing/tests/README.md` for coverage and the sandbox-repo setup that matches production conditions like `delete_branch_on_merge: true`.
 
 ## Skills
 
