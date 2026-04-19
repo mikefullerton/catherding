@@ -7,9 +7,13 @@ Detects:
   - stale branches (remote tracking branch gone)
   - local branches already merged into default
   - remote-only branches (on origin but not local)
+  - tombstone tracking refs (refs/remotes/origin/<name> where the remote
+    branch no longer exists on origin — typically left behind by
+    delete_branch_on_merge interacting with explicit `git push --delete`)
   - prunable worktrees
 
-With --cleanup, performs safe deletions (merged branches, prunable worktrees).
+With --cleanup, performs safe deletions (merged branches, prunable
+worktrees) and prunes tombstone tracking refs via `git fetch --prune`.
 Stale / remote-only are reported only.
 """
 import argparse
@@ -73,6 +77,25 @@ def find_prunable():
     return [l for l in out.splitlines() if l.strip()]
 
 
+def find_tombstone_tracking_refs():
+    """Tracking refs (refs/remotes/origin/*) whose remote branch is gone.
+
+    Detected by `git remote prune --dry-run origin`, which lists what a
+    real prune would remove without modifying anything.
+    """
+    out, rc = run(["git", "remote", "prune", "--dry-run", "origin"])
+    if rc != 0:
+        return []
+    refs = []
+    for line in out.splitlines():
+        # Output lines look like " * [would prune] origin/<branch>"
+        marker = "[would prune] origin/"
+        idx = line.find(marker)
+        if idx != -1:
+            refs.append(line[idx + len(marker):].strip())
+    return refs
+
+
 def main():
     ap = argparse.ArgumentParser(description="Branch/worktree hygiene.")
     ap.add_argument("--cleanup", action="store_true",
@@ -92,6 +115,7 @@ def main():
     stale = find_stale()
     merged = find_merged(default)
     remote_only = find_remote_only()
+    tombstones = find_tombstone_tracking_refs()
     prunable = find_prunable()
 
     def _list(label, items):
@@ -103,9 +127,10 @@ def main():
     _list("stale", stale)
     _list("merged (local)", merged)
     _list("remote-only", remote_only)
+    _list("tombstone tracking refs", tombstones)
     _list("prunable worktrees", prunable)
 
-    if not any([stale, merged, remote_only, prunable]):
+    if not any([stale, merged, remote_only, tombstones, prunable]):
         print("clean")
         return
 
@@ -114,6 +139,9 @@ def main():
             for b in merged:
                 run(["git", "branch", "-d", b])
             print(f"deleted {len(merged)} merged branches")
+        if tombstones:
+            run(["git", "fetch", "--prune", "origin"])
+            print(f"pruned {len(tombstones)} tombstone tracking refs")
         if prunable:
             run(["git", "worktree", "prune"])
             print("pruned worktrees")
