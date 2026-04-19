@@ -67,6 +67,36 @@ def main():
     if has_remote:
         run(["git", "-C", cwd, "fetch", "origin", "--quiet"], timeout=10)
 
+    # Parse worktrees once so later checks can cross-reference. A worktree
+    # with uncommitted changes or untracked files is still "in use" even if
+    # its branch has been reset to an ancestor of main by cc-merge-worktree —
+    # subsequent checks skip such worktrees/branches to avoid false positives.
+    wt_out, _ = run(["git", "-C", cwd, "worktree", "list", "--porcelain"])
+    worktrees = []
+    current_wt = {}
+    for line in wt_out.splitlines():
+        if line.startswith("worktree "):
+            if current_wt:
+                worktrees.append(current_wt)
+            current_wt = {"path": line[len("worktree "):]}
+        elif line.startswith("branch "):
+            current_wt["branch"] = line[len("branch refs/heads/"):]
+    if current_wt:
+        worktrees.append(current_wt)
+
+    def _worktree_dirty(path):
+        porcelain, rc = run(["git", "-C", path, "status", "--porcelain"])
+        return rc == 0 and bool(porcelain)
+
+    # Branches backing a dirty worktree (excluding the main worktree itself —
+    # dirtiness there is handled by Checks 1–3 on the session cwd).
+    active_dirty_branches = set()
+    for wt in worktrees[1:]:
+        b = wt.get("branch")
+        p = wt.get("path")
+        if b and p and _worktree_dirty(p):
+            active_dirty_branches.add(b)
+
     violations = []
 
     # Check 1: Staged changes
@@ -101,6 +131,9 @@ def main():
                 # Skip branches at the same commit as default — they're new, not stale
                 b_sha, _ = run(["git", "-C", cwd, "rev-parse", name])
                 if b_sha and default_sha and b_sha == default_sha:
+                    continue
+                # Skip branches backing an in-use (dirty) worktree.
+                if name in active_dirty_branches:
                     continue
                 merged.append(name)
             if merged:
@@ -137,47 +170,37 @@ def main():
                         f"{default_branch} is {behind} commit(s) behind origin/{default_branch}"
                     )
 
-    # Check 7: Stale worktrees
-    out, _ = run(["git", "-C", cwd, "worktree", "list", "--porcelain"])
-    if out:
-        worktrees = []
-        current_wt = {}
-        for line in out.splitlines():
-            if line.startswith("worktree "):
-                if current_wt:
-                    worktrees.append(current_wt)
-                current_wt = {"path": line[len("worktree "):]}
-            elif line.startswith("branch "):
-                current_wt["branch"] = line[len("branch refs/heads/"):]
-        if current_wt:
-            worktrees.append(current_wt)
-
-        # Skip the first worktree (main working tree)
-        for wt in worktrees[1:]:
-            branch = wt.get("branch")
-            path = wt.get("path", "?")
-            if not branch:
+    # Check 7: Stale worktrees (reuses worktrees parsed above).
+    # Skip the first worktree (main working tree).
+    for wt in worktrees[1:]:
+        branch = wt.get("branch")
+        path = wt.get("path", "?")
+        if not branch:
+            continue
+        # A worktree with uncommitted changes or untracked files is in use
+        # regardless of how its branch pointer sits relative to main — skip.
+        if branch in active_dirty_branches:
+            continue
+        # Check if branch still exists
+        _, rc = run(
+            ["git", "-C", cwd, "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"]
+        )
+        if rc != 0:
+            violations.append(f"Stale worktree at {path} — branch '{branch}' no longer exists")
+        elif default_branch:
+            # A worktree branch that points to the same commit as the default
+            # branch is newly created (not yet diverged) — not stale.
+            branch_sha, _ = run(["git", "-C", cwd, "rev-parse", branch])
+            default_sha, _ = run(["git", "-C", cwd, "rev-parse", default_branch])
+            if branch_sha and default_sha and branch_sha == default_sha:
                 continue
-            # Check if branch still exists
             _, rc = run(
-                ["git", "-C", cwd, "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"]
+                ["git", "-C", cwd, "merge-base", "--is-ancestor", branch, default_branch]
             )
-            if rc != 0:
-                violations.append(f"Stale worktree at {path} — branch '{branch}' no longer exists")
-            elif default_branch:
-                # A worktree branch that points to the same commit as the default
-                # branch is newly created (not yet diverged) — not stale.
-                branch_sha, _ = run(["git", "-C", cwd, "rev-parse", branch])
-                default_sha, _ = run(["git", "-C", cwd, "rev-parse", default_branch])
-                if branch_sha and default_sha and branch_sha == default_sha:
-                    continue
-                _, rc = run(
-                    ["git", "-C", cwd, "merge-base", "--is-ancestor", branch, default_branch]
+            if rc == 0:
+                violations.append(
+                    f"Stale worktree at {path} — branch '{branch}' is already merged into {default_branch}"
                 )
-                if rc == 0:
-                    violations.append(
-                        f"Stale worktree at {path} — branch '{branch}' is already merged into {default_branch}"
-                    )
 
     # Output result
     if not violations:
