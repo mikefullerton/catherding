@@ -30,7 +30,7 @@ import sys
 from pathlib import Path
 
 
-REPO_ROOT = Path.home() / "projects" / "active" / "cat-herding"
+REPO_ROOT = Path.home() / "projects" / "active" / "catherding"
 # Scripts are organized into category directories under `claude-optimizing/`
 # (scripts-git/, scripts-bash/, scripts-xcode/, scripts-claude/, scripts-meta/,
 # scripts-hooks/). Skill-internal scripts live under each skill's own `scripts/`
@@ -58,7 +58,7 @@ def main() -> int:
     ap.add_argument(
         "--from", dest="source", default=None,
         help="Explicit source dir containing cc-*.py scripts "
-             "(default: claude-optimizing/scripts-*/ under the cat-herding repo)",
+             "(default: claude-optimizing/scripts-*/ under the catherding repo)",
     )
     ap.add_argument("--dry-run", action="store_true", help="Print actions without applying them")
     args = ap.parse_args()
