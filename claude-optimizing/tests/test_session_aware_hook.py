@@ -97,3 +97,20 @@ def test_mixed_blocks_and_warns(hook_local_repo, tmp_path):
     assert "theirs.txt" not in d.get("reason", ""), \
         "prior-session path must not be in block reason"
     assert "theirs.txt" in err
+
+
+def test_untracked_from_bash_redirect_blocks(hook_local_repo, tmp_path):
+    """An untracked file whose path appears as a substring in a Bash
+    command (e.g. `python foo.py > out.json`) counts as this-session
+    via the conservative Bash substring match — block."""
+    (hook_local_repo / "out.json").write_text('{"ok": true}\n')
+
+    tp = _write_transcript(tmp_path, [
+        {"name": "Bash", "input": {"command": "python foo.py > out.json"}},
+    ])
+
+    out, err, rc = _invoke_hook(hook_local_repo, tp)
+    assert rc == 0
+    d = _decision(out)
+    assert d is not None and d.get("decision") == "block"
+    assert "out.json" in d.get("reason", "")
