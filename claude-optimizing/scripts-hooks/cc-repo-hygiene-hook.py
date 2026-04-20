@@ -70,6 +70,36 @@ def _read_transcript_tool_uses(transcript_path):
         return None, None
 
 
+def _classify_paths(rel_paths, cwd, edit_paths, bash_commands):
+    """Partition repo-relative paths into (touched, untouched) by session.
+
+    A path is "touched" by the current session if:
+      - its absolute form appears in edit_paths (from Edit/Write/
+        NotebookEdit tool_use file_path inputs), OR
+      - its relative form or absolute form appears as a substring in any
+        Bash command string.
+
+    The Bash substring check is intentionally loose: false positives
+    (warn-eligible paths promoted to block) are safe; false negatives
+    (Claude-touched paths demoted to warn) would let real session dirt
+    slip past Stop with only a warning, which is the dangerous direction.
+    """
+    touched, untouched = [], []
+    for rel in rel_paths:
+        abs_path = os.path.realpath(os.path.join(cwd, rel))
+        is_touched = abs_path in edit_paths
+        if not is_touched:
+            for cmd in bash_commands:
+                if rel in cmd or abs_path in cmd:
+                    is_touched = True
+                    break
+        if is_touched:
+            touched.append(rel)
+        else:
+            untouched.append(rel)
+    return touched, untouched
+
+
 def _find_squash_merged_orphans(cwd, default_branch):
     """Remote branches that correspond to a merged PR but still exist on origin.
 
