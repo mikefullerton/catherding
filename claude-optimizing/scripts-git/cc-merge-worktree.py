@@ -7,21 +7,21 @@ Runs the full worktree-exit ritual in one call. Auto-syncs drifted
 submodule pointers so a recent rebase that bumped a submodule SHA
 doesn't block the gate.
 
-  1. Locate the main-worktree checkout (auto-switches if called from a worktree)
+  1. Locate the main-worktree checkout (auto-switches if called from the
+     main repo; REFUSES if called from inside the worktree being merged —
+     removing that worktree would rip the caller's cwd out, so the caller
+     must cd back to the main repo first)
   2. Mark PR ready if it's a draft, then merge via gh (squash)
   3. Pull default branch
   4. Gate: verify MERGED state + main==origin/main + clean tracked
      (tracked changes that already match origin/<default> are discarded)
-  5. Remove worktree directory (skipped if the caller's shell is inside it,
-     to avoid ripping the cwd out from under the parent process)
-  6. Delete local branch (also skipped in the caller-inside case)
+  5. Remove worktree directory
+  6. Delete local branch
   7. Delete remote branch
   8. Final verification
-  9. Caller-inside case: if the worktree is clean, fast-forward its branch
-     to origin/<default> so ExitWorktree action:remove succeeds on the
-     first try without needing discard_changes=true
 
-Exits non-zero on any gate failure. Safe to re-run if a step failed midway.
+Exits non-zero on any gate failure (including the caller-cwd gate). Safe
+to re-run if a step failed midway.
 """
 import argparse
 import os
@@ -138,20 +138,54 @@ def main():
         sys.exit(2)
 
     cwd_at_start = os.getcwd()
+    caller_cwd = os.environ.get("PWD") or cwd_at_start
     if os.path.realpath(cwd_at_start) != os.path.realpath(main_path):
         print(f"switching to main worktree: {main_path}")
     os.chdir(main_path)
 
+    # Index worktree paths by branch (used for --branch auto-detect AND for
+    # the caller-inside-worktree gate below).
+    wt_list, _ = run(["git", "worktree", "list", "--porcelain"])
+    wt_path_by_branch: dict[str, str] = {}
+    cur_path = None
+    for line in wt_list.splitlines():
+        if line.startswith("worktree "):
+            cur_path = line[len("worktree "):]
+        elif line.startswith("branch refs/heads/") and cur_path:
+            wt_path_by_branch[line[len("branch refs/heads/"):]] = cur_path
+
     # 2. Detect worktree branch if not provided
     wt_branch = args.branch
     if not wt_branch:
-        wt_list, _ = run(["git", "worktree", "list", "--porcelain"])
-        for line in wt_list.splitlines():
-            if line.startswith("branch refs/heads/worktree-"):
-                wt_branch = line.replace("branch refs/heads/", "")
+        for br in wt_path_by_branch:
+            if br.startswith("worktree-"):
+                wt_branch = br
                 break
         if not wt_branch:
             print("FAIL: could not auto-detect worktree branch; pass --branch", file=sys.stderr)
+            sys.exit(2)
+
+    # GATE: refuse to proceed if the caller's cwd is inside the worktree we're
+    # about to merge. Removing the worktree (step 7) would rip the cwd out
+    # from under the calling session; the caller must cd back to the main
+    # repo first. Fail fast BEFORE any network calls so retrying is cheap.
+    target_wt_path = wt_path_by_branch.get(wt_branch)
+    if target_wt_path:
+        try:
+            caller_real = os.path.realpath(caller_cwd)
+            target_real = os.path.realpath(target_wt_path)
+        except OSError:
+            caller_real = target_real = ""
+        if caller_real and (
+            caller_real == target_real
+            or caller_real.startswith(target_real + os.sep)
+        ):
+            print(
+                f"FAIL: cwd is inside the worktree being merged ({target_real}).\n"
+                f"      cd to the main repo ({main_path}) and re-run, or use\n"
+                "      ExitWorktree action:keep first.",
+                file=sys.stderr,
+            )
             sys.exit(2)
 
     print(f"merging PR #{args.pr} (worktree branch: {wt_branch})")
@@ -211,40 +245,17 @@ def main():
 
     print("gate passed")
 
-    # 7. Remove worktree directory — unless the caller is inside it. Removing
-    #    the cwd out from under the parent shell/session makes every subsequent
-    #    subprocess fail with ENOENT (posix_spawn can't resolve its cwd). In
-    #    that case, skip removal and tell the caller to finalize via their
-    #    worktree-exit flow (e.g. ExitWorktree action:remove).
-    wt_list, _ = run(["git", "worktree", "list", "--porcelain"])
-    wt_path = None
-    cur_path = None
-    for line in wt_list.splitlines():
-        if line.startswith("worktree "):
-            cur_path = line[len("worktree "):]
-        elif line == f"branch refs/heads/{wt_branch}":
-            wt_path = cur_path
-            break
-
-    caller_cwd = os.environ.get("PWD") or cwd_at_start
-    caller_inside = False
+    # 7. Remove worktree directory. The caller-inside-worktree case was
+    #    rejected up front by the gate above, so the cwd-ripout hazard
+    #    can't apply here — we always remove unconditionally.
+    wt_path = wt_path_by_branch.get(wt_branch)
     if wt_path:
-        try:
-            caller_real = os.path.realpath(caller_cwd)
-            wt_real = os.path.realpath(wt_path)
-            caller_inside = caller_real == wt_real or caller_real.startswith(wt_real + os.sep)
-        except OSError:
-            caller_inside = False
-
-    skip_local_cleanup = caller_inside
-    if wt_path and not caller_inside:
         run(["git", "worktree", "remove", wt_path, "--force"])
 
-    # 8. Delete local branch (skip if caller still has it checked out)
-    if not skip_local_cleanup:
-        local_branches, _ = run(["git", "branch", "--list", wt_branch])
-        if local_branches:
-            run(["git", "branch", "-D", wt_branch])
+    # 8. Delete local branch
+    local_branches, _ = run(["git", "branch", "--list", wt_branch])
+    if local_branches:
+        run(["git", "branch", "-D", wt_branch])
 
     # 9. Delete remote branch (harmless if already gone)
     run(["git", "push", "origin", "--delete", wt_branch], check=False)
@@ -262,69 +273,6 @@ def main():
 
     head_msg, _ = run(["git", "log", "--oneline", "-1"])
     print(f"done: {head_msg}")
-
-    if caller_inside:
-        # Squash-merge leaves the worktree branch with commits that don't
-        # appear on origin/<default> by SHA. ExitWorktree's safety check
-        # counts them as unmerged work and refuses to remove without
-        # discard_changes=true — extra churn for the caller.
-        #
-        # ExitWorktree compares the branch HEAD against a snapshot of the
-        # default branch captured at EnterWorktree time (NOT current
-        # origin/<default> — origin may have advanced while the session
-        # was running, so resetting to origin/<default> still leaves the
-        # branch visibly "ahead" of the snapshot). The best baseline we
-        # can recover is the merge-base: the branch's divergence point
-        # from <default>, which equals <default>'s tip at branch creation
-        # (since squash-merge never lands a SHA on the worktree branch
-        # itself, the merge-base doesn't move during the PR lifecycle).
-        #
-        # Reset the branch to that merge-base so ExitWorktree sees zero
-        # commits ahead and accepts action:remove on the first try.
-        resettable = False
-        try:
-            _, unstaged_wt = run(
-                ["git", "diff", "--quiet"], check=False, cwd=wt_path,
-            )
-            _, staged_wt = run(
-                ["git", "diff", "--cached", "--quiet"], check=False, cwd=wt_path,
-            )
-            untracked_wt, _ = run(
-                ["git", "ls-files", "--others", "--exclude-standard"],
-                check=False, cwd=wt_path,
-            )
-            resettable = (
-                unstaged_wt == 0
-                and staged_wt == 0
-                and not untracked_wt.strip()
-            )
-        except OSError:
-            resettable = False
-
-        if resettable:
-            # merge-base against origin/<default> is robust even if local
-            # <default> has drifted; this branch's squash never added a
-            # commit to origin/<default>'s history, so the base is the
-            # branch creation point.
-            base_sha, _ = run(
-                ["git", "merge-base", "HEAD", f"origin/{default_branch}"],
-                cwd=wt_path,
-            )
-            run(["git", "reset", "--hard", base_sha], cwd=wt_path)
-            print(
-                f"NOTE: caller is inside {wt_path}. Worktree branch reset "
-                f"to branch-creation point {base_sha[:7]} (commits already "
-                "squash-merged to main).\n"
-                "      Finalize via ExitWorktree action:remove "
-                "(no discard_changes needed)."
-            )
-        else:
-            print(
-                f"NOTE: caller is inside {wt_path} with uncommitted changes; "
-                "left worktree + local branch in place.\n"
-                "      Finalize via ExitWorktree action:remove "
-                "discard_changes:true after leaving the directory."
-            )
 
 
 if __name__ == "__main__":
