@@ -75,3 +75,25 @@ def test_dirty_from_this_session_blocks(hook_local_repo, tmp_path):
     d = _decision(out)
     assert d is not None and d.get("decision") == "block"
     assert "new.py" in d.get("reason", "")
+
+
+def test_mixed_blocks_and_warns(hook_local_repo, tmp_path):
+    """One file this session, one from prior session → block on the
+    this-session path AND warn about the prior-session path."""
+    mine = hook_local_repo / "mine.py"
+    mine.write_text("new\n")
+    theirs = hook_local_repo / "theirs.txt"
+    theirs.write_text("old\n")
+
+    tp = _write_transcript(tmp_path, [
+        {"name": "Write", "input": {"file_path": str(mine)}},
+    ])
+
+    out, err, rc = _invoke_hook(hook_local_repo, tp)
+    assert rc == 0
+    d = _decision(out)
+    assert d is not None and d.get("decision") == "block"
+    assert "mine.py" in d.get("reason", "")
+    assert "theirs.txt" not in d.get("reason", ""), \
+        "prior-session path must not be in block reason"
+    assert "theirs.txt" in err
