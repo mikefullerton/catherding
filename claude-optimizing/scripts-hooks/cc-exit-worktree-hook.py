@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""PostToolUse hook for ExitWorktree — block if a merged worktree is stale.
+"""PostToolUse hook for ExitWorktree — block if worktree exit left dangling state.
 
-Fires right after Claude runs ExitWorktree. Detects the "I exited the worktree
-but forgot to run cc-merge-worktree" case: a non-default-branch worktree is
-still on disk and its branch is already merged into origin/<default>. That's
-exactly the ritual cc-merge-worktree automates.
+Fires right after Claude runs ExitWorktree. Detects two flavors of the
+"I exited the worktree but forgot to run cc-merge-worktree" bug:
+
+  1. A non-default-branch worktree is still on disk and its branch is
+     already merged into origin/<default> (action:keep without follow-up).
+  2. A remote branch on origin corresponds to a merged PR but the local
+     branch is gone (action:remove shortcut on a repo with
+     `delete_branch_on_merge: false`).
 
 Exit codes:
-  0  — nothing stale, proceed
+  0  — nothing dangling, proceed
   2  — blocking; prints a diagnostic to stderr that the harness surfaces
        back to Claude as a tool-use error
 
@@ -75,6 +79,56 @@ def _merged_into(branch: str, target: str, cwd: str) -> bool:
     return rc == 0
 
 
+def _find_squash_merged_orphans(cwd: str, default_branch: str) -> list[str]:
+    """Remote branches that correspond to a merged PR but still exist on origin.
+
+    Mirrors the Stop hook's Check 5b. We fetch with --prune first so
+    tombstone tracking refs (remote deleted, local still cached) don't
+    surface as false orphans.
+    """
+    _git(["fetch", "origin", "--prune", "--quiet"], cwd)
+
+    refs_out, _ = _git(
+        ["for-each-ref", "--format=%(refname:short)", "refs/remotes/origin/"], cwd
+    )
+    local_out, _ = _git(
+        ["for-each-ref", "--format=%(refname:short)", "refs/heads/"], cwd
+    )
+    local_branches = {b.strip() for b in local_out.splitlines() if b.strip()}
+
+    remote_only: list[str] = []
+    for ref in refs_out.splitlines():
+        ref = ref.strip()
+        if not ref.startswith("origin/"):
+            continue
+        name = ref[len("origin/"):]
+        if not name or name in ("HEAD", default_branch):
+            continue
+        if name in local_branches:
+            continue
+        remote_only.append(name)
+
+    if not remote_only:
+        return []
+
+    try:
+        r = subprocess.run(
+            ["gh", "pr", "list", "--state", "merged", "--limit", "100",
+             "--json", "headRefName"],
+            capture_output=True, text=True, timeout=15, cwd=cwd,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return []
+    if r.returncode != 0 or not r.stdout.strip():
+        return []
+    try:
+        merged_heads = {pr["headRefName"] for pr in json.loads(r.stdout)}
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return []
+
+    return [name for name in remote_only if name in merged_heads]
+
+
 def main() -> int:
     try:
         data = json.loads(sys.stdin.read() or "{}")
@@ -106,7 +160,9 @@ def main() -> int:
         if _merged_into(branch, default, cwd):
             stale.append((path, branch))
 
-    if not stale:
+    orphans = _find_squash_merged_orphans(cwd, default)
+
+    if not stale and not orphans:
         return 0
 
     # Try to suggest concrete PR numbers so Claude has a one-call fix.
@@ -122,7 +178,7 @@ def main() -> int:
             return ""
 
     lines = [
-        "ExitWorktree completed but a merged worktree is still on disk.",
+        "ExitWorktree completed but the exit ritual left dangling state.",
         "You MUST run cc-merge-worktree to finish the ritual (see the",
         "'Exiting a Worktree' section of the global CLAUDE.md).",
         "",
@@ -132,6 +188,13 @@ def main() -> int:
         suffix = f"  →  cc-merge-worktree {pr}" if pr else \
                  "  →  cc-merge-worktree <pr-number>"
         lines.append(f"  stale: {path}  (branch {branch}, merged into {default}){suffix}")
+    for branch in orphans:
+        pr = _pr_number(branch)
+        suffix = f"  →  cc-merge-worktree {pr}" if pr else \
+                 f"  →  git push origin --delete {branch}"
+        lines.append(
+            f"  orphan: origin/{branch}  (PR merged, remote branch not deleted){suffix}"
+        )
 
     print("\n".join(lines), file=sys.stderr)
     return 2
