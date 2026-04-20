@@ -19,6 +19,57 @@ def run(cmd, cwd=None, timeout=10):
         return "", 1
 
 
+def _read_transcript_tool_uses(transcript_path):
+    """Return (edit_paths, bash_commands) from the Claude Code transcript.
+
+    edit_paths: set of absolute paths from Edit / Write / NotebookEdit
+        tool_use file_path inputs.
+    bash_commands: list of command strings from Bash tool_use inputs.
+
+    Returns (None, None) on any failure (missing file, IO error, malformed
+    JSON line, or unexpected structure). Callers treat None as "fail
+    closed" — classify every dirty path as this-session.
+    """
+    if not transcript_path:
+        return None, None
+    try:
+        edit_paths = set()
+        bash_commands = []
+        with open(transcript_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except json.JSONDecodeError:
+                    return None, None
+                msg = obj.get("message") or {}
+                content = msg.get("content")
+                if not isinstance(content, list):
+                    continue
+                for block in content:
+                    if not isinstance(block, dict):
+                        continue
+                    if block.get("type") != "tool_use":
+                        continue
+                    name = block.get("name")
+                    inp = block.get("input") or {}
+                    if not isinstance(inp, dict):
+                        continue
+                    if name in ("Edit", "Write", "NotebookEdit"):
+                        fp = inp.get("file_path")
+                        if isinstance(fp, str) and fp:
+                            edit_paths.add(os.path.realpath(fp))
+                    elif name == "Bash":
+                        cmd = inp.get("command")
+                        if isinstance(cmd, str) and cmd:
+                            bash_commands.append(cmd)
+        return edit_paths, bash_commands
+    except (OSError, IOError):
+        return None, None
+
+
 def _find_squash_merged_orphans(cwd, default_branch):
     """Remote branches that correspond to a merged PR but still exist on origin.
 
