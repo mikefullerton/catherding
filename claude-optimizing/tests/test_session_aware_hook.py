@@ -114,3 +114,30 @@ def test_untracked_from_bash_redirect_blocks(hook_local_repo, tmp_path):
     d = _decision(out)
     assert d is not None and d.get("decision") == "block"
     assert "out.json" in d.get("reason", "")
+
+
+def test_missing_transcript_fails_closed(hook_local_repo, tmp_path):
+    """No transcript_path → treat all dirty as this-session → block."""
+    (hook_local_repo / "x.txt").write_text("x\n")
+
+    out, err, rc = _invoke_hook(hook_local_repo, transcript_path=None)
+    assert rc == 0
+    d = _decision(out)
+    assert d is not None and d.get("decision") == "block", (
+        f"expected block when transcript missing; out={out!r} err={err!r}"
+    )
+    assert "x.txt" in d.get("reason", "")
+
+
+def test_malformed_transcript_fails_closed(hook_local_repo, tmp_path):
+    """Transcript exists but has bad JSON → classification disabled →
+    block on every dirty path (preserves old behavior on errors)."""
+    (hook_local_repo / "y.txt").write_text("y\n")
+    bad = tmp_path / "bad.jsonl"
+    bad.write_text("not valid json at all\n")
+
+    out, err, rc = _invoke_hook(hook_local_repo, bad)
+    assert rc == 0
+    d = _decision(out)
+    assert d is not None and d.get("decision") == "block"
+    assert "y.txt" in d.get("reason", "")
