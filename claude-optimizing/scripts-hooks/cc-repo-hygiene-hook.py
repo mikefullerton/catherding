@@ -19,6 +19,60 @@ def run(cmd, cwd=None, timeout=10):
         return "", 1
 
 
+def _find_squash_merged_orphans(cwd, default_branch):
+    """Remote branches that correspond to a merged PR but still exist on origin.
+
+    Two-step filter to keep the gh call off the hot path when nothing looks
+    orphaned:
+      1. Enumerate remote tracking refs with no matching local branch (the
+         only candidates for "orphan"; co-existing local/remote pairs are
+         normal in-progress work).
+      2. If any, ask gh for merged PR head refs in one call and intersect.
+
+    Returns branch names with no `origin/` prefix.
+    """
+    refs_out, _ = run(
+        ["git", "-C", cwd, "for-each-ref",
+         "--format=%(refname:short)", "refs/remotes/origin/"]
+    )
+    local_out, _ = run(
+        ["git", "-C", cwd, "for-each-ref",
+         "--format=%(refname:short)", "refs/heads/"]
+    )
+    local_branches = {b.strip() for b in local_out.splitlines() if b.strip()}
+
+    remote_only = []
+    for ref in refs_out.splitlines():
+        ref = ref.strip()
+        if not ref:
+            continue
+        if not ref.startswith("origin/"):
+            continue
+        name = ref[len("origin/"):]
+        if name in ("HEAD", default_branch) or not name:
+            continue
+        if name in local_branches:
+            continue
+        remote_only.append(name)
+
+    if not remote_only:
+        return []
+
+    gh_out, gh_rc = run(
+        ["gh", "pr", "list", "--state", "merged", "--limit", "100",
+         "--json", "headRefName"],
+        cwd=cwd, timeout=15,
+    )
+    if gh_rc != 0 or not gh_out:
+        return []
+    try:
+        merged_heads = {pr["headRefName"] for pr in json.loads(gh_out)}
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return []
+
+    return [name for name in remote_only if name in merged_heads]
+
+
 def main():
     input_json = json.loads(sys.stdin.read())
 
@@ -63,9 +117,12 @@ def main():
     _, rc = run(["git", "-C", cwd, "remote", "get-url", "origin"])
     has_remote = rc == 0
 
-    # Fetch (with timeout, non-blocking on failure)
+    # Fetch with --prune so tombstone tracking refs (refs/remotes/origin/<b>
+    # where origin no longer has <b>) are cleaned up before later checks
+    # enumerate them. Without --prune, Check 5b sees a stale tracking ref
+    # for a deleted remote branch and falsely flags it as an orphan.
     if has_remote:
-        run(["git", "-C", cwd, "fetch", "origin", "--quiet"], timeout=10)
+        run(["git", "-C", cwd, "fetch", "origin", "--prune", "--quiet"], timeout=10)
 
     # Parse worktrees once so later checks can cross-reference. A worktree
     # with uncommitted changes or untracked files is still "in use" even if
@@ -156,6 +213,22 @@ def main():
                     violations.append(
                         f"Remote branches already merged into {default_branch}: {', '.join(merged)}"
                     )
+
+        # Check 5b: Remote branches whose PR was squash-merged. `git branch
+        # -r --merged` (Check 5) compares by SHA reachability and misses
+        # squash-merges, because the squash commit on default has a
+        # different SHA than the branch tip. This catches the orphan left
+        # behind when a repo has `delete_branch_on_merge: false` and the
+        # user's exit ritual skipped `cc-merge-worktree` (e.g.
+        # ExitWorktree action:remove directly).
+        if has_remote:
+            orphans = _find_squash_merged_orphans(cwd, default_branch)
+            if orphans:
+                violations.append(
+                    "Remote branches with merged PRs not deleted: "
+                    f"{', '.join(orphans)} "
+                    "(run: git push origin --delete <branch>)"
+                )
 
         # Check 6: Default branch behind remote
         if has_remote:

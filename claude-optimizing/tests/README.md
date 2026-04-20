@@ -40,6 +40,8 @@ gh api -X PATCH repos/agentic-cookbook/catherdingtests \
 | `test_pr_review.py`       | `cc-pr-review`      | Review state inspection |
 | `test_repo_state.py`      | `cc-repo-state`     | Session-start audit |
 | `test_merge_worktree.py`  | `cc-merge-worktree` | Squash-merge + full worktree cleanup; **bug-reproduction** for the stale `refs/remotes/origin/<branch>` tracking-ref class |
+| `test_repo_hygiene_hook.py` | `cc-repo-hygiene-hook` | Stop hook detects squash-merged orphan remote branches (the `delete_branch_on_merge: false` case that `ExitWorktree action: remove` leaves behind when it skips `cc-merge-worktree`) |
+| `test_exit_worktree_hook.py` | `cc-exit-worktree-hook` | PostToolUse:ExitWorktree hook blocks on the same orphan-remote case as above so Claude fixes it before the next tool call, not only at turn-end |
 
 ## Running
 
