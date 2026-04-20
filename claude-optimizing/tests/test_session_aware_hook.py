@@ -58,3 +58,20 @@ def test_dirty_from_other_session_warns_not_blocks(hook_local_repo, tmp_path):
     assert _decision(out) is None, f"expected no block, got: {out!r}"
     assert "orphan.txt" in err, f"expected warning mentioning orphan.txt, got: {err!r}"
     assert "prior sessions" in err.lower()
+
+
+def test_dirty_from_this_session_blocks(hook_local_repo, tmp_path):
+    """File dirty on disk AND referenced by a Write in the transcript →
+    this-session dirt → block as today."""
+    target = hook_local_repo / "new.py"
+    target.write_text("print('hi')\n")
+
+    tp = _write_transcript(tmp_path, [
+        {"name": "Write", "input": {"file_path": str(target)}},
+    ])
+
+    out, err, rc = _invoke_hook(hook_local_repo, tp)
+    assert rc == 0
+    d = _decision(out)
+    assert d is not None and d.get("decision") == "block"
+    assert "new.py" in d.get("reason", "")
