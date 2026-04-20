@@ -157,20 +157,29 @@ def main():
     violations = []
 
     # Check 1: Staged changes
-    _, rc = run(["git", "-C", cwd, "diff", "--cached", "--quiet"])
-    if rc != 0:
-        violations.append("Staged changes not committed")
+    out, _ = run(["git", "-C", cwd, "diff", "--cached", "--name-only"])
+    staged_paths = [p for p in out.splitlines() if p]
+    if staged_paths:
+        violations.append(
+            "Staged changes not committed: " + ", ".join(staged_paths)
+        )
 
     # Check 2: Unstaged changes
-    _, rc = run(["git", "-C", cwd, "diff", "--quiet"])
-    if rc != 0:
-        violations.append("Unstaged changes to tracked files")
+    out, _ = run(["git", "-C", cwd, "diff", "--name-only"])
+    unstaged_paths = [p for p in out.splitlines() if p]
+    if unstaged_paths:
+        violations.append(
+            "Unstaged changes to tracked files: " + ", ".join(unstaged_paths)
+        )
 
     # Check 3: Untracked files
     out, _ = run(["git", "-C", cwd, "ls-files", "--others", "--exclude-standard"])
-    if out:
-        count = len(out.splitlines())
-        violations.append(f"{count} untracked file(s) not in .gitignore")
+    untracked_paths = [p for p in out.splitlines() if p]
+    if untracked_paths:
+        violations.append(
+            f"{len(untracked_paths)} untracked file(s) not in .gitignore: "
+            + ", ".join(untracked_paths)
+        )
 
     if default_branch:
         # Check 4: Local branches merged into default
