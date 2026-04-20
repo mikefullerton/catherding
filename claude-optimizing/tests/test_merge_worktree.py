@@ -39,36 +39,43 @@ def test_merges_pr_and_cleans_local_and_remote(test_pr):
         "stale refs/remotes/origin/<branch> tracking ref not pruned"
 
 
-def test_caller_inside_worktree_resets_to_merge_base(test_pr):
-    """When invoked from inside the worktree (Claude's normal case),
-    the script must reset the worktree branch to the merge-base so that
-    a subsequent ExitWorktree action:remove succeeds without
-    discard_changes=true."""
+def test_caller_inside_worktree_is_refused(test_pr):
+    """When invoked from inside the worktree being merged, the script
+    must refuse up front — removing that worktree would rip the cwd out
+    from under the caller. Refusal must happen BEFORE any network calls
+    so state is unchanged and the caller can cd out and retry cheaply."""
     pr_number, wt, branch = test_pr
     out, err, rc = run_cc("cc-merge-worktree", [str(pr_number), "--branch", branch], cwd=wt)
-    assert rc == 0, err
-    assert "Worktree branch reset to branch-creation point" in out
+    assert rc != 0, f"expected refusal, got rc=0 out={out!r}"
+    assert "cwd is inside the worktree" in (out + err), (out + err)
 
-    branch_head = subprocess.run(
-        ["git", "-C", str(wt), "rev-parse", "HEAD"],
+    # PR must still be OPEN (the gate fired before gh pr merge).
+    pr_state = subprocess.run(
+        ["gh", "pr", "view", str(pr_number), "--repo",
+         "agentic-cookbook/catherdingtests", "--json", "state", "-q", ".state"],
         capture_output=True, text=True, check=True,
     ).stdout.strip()
-    main_parent = subprocess.run(
-        ["git", "-C", str(MAIN_REPO), "rev-parse", "main^"],
+    assert pr_state == "OPEN", f"PR state must be unchanged, got {pr_state!r}"
+
+    # Worktree must still be registered and on disk.
+    wt_list = subprocess.run(
+        ["git", "-C", str(MAIN_REPO), "worktree", "list", "--porcelain"],
         capture_output=True, text=True, check=True,
-    ).stdout.strip()
-    assert branch_head == main_parent
+    ).stdout
+    assert str(wt) in wt_list, f"worktree should still be registered: {wt_list!r}"
 
 
 def test_dirty_main_blocks_merge(test_pr):
     """Gate must refuse to proceed when main has uncommitted tracked
-    changes that don't match origin (data-loss guard)."""
+    changes that don't match origin (data-loss guard). Invoke from
+    MAIN_REPO so the cwd-inside-worktree gate doesn't short-circuit
+    before the dirty-main check runs."""
     pr_number, wt, branch = test_pr
     readme = MAIN_REPO / "README.md"
     original = readme.read_text()
     readme.write_text(original + "\nlocal-only mod that doesn't match origin\n")
     try:
-        out, err, rc = run_cc("cc-merge-worktree", [str(pr_number), "--branch", branch], cwd=wt)
+        out, err, rc = run_cc("cc-merge-worktree", [str(pr_number), "--branch", branch], cwd=MAIN_REPO)
         assert rc != 0
         assert "uncommitted" in (out + err).lower()
     finally:

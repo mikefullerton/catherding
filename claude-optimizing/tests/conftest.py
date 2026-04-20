@@ -92,14 +92,30 @@ def local_git_repo(tmp_path):
     return repo
 
 
+_REPO_ROOT = Path(__file__).resolve().parent.parent  # claude-optimizing/
+
+
+def _resolve_cc_script(name):
+    """Find the local source of a cc-* script so tests exercise the working
+    copy, not whatever ~/.local/bin/<name> happens to be symlinked to.
+    Falls back to PATH lookup if the name isn't a known local script."""
+    for subdir in ("scripts-git", "scripts-bash", "scripts-claude",
+                   "scripts-meta", "scripts-xcode", "scripts-hooks"):
+        candidate = _REPO_ROOT / subdir / f"{name}.py"
+        if candidate.exists():
+            return str(candidate)
+    return name  # let PATH resolve it
+
+
 def run_cc(script, args=(), cwd=None):
     # Propagate cwd into PWD so scripts that read os.environ["PWD"] (e.g.
-    # cc-merge-worktree's caller-inside-worktree detection) see the
-    # invocation directory, mirroring how a real shell sets PWD on chdir.
+    # cc-merge-worktree's caller-inside-worktree gate) see the invocation
+    # directory, mirroring how a real shell sets PWD on chdir.
     env = None
     if cwd is not None:
         env = {**os.environ, "PWD": str(cwd)}
     result = subprocess.run(
-        [script] + list(args), capture_output=True, text=True, cwd=cwd, env=env,
+        [_resolve_cc_script(script)] + list(args),
+        capture_output=True, text=True, cwd=cwd, env=env,
     )
     return result.stdout, result.stderr, result.returncode
