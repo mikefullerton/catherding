@@ -235,32 +235,64 @@ def main():
         if b and p and _worktree_dirty(p):
             active_dirty_branches.add(b)
 
+    transcript_path = input_json.get("transcript_path") or ""
+    edit_paths, bash_commands = _read_transcript_tool_uses(transcript_path)
+    classify_enabled = edit_paths is not None
+    warnings = []
+
     violations = []
+
+    def _split(rel_paths):
+        """Return (this_session, prior_session) for a list of dirty paths.
+        If classification is disabled (transcript unreadable), fail closed:
+        treat everything as this-session."""
+        if not classify_enabled:
+            return rel_paths, []
+        return _classify_paths(rel_paths, cwd, edit_paths, bash_commands)
 
     # Check 1: Staged changes
     out, _ = run(["git", "-C", cwd, "diff", "--cached", "--name-only"])
     staged_paths = [p for p in out.splitlines() if p]
     if staged_paths:
-        violations.append(
-            "Staged changes not committed: " + ", ".join(staged_paths)
-        )
+        this_sess, prior = _split(staged_paths)
+        if this_sess:
+            violations.append(
+                "Staged changes not committed: " + ", ".join(this_sess)
+            )
+        if prior:
+            warnings.append(
+                "Staged changes from prior sessions: " + ", ".join(prior)
+            )
 
     # Check 2: Unstaged changes
     out, _ = run(["git", "-C", cwd, "diff", "--name-only"])
     unstaged_paths = [p for p in out.splitlines() if p]
     if unstaged_paths:
-        violations.append(
-            "Unstaged changes to tracked files: " + ", ".join(unstaged_paths)
-        )
+        this_sess, prior = _split(unstaged_paths)
+        if this_sess:
+            violations.append(
+                "Unstaged changes to tracked files: " + ", ".join(this_sess)
+            )
+        if prior:
+            warnings.append(
+                "Unstaged changes from prior sessions: " + ", ".join(prior)
+            )
 
     # Check 3: Untracked files
     out, _ = run(["git", "-C", cwd, "ls-files", "--others", "--exclude-standard"])
     untracked_paths = [p for p in out.splitlines() if p]
     if untracked_paths:
-        violations.append(
-            f"{len(untracked_paths)} untracked file(s) not in .gitignore: "
-            + ", ".join(untracked_paths)
-        )
+        this_sess, prior = _split(untracked_paths)
+        if this_sess:
+            violations.append(
+                f"{len(this_sess)} untracked file(s) not in .gitignore: "
+                + ", ".join(this_sess)
+            )
+        if prior:
+            warnings.append(
+                f"{len(prior)} untracked file(s) from prior sessions: "
+                + ", ".join(prior)
+            )
 
     if default_branch:
         # Check 4: Local branches merged into default
@@ -364,6 +396,17 @@ def main():
                 violations.append(
                     f"Stale worktree at {path} — branch '{branch}' is already merged into {default_branch}"
                 )
+
+    # Emit warnings to stderr regardless of whether we block — Claude Code
+    # surfaces stderr in the transcript so both user and Claude can see
+    # pre-existing dirt without it blocking turn-end.
+    if warnings:
+        print(
+            "⚠ Uncommitted files from prior sessions (not blocking):",
+            file=sys.stderr,
+        )
+        for w in warnings:
+            print("  - " + w, file=sys.stderr)
 
     # Output result
     if not violations:
