@@ -69,6 +69,41 @@ def test_pr(pushed_worktree):
 
 
 @pytest.fixture
+def hook_local_repo():
+    """Standalone local git repo under ~/projects/tests/ so the Stop hook's
+    `~/projects/`-only guard accepts it. Cleans up after the test."""
+    scratch_root = Path.home() / "projects" / "tests"
+    scratch_root.mkdir(parents=True, exist_ok=True)
+    repo = scratch_root / f"hook-scratch-{uuid.uuid4().hex[:8]}"
+    remote = scratch_root / f"hook-scratch-remote-{uuid.uuid4().hex[:8]}.git"
+
+    def git(*args):
+        subprocess.run(["git", "-C", str(repo)] + list(args),
+                       check=True, capture_output=True)
+
+    subprocess.run(["git", "init", "-b", "main", str(repo)],
+                   check=True, capture_output=True)
+    git("config", "user.email", "test@test.com")
+    git("config", "user.name", "Test User")
+    git("config", "commit.gpgsign", "false")
+    (repo / "README.md").write_text("# test\n")
+    git("add", ".")
+    git("commit", "-m", "Initial commit")
+
+    subprocess.run(["git", "init", "--bare", str(remote)],
+                   check=True, capture_output=True)
+    git("remote", "add", "origin", str(remote))
+    git("push", "-u", "origin", "main")
+
+    try:
+        yield repo
+    finally:
+        import shutil
+        shutil.rmtree(repo, ignore_errors=True)
+        shutil.rmtree(remote, ignore_errors=True)
+
+
+@pytest.fixture
 def local_git_repo(tmp_path):
     """Standalone git repo with one commit on main — no GitHub remote needed."""
     repo = tmp_path / "repo"
