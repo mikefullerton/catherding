@@ -85,6 +85,14 @@ entries = [
         "PostToolUse", "ExitWorktree",
         "/usr/bin/python3 $HOME/.claude/hooks/cc-exit-worktree-hook.py",
     ),
+    (
+        "PreToolUse", "Bash",
+        "/usr/bin/python3 $HOME/.claude/hooks/cc-block-pr-close-hook.py",
+    ),
+    (
+        "PreToolUse", "Bash",
+        "/usr/bin/python3 $HOME/.claude/hooks/cc-block-push-delete-hook.py",
+    ),
 ]
 
 settings.setdefault("hooks", {})
