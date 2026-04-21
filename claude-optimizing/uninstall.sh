@@ -38,7 +38,7 @@ info "total: $removed"
 
 # ---------- 2. De-register Stop hook ------------------------------------------
 
-head1 "De-registering Stop + PostToolUse:ExitWorktree hooks..."
+head1 "De-registering Stop + PostToolUse:ExitWorktree + PreToolUse:Bash hooks..."
 if [ -f "$SETTINGS_JSON" ]; then
     python3 - "$SETTINGS_JSON" <<'PYEOF'
 import json, sys
@@ -50,6 +50,7 @@ settings = json.loads(path.read_text())
 entries = [
     ("Stop",        "/usr/bin/python3 $HOME/.claude/hooks/cc-repo-hygiene-hook.py"),
     ("PostToolUse", "/usr/bin/python3 $HOME/.claude/hooks/cc-exit-worktree-hook.py"),
+    ("PreToolUse",  "/usr/bin/python3 $HOME/.claude/hooks/cc-block-pr-close-hook.py"),
 ]
 
 changed = False
