@@ -32,4 +32,4 @@ Anything else goes in a subdirectory.
 
 ## Reference
 
-Full rationale in [`~/projects/active/catherding/policies/repo-organization/file-organization.md`](../../policies/repo-organization/file-organization.md). See [INDEX.md](../../policies/INDEX.md) for related policies.
+Full rationale in [`~/projects/active/catherding/policies/setup/repo-organization/file-organization.md`](../../policies/setup/repo-organization/file-organization.md). See [INDEX.md](../../policies/INDEX.md) for related policies.

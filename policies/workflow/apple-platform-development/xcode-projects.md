@@ -39,4 +39,4 @@ The `/apple` directory MUST contain a single `.xcworkspace` that includes all Xc
 - Include every `.xcodeproj` directly under `/apple/<ProjectName>/`.
 - For submodules (their directories sit at the repo root): include their Xcode projects **one level deep only**. If a submodule itself contains submodules, you MUST NOT include those nested projects.
 
-**Derived from cookbook:** [native-controls](../../../agenticcookbook/principles/native-controls.md), [explicit-over-implicit](../../../agenticcookbook/principles/explicit-over-implicit.md)
+**Derived from cookbook:** [native-controls](../../../../agenticcookbook/principles/native-controls.md), [explicit-over-implicit](../../../../agenticcookbook/principles/explicit-over-implicit.md)

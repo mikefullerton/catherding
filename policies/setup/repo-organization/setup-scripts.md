@@ -15,4 +15,4 @@ Setup steps live in `/setup/`. Every install has a matching uninstall.
 - The uninstall counterpart is NOT required for prerequisite software that is managed externally (e.g. installing `brew` itself — that's the developer's responsibility to manage).
 - Supporting files needed by the scripts (config files, assets, themes, etc.) MUST go in `/setup/files/`.
 
-**Derived from cookbook:** [support-automation](../../../agenticcookbook/principles/support-automation.md), [idempotency](../../../agenticcookbook/principles/idempotency.md)
+**Derived from cookbook:** [support-automation](../../../../agenticcookbook/principles/support-automation.md), [idempotency](../../../../agenticcookbook/principles/idempotency.md)

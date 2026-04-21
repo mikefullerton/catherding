@@ -1,6 +1,6 @@
 ---
 title: "Policies — Index"
-summary: "Index of all policies, grouped by area. Each policy is a specific application of a general cookbook principle."
+summary: "Index of all policies, grouped into Setup (one-time machine/repo) and Workflow (ongoing development). Each policy is a specific application of a general cookbook principle."
 triggers: [find-policy, policy-audit, starting-work]
 tags: [index, policies, navigation]
 ---
@@ -11,38 +11,52 @@ Each policy is a specific application of [cookbook principles](../../agenticcook
 
 **How to use this index:** Match the situation you're in against the **Triggers** column, then load the linked policy. Every policy is self-contained.
 
-## General Software Development
+Policies are grouped into two tiers:
+
+- **Setup** — one-time concerns for bootstrapping a machine or a repo.
+- **Workflow** — ongoing concerns that govern how day-to-day development work is done.
+
+## Setup
+
+### Required Tools
 
 | Policy | Summary | Triggers |
 |--------|---------|----------|
-| [required-tools](general-software-development/required-tools.md) | Python 3.12+, SQLite; Xcode + XcodeGen (Apple); Visual Studio (Windows) | `machine-setup`, `dependency-audit`, `new-dev-machine`, `tooling-setup` |
-| [setup-scripts](general-software-development/setup-scripts.md) | Setup steps live in /setup/; every install has a matching uninstall | `writing-install-script`, `adding-setup-step`, `repo-bootstrap`, `adding-install-uninstall` |
+| [all](setup/required-tools/all.md) | Python 3.12+ and SQLite on every machine | `machine-setup`, `dependency-audit`, `new-dev-machine`, `tooling-setup` |
+| [apple](setup/required-tools/apple.md) | Xcode + XcodeGen (plus recommended VS Code, Claude Code) | `machine-setup`, `new-dev-machine`, `apple-setup` |
+| [windows](setup/required-tools/windows.md) | Visual Studio | `machine-setup`, `new-dev-machine`, `windows-setup` |
+| [scripting](setup/required-tools/scripting.md) | Python 3.12+ for scripts; only install/uninstall/setup may be `.sh` | `writing-script`, `tooling-setup`, `automation-task`, `writing-hook` |
 
-## Apple Software Development
-
-| Policy | Summary | Triggers |
-|--------|---------|----------|
-| [swift](apple-software-development/swift.md) | Swift 6.2.x with strict concurrency | `starting-swift-project`, `swift-package-setup`, `swift-version-audit`, `xcode-project-conversion` |
-| [xcode-projects](apple-software-development/xcode-projects.md) | XcodeGen + project.yml + checked-in .xcodeproj; single .xcworkspace in /apple | `creating-xcode-project`, `xcode-project-conversion`, `adding-xcode-target`, `xcodeworkspace-setup`, `converting-swift-package` |
-| [code-signing](apple-software-development/code-signing.md) | Team mikefullerton; entitlements preserved; no certs in repo | `configuring-signing`, `entitlements-change`, `xcode-team-setup`, `creating-xcode-project` |
-
-## Shell Scripting
+### Repo Organization
 
 | Policy | Summary | Triggers |
 |--------|---------|----------|
-| [scripting-language](shell-scripting/scripting-language.md) | Python 3.12+ for scripts; only install/uninstall/setup may be .sh | `writing-script`, `tooling-setup`, `automation-task`, `writing-hook` |
+| [repo-baseline](setup/repo-organization/repo-baseline.md) | Every repo must have README, LICENSE, .gitignore, and .claude/CLAUDE.md | `new-repo`, `repo-audit`, `starting-new-project` |
+| [documentation](setup/repo-organization/documentation.md) | Markdown goes in /docs; planning and research in /docs/planning and /docs/research | `writing-docs`, `planning-feature`, `adding-research-notes`, `organizing-docs` |
+| [file-organization](setup/repo-organization/file-organization.md) | Lowercase dirs, kebab-case files, encapsulated directories | `creating-file`, `creating-directory`, `renaming-file`, `file-audit`, `repo-restructure` |
+| [git-naming](setup/repo-organization/git-naming.md) | Repo names are lowercase with no hyphens | `creating-repo`, `renaming-repo` |
+| [multi-platform-layout](setup/repo-organization/multi-platform-layout.md) | Top-level /apple, /windows, /android — only those relevant | `starting-multi-platform-project`, `adding-platform`, `repo-restructure` |
+| [llm-file-layout](setup/repo-organization/llm-file-layout.md) | /claude/<type>/ for global, .claude/ for repo-local; /policies/ for general policies | `adding-claude-extension`, `adding-skill`, `writing-claude-rule`, `setting-up-graphify`, `adding-mcp-server` |
+| [setup-scripts](setup/repo-organization/setup-scripts.md) | Setup steps live in /setup/; every install has a matching uninstall | `writing-install-script`, `adding-setup-step`, `repo-bootstrap`, `adding-install-uninstall` |
 
-## Repo Organization
+## Workflow
+
+### General Principles
 
 | Policy | Summary | Triggers |
 |--------|---------|----------|
-| [repo-baseline](repo-organization/repo-baseline.md) | Every repo must have README, LICENSE, .gitignore, and .claude/CLAUDE.md | `new-repo`, `repo-audit`, `starting-new-project` |
-| [documentation](repo-organization/documentation.md) | Markdown goes in /docs; planning and research in /docs/planning and /docs/research | `writing-docs`, `planning-feature`, `adding-research-notes`, `organizing-docs` |
-| [file-organization](repo-organization/file-organization.md) | Lowercase dirs, kebab-case files, encapsulated directories | `creating-file`, `creating-directory`, `renaming-file`, `file-audit`, `repo-restructure` |
-| [git-naming](repo-organization/git-naming.md) | Repo names are lowercase with no hyphens | `creating-repo`, `renaming-repo` |
-| [multi-platform-layout](repo-organization/multi-platform-layout.md) | Top-level /apple, /windows, /android — only those relevant | `starting-multi-platform-project`, `adding-platform`, `repo-restructure` |
-| [llm-file-layout](repo-organization/llm-file-layout.md) | /claude/<type>/ for global, .claude/ for repo-local; /policies/ for general policies | `adding-claude-extension`, `adding-skill`, `writing-claude-rule`, `setting-up-graphify`, `adding-mcp-server` |
+| [principles-general](workflow/principles-general/principles-general.md) | Cross-cutting: be explicit, keep it simple, don't surprise the reader | `starting-work`, `writing-code`, `code-review`, `design-decision` |
 
-## Repo Hygiene
+### Apple Platform Development
 
-No policy files yet — commit/branch/worktree rules currently live in `~/.claude/CLAUDE.md` ("Worktree Workflow" and "Repo Hygiene" sections). See [repo-hygiene/README.md](repo-hygiene/README.md).
+| Policy | Summary | Triggers |
+|--------|---------|----------|
+| [swift](workflow/apple-platform-development/swift.md) | Swift 6.2.x with strict concurrency | `starting-swift-project`, `swift-package-setup`, `swift-version-audit`, `xcode-project-conversion` |
+| [xcode-projects](workflow/apple-platform-development/xcode-projects.md) | XcodeGen + project.yml + checked-in .xcodeproj; single .xcworkspace in /apple | `creating-xcode-project`, `xcode-project-conversion`, `adding-xcode-target`, `xcodeworkspace-setup`, `converting-swift-package` |
+| [code-signing](workflow/apple-platform-development/code-signing.md) | Team mikefullerton; entitlements preserved; no certs in repo | `configuring-signing`, `entitlements-change`, `xcode-team-setup`, `creating-xcode-project` |
+
+### Repo Hygiene
+
+| Policy | Summary | Triggers |
+|--------|---------|----------|
+| [repo-hygiene](workflow/repo-hygiene/repo-hygiene.md) | Placeholder — commit/branch/worktree/PR rules still live in `~/.claude/CLAUDE.md` | `committing-code`, `creating-branch`, `using-worktree`, `opening-pr`, `repo-hygiene-audit` |

@@ -18,4 +18,4 @@ Multi-platform repos use top-level `/apple`, `/windows`, `/android` directories 
 - You MUST create only the directories relevant to the repo.
 - Platform-specific code, projects, and tooling MUST live exclusively under their platform directory.
 
-**Derived from cookbook:** [separation-of-concerns](../../../agenticcookbook/principles/separation-of-concerns.md)
+**Derived from cookbook:** [separation-of-concerns](../../../../agenticcookbook/principles/separation-of-concerns.md)

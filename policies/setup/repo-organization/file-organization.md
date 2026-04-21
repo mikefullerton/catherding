@@ -22,4 +22,4 @@ Encapsulate coupled files in directories; lowercase dirs with no hyphens; kebab-
 - `.code-workspace` (Visual Studio Code workspace file)
 - `README.md`
 
-**Derived from cookbook:** [principle-of-least-astonishment](../../../agenticcookbook/principles/principle-of-least-astonishment.md), [manage-complexity-through-boundaries](../../../agenticcookbook/principles/manage-complexity-through-boundaries.md)
+**Derived from cookbook:** [principle-of-least-astonishment](../../../../agenticcookbook/principles/principle-of-least-astonishment.md), [manage-complexity-through-boundaries](../../../../agenticcookbook/principles/manage-complexity-through-boundaries.md)

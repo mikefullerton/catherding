@@ -14,4 +14,4 @@ Signing team is `mikefullerton`; entitlements preserved; no certs or provisionin
 - Provisioning profiles and certificates MUST be managed on the local machine only — you MUST NOT check them into the repo.
 - You SHOULD use Xcode's automatic signing where possible.
 
-**Derived from cookbook:** [explicit-over-implicit](../../../agenticcookbook/principles/explicit-over-implicit.md), [fail-fast](../../../agenticcookbook/principles/fail-fast.md)
+**Derived from cookbook:** [explicit-over-implicit](../../../../agenticcookbook/principles/explicit-over-implicit.md), [fail-fast](../../../../agenticcookbook/principles/fail-fast.md)

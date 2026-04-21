@@ -47,7 +47,7 @@ Extensions to Claude's functionality (skills, rules, agents, MCP integrations, c
 /claude/hooks/
 ```
 
-Global extensions MUST be installed and uninstalled by scripts in the `/setup` directory (see [setup-scripts](../general-software-development/setup-scripts.md)).
+Global extensions MUST be installed and uninstalled by scripts in the `/setup` directory (see [setup-scripts](setup-scripts.md)).
 
 **Repo-local extensions** only affect Claude when working in this repo. These MUST live in `.claude/`, following Claude Code's own conventions:
 
@@ -58,4 +58,4 @@ Global extensions MUST be installed and uninstalled by scripts in the `/setup` d
 
 Repo-local extensions do not need install/uninstall scripts — Claude Code picks them up automatically.
 
-**Derived from cookbook:** [separation-of-concerns](../../../agenticcookbook/principles/separation-of-concerns.md), [explicit-over-implicit](../../../agenticcookbook/principles/explicit-over-implicit.md)
+**Derived from cookbook:** [separation-of-concerns](../../../../agenticcookbook/principles/separation-of-concerns.md), [explicit-over-implicit](../../../../agenticcookbook/principles/explicit-over-implicit.md)

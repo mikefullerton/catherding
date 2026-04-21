@@ -37,4 +37,4 @@ Extensions (skills, rules, agents, MCP integrations, commands, plugins, hooks) a
 
 ## Reference
 
-Full rationale in [`~/projects/active/catherding/policies/repo-organization/llm-file-layout.md`](../../policies/repo-organization/llm-file-layout.md). See [INDEX.md](../../policies/INDEX.md) for related policies.
+Full rationale in [`~/projects/active/catherding/policies/setup/repo-organization/llm-file-layout.md`](../../policies/setup/repo-organization/llm-file-layout.md). See [INDEX.md](../../policies/INDEX.md) for related policies.

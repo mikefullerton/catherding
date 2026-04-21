@@ -1,8 +1,8 @@
 ---
-title: "Required Tools"
-summary: "Machine must have Python 3.12+ and SQLite (all platforms), Xcode + XcodeGen (Apple), Visual Studio (Windows)."
-triggers: [machine-setup, dependency-audit, new-dev-machine, tooling-setup]
-tags: [tooling, dependencies, setup]
+title: "Required Tools — Apple"
+summary: "Apple (macOS) machines must have Xcode and XcodeGen. VS Code and Claude Code are recommended."
+triggers: [machine-setup, dependency-audit, new-dev-machine, tooling-setup, apple-setup]
+tags: [tooling, dependencies, setup, apple, macos]
 ---
 
 # Required Tools

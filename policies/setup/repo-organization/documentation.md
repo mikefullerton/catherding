@@ -15,4 +15,4 @@ Markdown goes in /docs. Planning and research documents go in /docs/planning and
 - Planning documents (specs, proposals, design decisions) MUST go in `/docs/planning/`.
 - Research documents (background reading, spike notes, references) MUST go in `/docs/research/`.
 
-**Derived from cookbook:** [separation-of-concerns](../../../agenticcookbook/principles/separation-of-concerns.md), [principle-of-least-astonishment](../../../agenticcookbook/principles/principle-of-least-astonishment.md)
+**Derived from cookbook:** [separation-of-concerns](../../../../agenticcookbook/principles/separation-of-concerns.md), [principle-of-least-astonishment](../../../../agenticcookbook/principles/principle-of-least-astonishment.md)

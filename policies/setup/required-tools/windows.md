@@ -1,8 +1,8 @@
 ---
-title: "Required Tools"
-summary: "Machine must have Python 3.12+ and SQLite (all platforms), Xcode + XcodeGen (Apple), Visual Studio (Windows)."
-triggers: [machine-setup, dependency-audit, new-dev-machine, tooling-setup]
-tags: [tooling, dependencies, setup]
+title: "Required Tools — Windows"
+summary: "Windows machines must have Visual Studio installed."
+triggers: [machine-setup, dependency-audit, new-dev-machine, tooling-setup, windows-setup]
+tags: [tooling, dependencies, setup, windows]
 ---
 
 # Required Tools
@@ -13,7 +13,7 @@ Machine must have Python 3.12+ and SQLite (all platforms), Xcode + XcodeGen (App
 
 | Tool | Notes |
 |------|-------|
-| Python 3.12+ | See [scripting-language](../shell-scripting/scripting-language.md) |
+| Python 3.12+ | See [scripting](scripting.md) |
 | SQLite | Usually bundled with the OS |
 
 ## Apple [macOS only]
@@ -38,4 +38,4 @@ Machine must have Python 3.12+ and SQLite (all platforms), Xcode + XcodeGen (App
 | Visual Studio Code | `brew install --cask visual-studio-code` |
 | Claude Code | `npm install -g @anthropic-ai/claude-code` |
 
-**Derived from cookbook:** [explicit-over-implicit](../../../agenticcookbook/principles/explicit-over-implicit.md)
+**Derived from cookbook:** [explicit-over-implicit](../../../../agenticcookbook/principles/explicit-over-implicit.md)

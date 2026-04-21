@@ -15,4 +15,4 @@ Use Python 3.12+ for scripts. Only `install.sh`, `uninstall.sh`, and `setup.sh` 
 - **Exceptions:** `install.sh`, `uninstall.sh`, and `setup.sh` MAY be written as shell scripts.
 - Target Python 3.12 as the minimum version. Install via `brew install python@3.12`.
 
-**Derived from cookbook:** [principle-of-least-astonishment](../../../agenticcookbook/principles/principle-of-least-astonishment.md), [simplicity](../../../agenticcookbook/principles/simplicity.md)
+**Derived from cookbook:** [principle-of-least-astonishment](../../../../agenticcookbook/principles/principle-of-least-astonishment.md), [simplicity](../../../../agenticcookbook/principles/simplicity.md)

@@ -23,4 +23,4 @@ Every repo must have README, LICENSE, .gitignore, and .claude/CLAUDE.md.
 
   A minimal placeholder is fine — the goal is that Claude is oriented from the first session.
 
-**Derived from cookbook:** [principle-of-least-astonishment](../../../agenticcookbook/principles/principle-of-least-astonishment.md), [support-automation](../../../agenticcookbook/principles/support-automation.md)
+**Derived from cookbook:** [principle-of-least-astonishment](../../../../agenticcookbook/principles/principle-of-least-astonishment.md), [support-automation](../../../../agenticcookbook/principles/support-automation.md)

@@ -15,4 +15,4 @@ All Swift code targets Swift 6.2.x with strict concurrency.
 - You MUST NOT downgrade to Swift 5 language mode.
 - You MUST NOT upgrade to Swift 6.3 or later without an explicit decision to do so.
 
-**Derived from cookbook:** [native-controls](../../../agenticcookbook/principles/native-controls.md)
+**Derived from cookbook:** [native-controls](../../../../agenticcookbook/principles/native-controls.md)
