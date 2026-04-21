@@ -1,13 +1,13 @@
 ---
 title: "LLM File Layout"
-summary: "Where Claude/LLM extensions live: /claude/<type>/ for global, .claude/ for repo-local. General policies go in /docs/policies/."
+summary: "Where Claude/LLM extensions live: /claude/<type>/ for global, .claude/ for repo-local. General policies go in /policies/."
 triggers: [adding-claude-extension, adding-skill, writing-claude-rule, setting-up-graphify, adding-mcp-server]
 tags: [claude, llm, organization, extensions, graphify]
 ---
 
 # LLM File Layout
 
-Where Claude/LLM extensions live: `/claude/<type>/` for global, `.claude/` for repo-local. General policies go in `/docs/policies/`.
+Where Claude/LLM extensions live: `/claude/<type>/` for global, `.claude/` for repo-local. General policies go in `/policies/`.
 
 ## LLM Neutrality
 
@@ -27,7 +27,7 @@ Every repo SHOULD be opted into Graphify (for any LLM that supports it). Opting 
 
 Not all rules are the same:
 
-- **General policies** (like this document) apply regardless of which LLM or tool is being used. These MUST live in `/docs/policies/` and MUST be written in plain language for anyone (human or AI) to follow.
+- **General policies** (like this document) apply regardless of which LLM or tool is being used. These MUST live in `/policies/` and MUST be written in plain language for anyone (human or AI) to follow.
 - **Claude-specific behavioral instructions** tell Claude how to behave in specific situations ("when X happens, do Y"). These MUST live in `.claude/CLAUDE.md` (project scope) or `/claude/rules/` (global scope), and MUST be written as directives to Claude specifically.
 
 If a rule would make sense for a human developer to follow, it is a general policy. If it is "Claude, remember to …" it is a behavioral instruction.
@@ -47,7 +47,7 @@ Extensions to Claude's functionality (skills, rules, agents, MCP integrations, c
 /claude/hooks/
 ```
 
-Global extensions MUST be installed and uninstalled by scripts in the `/setup` directory (see [setup-scripts](setup-scripts.md)).
+Global extensions MUST be installed and uninstalled by scripts in the `/setup` directory (see [setup-scripts](../general-software-development/setup-scripts.md)).
 
 **Repo-local extensions** only affect Claude when working in this repo. These MUST live in `.claude/`, following Claude Code's own conventions:
 

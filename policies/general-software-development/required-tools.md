@@ -13,7 +13,7 @@ Machine must have Python 3.12+ and SQLite (all platforms), Xcode + XcodeGen (App
 
 | Tool | Notes |
 |------|-------|
-| Python 3.12+ | See [scripting-language](scripting-language.md) |
+| Python 3.12+ | See [scripting-language](../shell-scripting/scripting-language.md) |
 | SQLite | Usually bundled with the OS |
 
 ## Apple [macOS only]

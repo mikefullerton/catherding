@@ -29,7 +29,7 @@ When converting a `Package.swift`-based project to an Xcode project:
 
 1. You MUST create `project.yml` with equivalent targets and settings.
 2. You MUST include a test target — migrate all existing tests into it.
-3. You MUST set the signing team to `mikefullerton` (Temporal Apple Developer account) and preserve all entitlements. See [apple-code-signing](apple-code-signing.md).
+3. You MUST set the signing team to `mikefullerton` (Temporal Apple Developer account) and preserve all entitlements. See [code-signing](code-signing.md).
 4. You MUST build and run tests after converting before considering the migration complete.
 
 ## Xcode Workspace

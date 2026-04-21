@@ -36,10 +36,10 @@ Exceptions: `SKILL.md` stays inside its skill dir; `README.md` stays co-located 
 
 ## Reference
 
-Full rationale across these policy files in `~/projects/active/catherding/docs/policies/`:
+Full rationale across these policy files in `~/projects/active/catherding/policies/repo-organization/`:
 
-- [repo-baseline.md](../../docs/policies/repo-baseline.md) — README, LICENSE, .gitignore, .claude/CLAUDE.md
-- [documentation.md](../../docs/policies/documentation.md) — /docs conventions
-- [git-naming.md](../../docs/policies/git-naming.md) — repo naming
+- [repo-baseline.md](../../policies/repo-organization/repo-baseline.md) — README, LICENSE, .gitignore, .claude/CLAUDE.md
+- [documentation.md](../../policies/repo-organization/documentation.md) — /docs conventions
+- [git-naming.md](../../policies/repo-organization/git-naming.md) — repo naming
 
-Start at [INDEX.md](../../docs/policies/INDEX.md) to navigate.
+Start at [INDEX.md](../../policies/INDEX.md) to navigate.

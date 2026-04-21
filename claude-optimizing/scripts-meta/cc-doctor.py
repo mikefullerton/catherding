@@ -8,7 +8,7 @@ Walks both `~/.local/bin/cc-*` (regular scripts) and `~/.claude/hooks/cc-*-hook.
 non-symlinks shadowing the namespace, and stale entries pointing outside the
 canonical scripts dir. Also checks the global CLAUDE.md guidance block for
 stale unmarked duplicates, and checks that each policy skill references at
-least one policy file in docs/policies/. Exits non-zero on any problem.
+least one policy file in policies/. Exits non-zero on any problem.
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ CANONICAL_SOURCES = sorted((REPO_ROOT / "claude-optimizing").glob("scripts-*"))
 BIN_DIR = Path.home() / ".local" / "bin"
 HOOKS_DIR = Path.home() / ".claude" / "hooks"
 CLAUDE_MD = Path.home() / ".claude" / "CLAUDE.md"
-POLICIES_DIR = REPO_ROOT / "docs" / "policies"
+POLICIES_DIR = REPO_ROOT / "policies"
 POLICY_SKILLS_DIR = REPO_ROOT / "skills"
 POLICY_SKILLS = [
     "new-repo-scaffold",
@@ -73,7 +73,7 @@ def _check_claude_md_drift(issues: list[str]) -> int:
 
 
 def _check_policy_skill_refs(issues: list[str]) -> int:
-    """Each installed policy skill must reference at least one docs/policies/ file.
+    """Each installed policy skill must reference at least one policies/ file.
 
     Resolves via the installed symlink under ~/.claude/skills/ so the check
     works whether the skills are sourced from main or a worktree.
@@ -86,8 +86,8 @@ def _check_policy_skill_refs(issues: list[str]) -> int:
             # Skill not installed — not a drift problem, just not enabled.
             continue
         text = skill_md.read_text()
-        if "docs/policies/" not in text:
-            issues.append(f"  {skill}: no back-reference to docs/policies/")
+        if "policies/" not in text:
+            issues.append(f"  {skill}: no back-reference to policies/")
             drift += 1
     return drift
 

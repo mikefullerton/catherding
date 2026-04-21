@@ -23,7 +23,7 @@ Every repo must be opted into Graphify (for every LLM that supports it):
 
 Two different things. Pick the right one:
 
-- **General policies** — apply regardless of which LLM or tool is in use. Written in plain language for anyone (human or AI) to follow. Live in `/docs/policies/`.
+- **General policies** — apply regardless of which LLM or tool is in use. Written in plain language for anyone (human or AI) to follow. Live in `/policies/`.
 - **Claude-specific behavioral instructions** — tell Claude how to behave ("when X happens, do Y"). Live in `.claude/CLAUDE.md` (project scope) or `/claude/rules/` (global scope). Written as directives to Claude specifically.
 
 **Heuristic:** If a rule would make sense for a human developer to follow, it's a general policy. If it's "Claude, remember to...", it's a behavioral instruction.
@@ -37,4 +37,4 @@ Extensions (skills, rules, agents, MCP integrations, commands, plugins, hooks) a
 
 ## Reference
 
-Full rationale in [`~/projects/active/catherding/docs/policies/llm-file-layout.md`](../../docs/policies/llm-file-layout.md). See [INDEX.md](../../docs/policies/INDEX.md) for related policies.
+Full rationale in [`~/projects/active/catherding/policies/repo-organization/llm-file-layout.md`](../../policies/repo-organization/llm-file-layout.md). See [INDEX.md](../../policies/INDEX.md) for related policies.
