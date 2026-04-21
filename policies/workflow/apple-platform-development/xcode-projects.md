@@ -17,20 +17,17 @@ Apple projects use XcodeGen with `project.yml` + checked-in `.xcodeproj`; a sing
   /apple/ProjectName2/
   ```
 
-## Xcode Projects over Swift Packages
+## Swift Packages for reusable code
 
-- You MUST use Xcode projects, NOT Swift Package Manager, as the primary project format.
+- You MUST use Swift packages SPM for reusable code. If a Swift.package is insuffient for a specific purpose, like the reusable code needs assets or other files, consult the user
+- For resuable code with multiple components, use a single package with multiple targets
+
+## Xcode Projects for bundled products
+
+- You MUST used xcode projects for apps, plugins, or anything else that ships as bundles or or file mananager packages (not Swift packages here to be clear) 
+- these will consume the reusable Swift packages
 - Every project MUST have a `project.yml` (XcodeGen spec) at the root of its project directory, e.g. `/apple/MyProject/project.yml`.
 - The generated `.xcodeproj` MUST be checked into the repo alongside `project.yml`.
-
-### Converting from a Swift Package
-
-When converting a `Package.swift`-based project to an Xcode project:
-
-1. You MUST create `project.yml` with equivalent targets and settings.
-2. You MUST include a test target — migrate all existing tests into it.
-3. You MUST set the signing team to `mikefullerton` (Temporal Apple Developer account) and preserve all entitlements. See [code-signing](code-signing.md).
-4. You MUST build and run tests after converting before considering the migration complete.
 
 ## Xcode Workspace
 
