@@ -45,7 +45,7 @@ Policies are grouped into two tiers:
 
 | Policy | Summary | Triggers |
 |--------|---------|----------|
-| [principles-general](workflow/principles-general/principles-general.md) | Map of all 19 cookbook principles, grouped by theme, with links to local policies that apply each one | `starting-work`, `writing-code`, `code-review`, `design-decision` |
+| [principles-general](workflow/principles-general/principles-general.md) | Map of all 21 cookbook principles, grouped by theme, with links to local policies that apply each one | `starting-work`, `writing-code`, `code-review`, `design-decision` |
 
 ### Apple Platform Development
 
