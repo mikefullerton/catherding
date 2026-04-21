@@ -35,10 +35,10 @@ def test_hook_ignores_non_exit_worktree_events():
     assert not err.strip()
 
 
-def test_hook_blocks_on_squash_merged_orphan_after_action_remove(test_pr):
+def test_hook_warns_on_squash_merged_orphan_after_action_remove(test_pr):
     """When a squash-merged PR leaves an orphan remote branch and the
     user's ExitWorktree removed the worktree+local branch, the hook
-    must block the next tool call with instructions."""
+    must surface a non-blocking warning (exit 0) naming the orphan."""
     pr_number, wt, branch = test_pr
 
     subprocess.run(
@@ -72,7 +72,7 @@ def test_hook_blocks_on_squash_merged_orphan_after_action_remove(test_pr):
     )
 
     out, err, rc = _invoke_hook(MAIN_REPO)
-    assert rc == 2, f"hook should block (rc=2) but got rc={rc} err={err!r}"
+    assert rc == 0, f"hook should warn (rc=0) but got rc={rc} err={err!r}"
     assert branch in err, (
         f"orphan branch {branch!r} not mentioned in hook stderr: {err!r}"
     )
