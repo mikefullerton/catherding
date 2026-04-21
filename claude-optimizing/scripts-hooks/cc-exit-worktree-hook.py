@@ -183,14 +183,19 @@ def main() -> int:
         "'Exiting a Worktree' section of the global CLAUDE.md).",
         "",
     ]
+    # Always emit --branch <name> in the suggested command. When multiple
+    # worktrees coexist (e.g. concurrent sessions), `cc-merge-worktree <pr>`
+    # alone would rely on cc-merge-worktree to resolve headRefName — which
+    # it now does, but passing --branch makes the caller's intent explicit
+    # and exercises the mismatch gate as a safety net.
     for path, branch in stale:
         pr = _pr_number(branch)
-        suffix = f"  →  cc-merge-worktree {pr}" if pr else \
-                 "  →  cc-merge-worktree <pr-number>"
+        suffix = f"  →  cc-merge-worktree {pr} --branch {branch}" if pr else \
+                 f"  →  cc-merge-worktree <pr-number> --branch {branch}"
         lines.append(f"  stale: {path}  (branch {branch}, merged into {default}){suffix}")
     for branch in orphans:
         pr = _pr_number(branch)
-        suffix = f"  →  cc-merge-worktree {pr}" if pr else \
+        suffix = f"  →  cc-merge-worktree {pr} --branch {branch}" if pr else \
                  f"  →  git push origin --delete {branch}"
         lines.append(
             f"  orphan: origin/{branch}  (PR merged, remote branch not deleted){suffix}"

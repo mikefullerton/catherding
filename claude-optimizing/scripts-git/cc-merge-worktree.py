@@ -154,21 +154,40 @@ def main():
         elif line.startswith("branch refs/heads/") and cur_path:
             wt_path_by_branch[line[len("branch refs/heads/"):]] = cur_path
 
-    # 2. Detect worktree branch if not provided
-    wt_branch = args.branch
-    if not wt_branch:
-        for br in wt_path_by_branch:
-            if br.startswith("worktree-"):
-                wt_branch = br
-                break
-        if not wt_branch:
-            print("FAIL: could not auto-detect worktree branch; pass --branch", file=sys.stderr)
+    # 2. Query PR metadata up front. headRefName is the canonical branch
+    #    for this PR and is used as the source of truth: we either adopt
+    #    it (when --branch is omitted) or cross-check it (when --branch
+    #    is given). Cross-checking prevents the multi-worktree hazard
+    #    where a caller could otherwise merge PR X while the script
+    #    deletes the worktree/branch of PR Y.
+    pr_info, _ = run(
+        ["gh", "pr", "view", str(args.pr), "--json",
+         "state,isDraft,headRefName",
+         "-q", ".state + \"|\" + (.isDraft|tostring) + \"|\" + .headRefName"],
+    )
+    pr_state, is_draft, pr_head_ref = pr_info.split("|", 2)
+    if not pr_head_ref:
+        print(f"FAIL: could not resolve headRefName for PR #{args.pr}", file=sys.stderr)
+        sys.exit(2)
+
+    if args.branch:
+        if args.branch != pr_head_ref:
+            print(
+                f"FAIL: --branch {args.branch!r} does not match PR #{args.pr}'s "
+                f"head branch {pr_head_ref!r}.\n"
+                f"      Refusing — a mismatch would delete the wrong worktree "
+                f"while merging a different branch.",
+                file=sys.stderr,
+            )
             sys.exit(2)
+        wt_branch = args.branch
+    else:
+        wt_branch = pr_head_ref
 
     # GATE: refuse to proceed if the caller's cwd is inside the worktree we're
     # about to merge. Removing the worktree (step 7) would rip the cwd out
     # from under the calling session; the caller must cd back to the main
-    # repo first. Fail fast BEFORE any network calls so retrying is cheap.
+    # repo first.
     target_wt_path = wt_path_by_branch.get(wt_branch)
     if target_wt_path:
         try:
@@ -191,11 +210,6 @@ def main():
     print(f"merging PR #{args.pr} (worktree branch: {wt_branch})")
 
     # 3. Merge PR (skip if already merged). Mark ready if draft.
-    pr_info, _ = run(
-        ["gh", "pr", "view", str(args.pr), "--json", "state,isDraft", "-q",
-         ".state + \"|\" + (.isDraft|tostring)"],
-    )
-    pr_state, is_draft = pr_info.split("|", 1)
     if pr_state == "OPEN":
         if is_draft == "true":
             print("  PR is draft — marking ready")
