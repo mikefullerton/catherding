@@ -23,8 +23,11 @@ doesn't block the gate.
 Exits non-zero on any gate failure (including the caller-cwd gate). Safe
 to re-run if a step failed midway.
 """
+from __future__ import annotations
+
 import argparse
 import os
+import re
 import subprocess
 import sys
 
@@ -89,6 +92,16 @@ def only_dirty_paths_are(allowed: list[str]) -> bool:
     return True
 
 
+def slug_from_origin_url(url: str) -> str | None:
+    """Return OWNER/NAME from a GitHub remote URL, or None if unrecognized.
+
+    Handles both `git@github.com:OWNER/NAME.git` and
+    `https://github.com/OWNER/NAME[.git]` forms.
+    """
+    m = re.search(r"github\.com[:/]([^/\s]+)/([^/\s]+?)(?:\.git)?/?\s*$", url)
+    return f"{m.group(1)}/{m.group(2)}" if m else None
+
+
 def discard_if_matches_upstream(default_branch, cwd):
     """Discard tracked changes that already match origin/<default_branch>.
 
@@ -143,6 +156,18 @@ def main():
         print(f"switching to main worktree: {main_path}")
     os.chdir(main_path)
 
+    # Pin every gh call to the repo slug derived from origin. Without this,
+    # gh falls back to its own context resolution — which has at least once
+    # (PRs #3/#8/#27/#28 incident) returned metadata for a PR number in a
+    # *different* repo, causing the deletion sequence below to nuke the
+    # wrong remote branch.
+    origin_url, _ = run(["git", "config", "--get", "remote.origin.url"])
+    repo_slug = slug_from_origin_url(origin_url)
+    if not repo_slug:
+        print(f"FAIL: could not parse OWNER/NAME from origin URL: {origin_url!r}",
+              file=sys.stderr)
+        sys.exit(2)
+
     # Index worktree paths by branch (used for --branch auto-detect AND for
     # the caller-inside-worktree gate below).
     wt_list, _ = run(["git", "worktree", "list", "--porcelain"])
@@ -161,13 +186,33 @@ def main():
     #    where a caller could otherwise merge PR X while the script
     #    deletes the worktree/branch of PR Y.
     pr_info, _ = run(
-        ["gh", "pr", "view", str(args.pr), "--json",
+        ["gh", "pr", "view", str(args.pr), "--repo", repo_slug, "--json",
          "state,isDraft,headRefName",
          "-q", ".state + \"|\" + (.isDraft|tostring) + \"|\" + .headRefName"],
     )
     pr_state, is_draft, pr_head_ref = pr_info.split("|", 2)
     if not pr_head_ref:
         print(f"FAIL: could not resolve headRefName for PR #{args.pr}", file=sys.stderr)
+        sys.exit(2)
+
+    # Cross-verify headRefName via the REST API directly. `gh pr view` goes
+    # through gh's own resolution layer; `gh api repos/{slug}/pulls/{n}` is
+    # a straight-through REST call. If the two disagree on head.ref, gh is
+    # returning wrong data — the exact failure mode behind the historical
+    # wrong-branch-deletion incidents. Refuse rather than walk into a
+    # destructive branch delete.
+    verify_ref, _ = run(
+        ["gh", "api", f"repos/{repo_slug}/pulls/{args.pr}", "--jq", ".head.ref"],
+    )
+    if verify_ref != pr_head_ref:
+        print(
+            f"FAIL: gh `pr view` and REST `pulls/{args.pr}` disagree on head:\n"
+            f"      pr view → {pr_head_ref!r}\n"
+            f"      rest    → {verify_ref!r}\n"
+            f"      Refusing — this is the exact failure mode that has previously "
+            f"caused wrong-branch deletions.",
+            file=sys.stderr,
+        )
         sys.exit(2)
 
     if args.branch:
@@ -213,9 +258,12 @@ def main():
     if pr_state == "OPEN":
         if is_draft == "true":
             print("  PR is draft — marking ready")
-            run(["gh", "pr", "ready", str(args.pr)])
-        run(["gh", "pr", "merge", str(args.pr), "--squash"])
-        pr_state, _ = run(["gh", "pr", "view", str(args.pr), "--json", "state", "-q", ".state"])
+            run(["gh", "pr", "ready", str(args.pr), "--repo", repo_slug])
+        run(["gh", "pr", "merge", str(args.pr), "--repo", repo_slug, "--squash"])
+        pr_state, _ = run(
+            ["gh", "pr", "view", str(args.pr), "--repo", repo_slug,
+             "--json", "state", "-q", ".state"],
+        )
 
     # 4. Before pulling, discard any tracked changes already present upstream
     #    (a common case: the same edit was made in both the main tree and the
@@ -271,7 +319,27 @@ def main():
     if local_branches:
         run(["git", "branch", "-D", wt_branch])
 
-    # 9. Delete remote branch (harmless if already gone)
+    # 9. Delete remote branch (harmless if already gone).
+    #
+    # Safety gate: if any OTHER open PR still has wt_branch as its head,
+    # deleting it on origin will auto-close that PR (GitHub fires
+    # head_ref_deleted alongside the closure). This is the failure mode
+    # that hit PRs #3, #8, #27, #28 previously. Refuse rather than risk it.
+    open_on_branch, _ = run(
+        ["gh", "pr", "list", "--repo", repo_slug, "--state", "open",
+         "--head", wt_branch, "--json", "number", "-q", ".[].number"],
+        check=False,
+    )
+    stray = [n for n in open_on_branch.split() if n and n != str(args.pr)]
+    if stray:
+        print(
+            f"FAIL: refusing to delete remote branch {wt_branch!r} — still "
+            f"the head of open PR(s): {', '.join('#' + n for n in stray)}. "
+            f"Deleting would auto-close them.",
+            file=sys.stderr,
+        )
+        sys.exit(3)
+
     run(["git", "push", "origin", "--delete", wt_branch], check=False)
 
     # 9b. Prune stale refs/remotes/origin/* tracking refs left behind when

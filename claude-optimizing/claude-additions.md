@@ -60,6 +60,7 @@ The `cc-*` scripts (installed to `~/.local/bin/` from `~/projects/active/catherd
 - `cc-repo-hygiene-hook` — Stop-event enforcer for the Repo Hygiene rules below.
 - `cc-exit-worktree-hook` — PostToolUse:ExitWorktree reminder that surfaces dangling worktree/branch state on stderr (non-blocking).
 - `cc-block-pr-close-hook` — PreToolUse:Bash guard that blocks `gh pr close` (usually `gh pr merge` was intended). Override with `CC_ALLOW_PR_CLOSE=1` prefix on the command.
+- `cc-block-push-delete-hook` — PreToolUse:Bash guard that blocks `git push --delete <branch>` (and `git push origin :<branch>`) when the branch is still the head of an open PR (deleting it would auto-close the PR). Override with `CC_ALLOW_BRANCH_DELETE=1` prefix.
 
 All scripts support `--help`, exit non-zero on failure, and return tight parseable output. Installed command name is `cc-<name>` (extension stripped); hook scripts keep `.py` because Claude Code invokes them as Python files. Skill-coupled scripts (e.g. `cc-verify`) live under `skills/` and are not on `$PATH` — the owning skill invokes them directly.
 

@@ -1,4 +1,7 @@
+import importlib.util
 import subprocess
+from pathlib import Path
+
 from .conftest import run_cc, MAIN_REPO
 
 
@@ -80,6 +83,57 @@ def test_dirty_main_blocks_merge(test_pr):
         assert "uncommitted" in (out + err).lower()
     finally:
         readme.write_text(original)
+
+
+def test_refuses_when_branch_flag_mismatches_pr_head(test_pr):
+    """If caller passes --branch <x> but PR #n's head is <y>, the script must
+    refuse BEFORE touching any worktree/branch. Walking past this would delete
+    the wrong branch — the exact failure mode that closed PRs #3/#8/#27/#28.
+
+    Invoked from MAIN_REPO so the caller-inside-worktree gate doesn't
+    short-circuit before the mismatch check runs."""
+    pr_number, wt, branch = test_pr
+    wrong_branch = f"{branch}-NOT-THE-REAL-HEAD"
+    out, err, rc = run_cc(
+        "cc-merge-worktree",
+        [str(pr_number), "--branch", wrong_branch],
+        cwd=MAIN_REPO,
+    )
+    assert rc != 0, f"expected refusal, got rc=0 out={out!r}"
+    combined = out + err
+    assert wrong_branch in combined, combined
+    assert branch in combined, combined
+    assert "does not match" in combined.lower(), combined
+
+    # PR must still be OPEN; worktree must still exist.
+    pr_state = subprocess.run(
+        ["gh", "pr", "view", str(pr_number), "--repo",
+         "agentic-cookbook/catherdingtests", "--json", "state", "-q", ".state"],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    assert pr_state == "OPEN", f"PR state must be unchanged, got {pr_state!r}"
+
+
+def test_slug_from_origin_url():
+    """The slug parser must handle every URL form git exposes. Bad slugs
+    propagate into gh --repo and re-introduce the very context-drift hazard
+    this layer is meant to eliminate."""
+    module_path = Path(__file__).resolve().parent.parent / "scripts-git" / "cc-merge-worktree.py"
+    spec = importlib.util.spec_from_file_location("cc_merge_worktree", module_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    cases = [
+        ("git@github.com:owner/name.git",         "owner/name"),
+        ("https://github.com/owner/name.git",     "owner/name"),
+        ("https://github.com/owner/name",         "owner/name"),
+        ("ssh://git@github.com/owner/name.git",   "owner/name"),
+        ("https://github.com/owner/name/",        "owner/name"),
+        ("https://gitlab.com/owner/name.git",     None),
+        ("",                                      None),
+    ]
+    for url, expected in cases:
+        assert module.slug_from_origin_url(url) == expected, f"{url!r} → wrong slug"
 
 
 def test_already_merged_pr_is_idempotent(test_pr):
