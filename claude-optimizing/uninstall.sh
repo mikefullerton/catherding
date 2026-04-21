@@ -52,6 +52,7 @@ entries = [
     ("PostToolUse", "/usr/bin/python3 $HOME/.claude/hooks/cc-exit-worktree-hook.py"),
     ("PreToolUse",  "/usr/bin/python3 $HOME/.claude/hooks/cc-block-pr-close-hook.py"),
     ("PreToolUse",  "/usr/bin/python3 $HOME/.claude/hooks/cc-block-push-delete-hook.py"),
+    ("PreToolUse",  "/usr/bin/python3 $HOME/.claude/hooks/cc-general-principles-hook.py"),
 ]
 
 changed = False

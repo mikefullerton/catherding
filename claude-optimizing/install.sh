@@ -93,6 +93,10 @@ entries = [
         "PreToolUse", "Bash",
         "/usr/bin/python3 $HOME/.claude/hooks/cc-block-push-delete-hook.py",
     ),
+    (
+        "PreToolUse", "Edit|Write|MultiEdit|NotebookEdit",
+        "/usr/bin/python3 $HOME/.claude/hooks/cc-general-principles-hook.py",
+    ),
 ]
 
 settings.setdefault("hooks", {})
