@@ -12,7 +12,7 @@ description: Use when a file imports an LLM SDK (anthropic, openai, langchain, e
 
 ## Graphify opt-in
 
-Every repo must be opted into Graphify (for every LLM that supports it):
+Every repo should be opted into Graphify (for every LLM that supports it):
 
 1. Graphify installed on the machine: `pip install graphifyy && graphify install`
 2. `graphify-out/` added to `.gitignore` (generated output, not committed)
@@ -23,7 +23,7 @@ Every repo must be opted into Graphify (for every LLM that supports it):
 
 Two different things. Pick the right one:
 
-- **General policies** — apply regardless of which LLM or tool is in use. Written in plain language for anyone (human or AI) to follow. Live in `/docs/rules/`.
+- **General policies** — apply regardless of which LLM or tool is in use. Written in plain language for anyone (human or AI) to follow. Live in `/policies/`.
 - **Claude-specific behavioral instructions** — tell Claude how to behave ("when X happens, do Y"). Live in `.claude/CLAUDE.md` (project scope) or `/claude/rules/` (global scope). Written as directives to Claude specifically.
 
 **Heuristic:** If a rule would make sense for a human developer to follow, it's a general policy. If it's "Claude, remember to...", it's a behavioral instruction.
@@ -37,4 +37,4 @@ Extensions (skills, rules, agents, MCP integrations, commands, plugins, hooks) a
 
 ## Reference
 
-Full rationale: `~/projects/active/catherding/docs/rules/development-policies.md` (section: "LLMs").
+Full rationale in [`~/projects/active/catherding/policies/setup/repo-organization/llm-file-layout.md`](../../policies/setup/repo-organization/llm-file-layout.md). See [INDEX.md](../../policies/INDEX.md) for related policies.

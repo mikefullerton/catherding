@@ -1,6 +1,6 @@
 ---
 name: apple-and-xcode-policies
-description: Use when touching Swift code, Package.swift, project.yml, any .xcodeproj, an Xcode workspace, or code-signing entitlements. Enforces Swift 6.2.x, Xcode-projects-over-SPM, XcodeGen, /apple layout, and code-signing rules. macOS only.
+description: Use when touching Swift code, Package.swift, project.yml, any .xcodeproj, an Xcode workspace, or code-signing entitlements. Enforces Swift 6.2.x, SPM for reusable code + Xcode projects for shipping products, XcodeGen, /apple layout, and code-signing rules. macOS only.
 ---
 
 # Apple & Xcode — MANDATORY (macOS)
@@ -33,27 +33,26 @@ Each Apple project lives in its own subdirectory under `/apple`:
 
 Platform-specific code, projects, and tooling live *exclusively* under their platform directory.
 
-## Xcode projects over Swift Packages — MANDATORY
+## Project type: SPM vs Xcode — MANDATORY
 
-**Always use Xcode projects, never Swift Package Manager as the primary project format.**
+Pick by what the code *is*, not by preference:
 
-- Every project has `project.yml` (XcodeGen spec) at its project root: `/apple/MyProject/project.yml`.
+- **Reusable code → Swift package (SPM).** For multi-component reusable code, use a single package with multiple targets. If SPM is insufficient for a specific purpose (e.g. the reusable code needs assets or other files SPM doesn't support), **consult the user** before reaching for an Xcode project.
+- **Shipping product → Xcode project.** Anything that ships as an app bundle, a plugin, or a macOS filesystem package uses an Xcode project — not an SPM package. Xcode projects consume the reusable Swift packages.
+
+### Xcode project files
+
+- Every Xcode project has a `project.yml` (XcodeGen spec) at its project root: `/apple/MyProject/project.yml`.
 - The generated `.xcodeproj` is **checked into the repo** alongside `project.yml`.
 - Use `cc-xcgen` to regenerate after editing `project.yml`.
 
-### Converting from Swift Package → Xcode project
-
-1. Create `project.yml` with equivalent targets and settings.
-2. **Include a test target** — migrate all existing tests into it.
-3. Set the signing team to `mikefullerton` (Temporal Apple Developer account); preserve all entitlements.
-4. **Always build and run tests after converting** — `cc-xcbuild <scheme> --test`. Migration isn't complete until tests pass.
-
 ## Xcode workspace
 
-`/apple` must contain a single `.xcworkspace` that includes every Xcode project in the repo:
+`/apple` must contain a single `.xcworkspace` that aggregates every Apple project in the repo — both Xcode projects and Swift packages:
 
 - Every `.xcodeproj` directly under `/apple/<ProjectName>/` → include.
-- Submodules (their directories sit at the repo root): include their Xcode projects **one level deep only**. If a submodule itself contains nested submodules, do *not* include those nested projects.
+- Every Swift package directly under `/apple/<ProjectName>/` → include.
+- Submodules (their directories sit at the repo root): include their Apple projects **one level deep only**. If a submodule itself contains nested submodules, do *not* include those nested projects.
 
 ## Code signing
 
@@ -63,4 +62,10 @@ Platform-specific code, projects, and tooling live *exclusively* under their pla
 
 ## Reference
 
-Full rationale: `~/projects/active/catherding/docs/rules/development-policies.md` (section: "Apple [macOS only]").
+Full rationale across these policy files in `~/projects/active/catherding/policies/workflow/apple-platform-development/`:
+
+- [swift-version.md](../../policies/workflow/apple-platform-development/swift-version.md) — Swift 6.2.x and strict concurrency
+- [xcode-projects.md](../../policies/workflow/apple-platform-development/xcode-projects.md) — XcodeGen + project.yml + .xcworkspace
+- [code-signing.md](../../policies/workflow/apple-platform-development/code-signing.md) — signing team + entitlements
+
+Start at [INDEX.md](../../policies/INDEX.md) to navigate.
