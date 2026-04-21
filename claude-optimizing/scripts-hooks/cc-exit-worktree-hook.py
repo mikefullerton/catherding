@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""PostToolUse hook for ExitWorktree — block if worktree exit left dangling state.
+"""PostToolUse hook for ExitWorktree — warn about dangling worktree/branch state.
 
-Fires right after Claude runs ExitWorktree. Detects two flavors of the
-"I exited the worktree but forgot to run cc-merge-worktree" bug:
+Fires right after Claude runs ExitWorktree. Surfaces two flavors of the
+"I exited the worktree but forgot to run cc-merge-worktree" pattern:
 
   1. A non-default-branch worktree is still on disk and its branch is
      already merged into origin/<default> (action:keep without follow-up).
@@ -10,14 +10,9 @@ Fires right after Claude runs ExitWorktree. Detects two flavors of the
      branch is gone (action:remove shortcut on a repo with
      `delete_branch_on_merge: false`).
 
-Exit codes:
-  0  — nothing dangling, proceed
-  2  — blocking; prints a diagnostic to stderr that the harness surfaces
-       back to Claude as a tool-use error
-
-This is the flip-side of the Stop hygiene hook: Stop catches the problem at
-turn-end; this one catches it the moment ExitWorktree returns, so Claude has
-to resolve it before the next tool call rather than at turn-end.
+Always exits 0 — the diagnostic goes to stderr as a reminder only. The
+Stop hook used to block on these (Checks 4/5/5b/7) and was too aggressive
+across concurrent sessions; this hook's reminder replaces that behavior.
 """
 from __future__ import annotations
 
@@ -178,9 +173,9 @@ def main() -> int:
             return ""
 
     lines = [
-        "ExitWorktree completed but the exit ritual left dangling state.",
-        "You MUST run cc-merge-worktree to finish the ritual (see the",
-        "'Exiting a Worktree' section of the global CLAUDE.md).",
+        "⚠ ExitWorktree reminder: dangling worktree/branch state detected.",
+        "  cc-merge-worktree can clean these up when you're ready — this",
+        "  is a reminder, not a block.",
         "",
     ]
     # Always emit --branch <name> in the suggested command. When multiple
@@ -202,7 +197,7 @@ def main() -> int:
         )
 
     print("\n".join(lines), file=sys.stderr)
-    return 2
+    return 0
 
 
 if __name__ == "__main__":
