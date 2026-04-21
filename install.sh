@@ -42,7 +42,8 @@ confirm() {
     esac
     local ans
     read -r -p "  $prompt [Y/n] " ans
-    case "${ans,,}" in
+    ans="$(printf '%s' "$ans" | tr '[:upper:]' '[:lower:]')"
+    case "$ans" in
         ""|y|yes) return 0 ;;
         *)        return 1 ;;
     esac
