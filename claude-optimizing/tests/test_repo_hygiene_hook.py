@@ -1,12 +1,9 @@
 """Tests for the Stop hook (cc-repo-hygiene-hook.py).
 
-Focus: the squash-merged orphan remote branch case. The sandbox repo
-has `delete_branch_on_merge: true`, which auto-deletes the head branch
-on merge. Real project repos (e.g. `catherding` itself) ship with
-`delete_branch_on_merge: false`, so after a squash-merge the remote
-branch lingers on origin. If the user's exit ritual is
-`ExitWorktree action:remove` (skipping cc-merge-worktree), nothing
-cleans the orphan up. The Stop hook must catch it.
+Focus: confirm the Stop hook is silent about cross-session state.
+Orphan remote branches (squash-merged PRs not deleted from origin)
+were Check 5b's concern; that check is removed — the ExitWorktree
+hook now surfaces such artifacts as a non-blocking reminder instead.
 """
 import json
 import subprocess
@@ -36,10 +33,10 @@ def _decision(stdout):
     return json.loads(stdout)
 
 
-def test_hook_flags_squash_merged_orphan_remote_branch(test_pr):
-    """Squash-merge a PR, then re-push the head branch to origin to
-    simulate a `delete_branch_on_merge: false` repo where the orphan
-    remote branch stays after merge. The Stop hook must detect it."""
+def test_hook_ignores_squash_merged_orphan_remote_branch(test_pr):
+    """Squash-merge a PR, leave an orphan remote branch on origin, remove
+    the worktree + local branch. The Stop hook must NOT flag the orphan
+    — that's the ExitWorktree hook's territory now."""
     pr_number, wt, branch = test_pr
 
     subprocess.run(
@@ -80,12 +77,11 @@ def test_hook_flags_squash_merged_orphan_remote_branch(test_pr):
     out, err, rc = _invoke_hook(MAIN_REPO)
     assert rc == 0, f"hook exited non-zero: err={err!r}"
     decision = _decision(out)
-    assert decision is not None, (
-        f"hook did not block but orphan remote branch {branch!r} exists; "
-        f"stdout={out!r} stderr={err!r}"
+    assert decision is None, (
+        f"Stop hook should no longer block on orphan remote branches "
+        f"(that's the ExitWorktree hook's territory now); got: {out!r}"
     )
-    assert decision.get("decision") == "block"
-    reason = decision.get("reason", "")
-    assert branch in reason, (
-        f"orphan branch {branch!r} not named in hook reason: {reason!r}"
+    assert branch not in err, (
+        f"Stop hook should not warn about orphan remote branch {branch!r}; "
+        f"stderr: {err!r}"
     )

@@ -141,3 +141,64 @@ def test_malformed_transcript_fails_closed(hook_local_repo, tmp_path):
     d = _decision(out)
     assert d is not None and d.get("decision") == "block"
     assert "y.txt" in d.get("reason", "")
+
+
+def test_stale_sibling_worktree_does_not_block(hook_local_repo, tmp_path):
+    """A sibling worktree whose branch got merged into default is
+    another session's concern. The Stop hook must NOT block or warn
+    about it when run from the primary worktree."""
+    sibling = tmp_path / "sibling"
+    branch = "feat-merged"
+
+    subprocess.run(
+        ["git", "-C", str(hook_local_repo), "worktree", "add",
+         str(sibling), "-b", branch],
+        check=True, capture_output=True,
+    )
+    (sibling / "feat.txt").write_text("feat\n")
+    subprocess.run(["git", "-C", str(sibling), "add", "."],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(sibling), "commit", "-m", "feat"],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(hook_local_repo), "merge",
+                    "--no-ff", "-m", f"merge {branch}", branch],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(hook_local_repo), "push", "origin", "main"],
+                   check=True, capture_output=True)
+
+    out, err, rc = _invoke_hook(hook_local_repo)
+    assert rc == 0
+    assert _decision(out) is None, (
+        f"Stop hook should not block on sibling worktree; got: {out!r}"
+    )
+    assert branch not in err, (
+        f"Stop hook should not warn about sibling branch; stderr: {err!r}"
+    )
+
+
+def test_merged_sibling_branch_does_not_block(hook_local_repo):
+    """A local branch merged into default but still sitting on disk is
+    branch-hygiene cleanup that was Check 4's job. Removed — Stop must
+    no longer block on it."""
+    branch = "feat-stale"
+
+    subprocess.run(["git", "-C", str(hook_local_repo), "checkout", "-b", branch],
+                   check=True, capture_output=True)
+    (hook_local_repo / "other.txt").write_text("other\n")
+    subprocess.run(["git", "-C", str(hook_local_repo), "add", "."],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(hook_local_repo), "commit", "-m", "feat"],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(hook_local_repo), "checkout", "main"],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(hook_local_repo), "merge",
+                    "--no-ff", "-m", f"merge {branch}", branch],
+                   check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(hook_local_repo), "push", "origin", "main"],
+                   check=True, capture_output=True)
+
+    out, err, rc = _invoke_hook(hook_local_repo)
+    assert rc == 0
+    assert _decision(out) is None, (
+        f"Stop hook should not block on merged sibling branch; got: {out!r}"
+    )
