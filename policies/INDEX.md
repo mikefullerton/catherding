@@ -45,13 +45,13 @@ Policies are grouped into two tiers:
 
 | Policy | Summary | Triggers |
 |--------|---------|----------|
-| [principles-general](workflow/principles-general/principles-general.md) | Cross-cutting: be explicit, keep it simple, don't surprise the reader | `starting-work`, `writing-code`, `code-review`, `design-decision` |
+| [principles-general](workflow/principles-general/principles-general.md) | Map of all 19 cookbook principles, grouped by theme, with links to local policies that apply each one | `starting-work`, `writing-code`, `code-review`, `design-decision` |
 
 ### Apple Platform Development
 
 | Policy | Summary | Triggers |
 |--------|---------|----------|
-| [swift](workflow/apple-platform-development/swift.md) | Swift 6.2.x with strict concurrency | `starting-swift-project`, `swift-package-setup`, `swift-version-audit`, `xcode-project-conversion` |
+| [swift-version](workflow/apple-platform-development/swift-version.md) | Swift 6.2.x with strict concurrency | `starting-swift-project`, `swift-package-setup`, `swift-version-audit`, `xcode-project-conversion` |
 | [xcode-projects](workflow/apple-platform-development/xcode-projects.md) | Swift packages for reusable code; Xcode projects (XcodeGen + checked-in .xcodeproj) for shipping products; single .xcworkspace in /apple aggregates both | `creating-xcode-project`, `adding-xcode-target`, `xcodeworkspace-setup`, `creating-swift-package`, `adding-reusable-code` |
 | [code-signing](workflow/apple-platform-development/code-signing.md) | Team mikefullerton; entitlements preserved; no certs in repo | `configuring-signing`, `entitlements-change`, `xcode-team-setup`, `creating-xcode-project` |
 
