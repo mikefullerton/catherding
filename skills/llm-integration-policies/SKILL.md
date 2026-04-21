@@ -12,7 +12,7 @@ description: Use when a file imports an LLM SDK (anthropic, openai, langchain, e
 
 ## Graphify opt-in
 
-Every repo must be opted into Graphify (for every LLM that supports it):
+Every repo should be opted into Graphify (for every LLM that supports it):
 
 1. Graphify installed on the machine: `pip install graphifyy && graphify install`
 2. `graphify-out/` added to `.gitignore` (generated output, not committed)
