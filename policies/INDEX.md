@@ -52,7 +52,7 @@ Policies are grouped into two tiers:
 | Policy | Summary | Triggers |
 |--------|---------|----------|
 | [swift](workflow/apple-platform-development/swift.md) | Swift 6.2.x with strict concurrency | `starting-swift-project`, `swift-package-setup`, `swift-version-audit`, `xcode-project-conversion` |
-| [xcode-projects](workflow/apple-platform-development/xcode-projects.md) | XcodeGen + project.yml + checked-in .xcodeproj; single .xcworkspace in /apple | `creating-xcode-project`, `xcode-project-conversion`, `adding-xcode-target`, `xcodeworkspace-setup`, `converting-swift-package` |
+| [xcode-projects](workflow/apple-platform-development/xcode-projects.md) | Swift packages for reusable code; Xcode projects (XcodeGen + checked-in .xcodeproj) for shipping products; single .xcworkspace in /apple aggregates both | `creating-xcode-project`, `adding-xcode-target`, `xcodeworkspace-setup`, `creating-swift-package`, `adding-reusable-code` |
 | [code-signing](workflow/apple-platform-development/code-signing.md) | Team mikefullerton; entitlements preserved; no certs in repo | `configuring-signing`, `entitlements-change`, `xcode-team-setup`, `creating-xcode-project` |
 
 ### Repo Hygiene
