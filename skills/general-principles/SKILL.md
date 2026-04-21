@@ -1,13 +1,13 @@
 ---
 name: general-principles
-description: Use at the start of non-trivial work, during code review, or when making a design decision — whenever there's a judgment call about code shape, module boundaries, or what to build. Loads the 21 cookbook principles that guide this author's work, grouped by theme, with one-line hooks per principle.
+description: Use whenever writing, modifying, refactoring, or reviewing code, or when making any design decision — including small ones. Loads the 21 cookbook principles (simplicity, yagni, fail-fast, explicit-over-implicit, separation-of-concerns, design-for-deletion, etc.) as heuristics for judgment calls about code shape, module boundaries, and what to build. Applies across all languages and project types.
 ---
 
 # General Principles — guiding heuristics
 
 These are **design heuristics for judgment calls**, not rigid rules. When two principles appear to conflict, prefer the one that leaves the most room to change direction tomorrow — that is the **meta-principle: optimize for change**.
 
-Before making a non-trivial design decision, scan the list below and name the principles in tension. If none apply, proceed. If several do, the choice becomes explicit instead of implicit.
+Keep the list in mind for every change, not just big ones. Even "small" decisions (a new helper, a conditional, a config flag) compound — each one is an opportunity to apply or violate a principle. When several principles are in tension, name them so the choice is explicit instead of implicit.
 
 ## Simplicity and staying small
 
@@ -60,9 +60,10 @@ How the work itself gets done — phases, feedback, and automation.
 
 ## How to use this in practice
 
-- **Starting work:** scan the headings; note any that apply to what you're about to build.
+- **Any code change, large or small:** scan the headings; note any that apply. The most frequently-relevant ones are `yagni` (don't build for hypotheticals), `simplicity`, `explicit-over-implicit`, and `fail-fast`.
 - **Code review:** name the principle a change advances or violates, rather than appealing to taste.
 - **Design decision:** when two approaches look equivalent, pick the one with stronger hooks into these principles — especially `design-for-deletion`, `small-reversible-decisions`, and the meta-principle.
+- **Refactors:** the principles are the justification. If a refactor doesn't advance one, consider whether it's worth doing.
 
 ## Reference
 
