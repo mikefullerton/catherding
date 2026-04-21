@@ -62,7 +62,7 @@ If the repo contains planning or research documents, they go in the correspondin
 
 Not all rules are the same:
 
-- **General policies** (like this document) — apply regardless of which LLM or tool is being used. These live in `/docs/rules/` and are written in plain language for anyone (human or AI) to follow.
+- **General policies** (like this document) — apply regardless of which LLM or tool is being used. These live in `/docs/policies/` and are written in plain language for anyone (human or AI) to follow.
 - **Claude-specific behavioral instructions** — tell Claude how to behave in specific situations ("when X happens, do Y"). These belong in `.claude/CLAUDE.md` (project scope) or `/claude/rules/` (global scope), and are written as directives to Claude specifically.
 
 If a rule would make sense for a human developer to follow, it's a general policy. If it's "Claude, remember to..." it's a behavioral instruction.

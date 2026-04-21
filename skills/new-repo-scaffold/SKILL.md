@@ -36,4 +36,4 @@ Exceptions: `SKILL.md` stays inside its skill dir; `README.md` stays co-located 
 
 ## Reference
 
-Full rationale and the rest of the standard: `~/projects/active/catherding/docs/rules/development-policies.md` (sections: "Every Repo Must Have", "Documentation", "Git").
+Full rationale and the rest of the standard: `~/projects/active/catherding/docs/policies/development-policies.md` (sections: "Every Repo Must Have", "Documentation", "Git").

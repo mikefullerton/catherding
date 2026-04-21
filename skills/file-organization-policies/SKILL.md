@@ -32,4 +32,4 @@ Anything else goes in a subdirectory.
 
 ## Reference
 
-Full rationale: `~/projects/active/catherding/docs/rules/development-policies.md` (section: "File Organization").
+Full rationale: `~/projects/active/catherding/docs/policies/development-policies.md` (section: "File Organization").

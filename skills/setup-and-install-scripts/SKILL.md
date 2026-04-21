@@ -25,4 +25,4 @@ If a repo requires steps a developer must take to use it — automated scripts, 
 
 ## Reference
 
-Full rationale: `~/projects/active/catherding/docs/rules/development-policies.md` (section: "Setup").
+Full rationale: `~/projects/active/catherding/docs/policies/development-policies.md` (section: "Setup").

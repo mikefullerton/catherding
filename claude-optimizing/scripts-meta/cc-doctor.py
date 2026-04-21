@@ -8,7 +8,7 @@ Walks both `~/.local/bin/cc-*` (regular scripts) and `~/.claude/hooks/cc-*-hook.
 non-symlinks shadowing the namespace, and stale entries pointing outside the
 canonical scripts dir. Also checks the global CLAUDE.md guidance block for
 stale unmarked duplicates, and checks that each policy skill references a
-section that still exists in docs/rules/development-policies.md. Exits non-zero
+section that still exists in docs/policies/development-policies.md. Exits non-zero
 on any problem.
 """
 from __future__ import annotations
@@ -25,7 +25,7 @@ CANONICAL_SOURCES = sorted((REPO_ROOT / "claude-optimizing").glob("scripts-*"))
 BIN_DIR = Path.home() / ".local" / "bin"
 HOOKS_DIR = Path.home() / ".claude" / "hooks"
 CLAUDE_MD = Path.home() / ".claude" / "CLAUDE.md"
-POLICIES_DOC = REPO_ROOT / "docs" / "rules" / "development-policies.md"
+POLICIES_DOC = REPO_ROOT / "docs" / "policies" / "development-policies.md"
 POLICY_SKILLS_DIR = REPO_ROOT / "skills"
 POLICY_SKILLS = [
     "new-repo-scaffold",
