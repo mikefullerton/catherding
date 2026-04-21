@@ -12,6 +12,14 @@ Always use Python for scripts. NEVER write bash/shell scripts (`.sh`). This incl
 - **Push work into deterministic Python scripts** whenever possible. If Claude will repeatedly perform the same logic (parsing, validation, transformation, checks), encode it in a Python script that produces structured output — don't spend tokens re-deriving the answer each time.
 - **Plan execution — always inline, never ask.** When a plan is complete (e.g. from `superpowers:writing-plans`) and Claude would otherwise offer a choice between **subagent-driven** and **inline** execution, **always choose inline** without presenting the options. Proceed directly with `superpowers:executing-plans` inline. Do not stall on a decision prompt.
 
+## General Principles — MANDATORY
+
+Before writing, modifying, refactoring, or reviewing any code — and before any design decision, including small ones — **invoke the `general-principles` skill** via the Skill tool. It loads 21 cookbook principles (simplicity, yagni, fail-fast, explicit-over-implicit, design-for-deletion, small-reversible-decisions, etc.) that are the basis for judgment calls in this author's work.
+
+- Name the principle a change advances or the principle it violates, rather than appealing to taste.
+- When principles conflict, pick the option that leaves the most room to change direction tomorrow (the meta-principle: optimize-for-change).
+- If the skill has already been invoked in this session, you don't need to re-invoke it — just keep the principles in view for subsequent changes.
+
 ## Workflow Scripts — PREFER over multi-step Bash
 
 The `cc-*` scripts (installed to `~/.local/bin/` from `~/projects/active/catherding/claude-optimizing/scripts-<area>/`) collapse common multi-step Bash rituals into single calls. Use them instead of raw git/gh sequences whenever the scenario matches:
@@ -61,6 +69,7 @@ The `cc-*` scripts (installed to `~/.local/bin/` from `~/projects/active/catherd
 - `cc-exit-worktree-hook` — PostToolUse:ExitWorktree reminder that surfaces dangling worktree/branch state on stderr (non-blocking).
 - `cc-block-pr-close-hook` — PreToolUse:Bash guard that blocks `gh pr close` (usually `gh pr merge` was intended). Override with `CC_ALLOW_PR_CLOSE=1` prefix on the command.
 - `cc-block-push-delete-hook` — PreToolUse:Bash guard that blocks `git push --delete <branch>` (and `git push origin :<branch>`) when the branch is still the head of an open PR (deleting it would auto-close the PR). Override with `CC_ALLOW_BRANCH_DELETE=1` prefix.
+- `cc-general-principles-hook` — PreToolUse:Edit|Write|MultiEdit|NotebookEdit reminder that fires once per session on the first code-writing tool call, nudging toward the `general-principles` skill. Non-blocking.
 
 All scripts support `--help`, exit non-zero on failure, and return tight parseable output. Installed command name is `cc-<name>` (extension stripped); hook scripts keep `.py` because Claude Code invokes them as Python files. Skill-coupled scripts (e.g. `cc-verify`) live under `skills/` and are not on `$PATH` — the owning skill invokes them directly.
 
