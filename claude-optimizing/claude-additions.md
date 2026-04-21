@@ -58,7 +58,7 @@ The `cc-*` scripts (installed to `~/.local/bin/` from `~/projects/active/catherd
 
 **Hooks (installed to `~/.claude/hooks/`, not `$PATH`):**
 - `cc-repo-hygiene-hook` — Stop-event enforcer for the Repo Hygiene rules below.
-- `cc-exit-worktree-hook` — PostToolUse:ExitWorktree enforcer that blocks the next tool call if a merged worktree is still on disk.
+- `cc-exit-worktree-hook` — PostToolUse:ExitWorktree reminder that surfaces dangling worktree/branch state on stderr (non-blocking).
 
 All scripts support `--help`, exit non-zero on failure, and return tight parseable output. Installed command name is `cc-<name>` (extension stripped); hook scripts keep `.py` because Claude Code invokes them as Python files. Skill-coupled scripts (e.g. `cc-verify`) live under `skills/` and are not on `$PATH` — the owning skill invokes them directly.
 
@@ -101,17 +101,16 @@ Run `git status`. If the repo has uncommitted changes, untracked files, or stale
 - If the stop hook blocks you for changes **you didn't make**, follow "Only Touch What You Changed" above: ask once per session, remember the disposition, don't re-prompt on every stop. NEVER auto-commit, auto-stash, or auto-discard changes you didn't make.
 - ALL changes **you made** MUST be committed and pushed. Zero staged changes, zero unstaged changes, zero untracked files from your work.
 - Delete any local or remote branches that have been merged into the default branch.
-- If you used a worktree and the work is merged, run `cc-merge-worktree <pr>` before stopping. Skipping or reordering its steps leaves dangling state that the stop hook will block on.
+- If you used a worktree and the work is merged, run `cc-merge-worktree <pr>` before stopping. Skipping or reordering its steps leaves dangling state; the ExitWorktree hook surfaces a reminder but will not block you.
 - Verify `main`/`master` matches the remote. If behind, pull.
 
 ### What the Hook Enforces
 
-The `Stop` hook (`~/.claude/hooks/cc-repo-hygiene-hook.py`, vendored from catherding `claude-optimizing/scripts-hooks/cc-repo-hygiene-hook.py`) will **block the turn from ending** if any of these are true:
+The `Stop` hook (`~/.claude/hooks/cc-repo-hygiene-hook.py`, vendored from catherding `claude-optimizing/scripts-hooks/cc-repo-hygiene-hook.py`) only inspects the current worktree. It will **block the turn from ending** if any of these are true:
 
-1. Staged or unstaged changes exist
-2. Untracked files exist (not in `.gitignore`)
-3. Local branches exist that are already merged into the default branch
-4. Remote branches exist that are already merged into the default branch
-5. The default branch is behind the remote
-6. Stale worktrees exist (branch deleted or merged)
+1. Staged or unstaged changes exist that this session touched
+2. Untracked files exist (not in `.gitignore`) that this session created
+3. The default branch is behind the remote
+
+Cross-session / cross-worktree cleanup (merged branches still on disk, orphan remote branches) is surfaced by the `cc-exit-worktree-hook` as a non-blocking reminder right after `ExitWorktree` runs — it no longer blocks the turn.
 <!-- END claude-optimizing -->
