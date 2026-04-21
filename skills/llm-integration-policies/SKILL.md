@@ -37,4 +37,4 @@ Extensions (skills, rules, agents, MCP integrations, commands, plugins, hooks) a
 
 ## Reference
 
-Full rationale: `~/projects/active/catherding/docs/policies/development-policies.md` (section: "LLMs").
+Full rationale in [`~/projects/active/catherding/docs/policies/llm-file-layout.md`](../../docs/policies/llm-file-layout.md). See [INDEX.md](../../docs/policies/INDEX.md) for related policies.

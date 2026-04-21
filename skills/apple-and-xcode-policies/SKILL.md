@@ -63,4 +63,10 @@ Platform-specific code, projects, and tooling live *exclusively* under their pla
 
 ## Reference
 
-Full rationale: `~/projects/active/catherding/docs/policies/development-policies.md` (section: "Apple [macOS only]").
+Full rationale across these policy files in `~/projects/active/catherding/docs/policies/`:
+
+- [apple-swift.md](../../docs/policies/apple-swift.md) — Swift 6.2.x and strict concurrency
+- [apple-xcode-projects.md](../../docs/policies/apple-xcode-projects.md) — XcodeGen + project.yml + .xcworkspace
+- [apple-code-signing.md](../../docs/policies/apple-code-signing.md) — signing team + entitlements
+
+Start at [INDEX.md](../../docs/policies/INDEX.md) to navigate.
