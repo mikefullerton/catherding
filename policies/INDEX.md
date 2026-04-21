@@ -59,4 +59,4 @@ Policies are grouped into two tiers:
 
 | Policy | Summary | Triggers |
 |--------|---------|----------|
-| [repo-hygiene](workflow/repo-hygiene/repo-hygiene.md) | Placeholder — commit/branch/worktree/PR rules still live in `~/.claude/CLAUDE.md` | `committing-code`, `creating-branch`, `using-worktree`, `opening-pr`, `repo-hygiene-audit` |
+| [repo-hygiene](workflow/repo-hygiene/repo-hygiene.md) | Feature branches in worktrees; commits push immediately; branches and worktrees cleaned up on merge | `committing-code`, `creating-branch`, `using-worktree`, `opening-pr`, `repo-hygiene-audit` |
