@@ -100,7 +100,9 @@ If a repo requires steps a developer must take to use it — automated scripts, 
 
 ## Scripting Language
 
-Python-only rule is canonical in the global `claude-optimizing` guidance block (`~/.claude/CLAUDE.md`) — see that block for the mandate and `.sh` exceptions.
+Python-only rule is canonical in the global `claude-optimizing` guidance block (`~/.claude/CLAUDE.md`) — see that block for the full mandate.
+
+**Exceptions:** `install.sh`, `uninstall.sh`, and `setup.sh` may be written as shell scripts.
 
 **Python version:** Target Python 3.12 as the minimum. Install via `brew install python@3.12`.
 
