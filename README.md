@@ -4,7 +4,7 @@ Opinionated tooling that turns Claude Code into a disciplined, cost-aware develo
 
 | Component | What it does | Source |
 |---|---|---|
-| **Claude optimizations** | 30 `cc-*` shell commands, a Stop hook, a PostToolUse hook, and a guidance block for `~/.claude/CLAUDE.md` | [`claude-optimizing/`](claude-optimizing/) |
+| **Claude optimizations** | `cc-*` shell commands, five Claude Code hooks, and a guidance block for `~/.claude/CLAUDE.md` | [`claude-optimizing/`](claude-optimizing/) |
 | **YOLO** | Per-session auto-approval of all permission prompts, with configurable deny-list | [`skills/yolo/`](skills/yolo/) |
 
 > The `custom-status-line` skill previously lived here. It moved to the [stenographer](https://github.com/agentic-cookbook/stenographer) repo — see `skills/custom-status-line/` there.
@@ -37,12 +37,12 @@ Single-call replacements for multi-step Bash rituals Claude keeps repeating. Eve
 
 | Category | Count | Representative commands |
 |---|---|---|
-| Git / PR workflow | 10 | `cc-merge-worktree`, `cc-commit-push`, `cc-repo-state`, `cc-pr-status`, `cc-pr-review`, `cc-rebase-main`, `cc-branch-hygiene`, `cc-bump-submodule`, `cc-submodule-status`, `cc-since` |
+| Git / PR workflow | 8 | `cc-merge-worktree`, `cc-commit-push`, `cc-repo-state`, `cc-pr-status`, `cc-pr-review`, `cc-rebase-main`, `cc-branch-hygiene`, `cc-since` |
 | Shell helpers | 2 | `cc-grep`, `cc-rename` |
 | macOS / Xcode | 9 | `cc-xcgen`, `cc-xcbuild`, `cc-xcschemes`, `cc-xcsetting`, `cc-xcrun-app`, `cc-app-path`, `cc-applogs`, `cc-plist`, `cc-clean-dd` |
 | Claude Code meta | 5 | `cc-usage-stats`, `cc-claude-fields`, `cc-memory`, `cc-graphify-status`, `cc-project-index` |
 | Self-management | 3 | `cc-install`, `cc-doctor`, `cc-help` |
-| Hooks | 1 | `cc-repo-hygiene-hook` (routes to `~/.claude/hooks/`, not `$PATH`) |
+| Hooks | 5 | `cc-repo-hygiene-hook`, `cc-exit-worktree-hook`, `cc-block-pr-close-hook`, `cc-block-push-delete-hook`, `cc-general-principles-hook` (all route to `~/.claude/hooks/`, not `$PATH`) |
 
 Full catalog with one-liners: [`claude-optimizing/README.md`](claude-optimizing/README.md).
 
@@ -54,17 +54,20 @@ Naming: source is `cc-<name>.py`, installer strips only `.py` → `cc-<name>` on
 
 - Use Python, never bash (except install/uninstall/setup scripts).
 - Prefer deterministic scripts over re-deriving logic in-turn.
-- Go through worktree branches for every change, and run `cc-merge-worktree <pr>` after every merge.
-- Follow the Repo Hygiene rules (only-touch-what-you-changed, commit-early, push-immediately, delete-merged branches).
+- Treat worktree lifecycle (enter, exit, merge, cleanup) as user-initiated; use `cc-merge-worktree <pr>` when asked to merge.
+- Follow the Repo Hygiene rules (commit your own work, only touch what you changed).
 
-### Two hook scripts wired into `~/.claude/settings.json`
+### Five hook scripts wired into `~/.claude/settings.json`
 
 | Hook | Event | What it does |
 |---|---|---|
-| `cc-repo-hygiene-hook.py` | `Stop` | Blocks the turn from ending if: staged/unstaged/untracked changes exist, local or remote branches are already merged into default, default branch is behind origin, or stale worktrees exist. |
-| `cc-exit-worktree-hook.py` | `PostToolUse` (matcher: `ExitWorktree`) | Fires right after `ExitWorktree`. If any non-default-branch worktree is still on disk **and** its branch is already merged into `origin/<default>`, exits non-zero with a diagnostic that points at `cc-merge-worktree <pr>` — blocking the next tool call until the cleanup runs. |
+| `cc-repo-hygiene-hook.py` | `Stop` | **Blocks** the turn from ending if this session produced staged, unstaged, or untracked changes that haven't been committed and pushed. Ignores prior-session dirt. |
+| `cc-exit-worktree-hook.py` | `PostToolUse` (matcher: `ExitWorktree`) | **Non-blocking** reminder. After `ExitWorktree`, warns on stderr if a merged-but-still-on-disk worktree or an orphan remote branch exists (PR merged, remote branch not deleted) — suggests `cc-merge-worktree <pr>` to clean up. You decide what to do. |
+| `cc-block-pr-close-hook.py` | `PreToolUse` (matcher: `Bash`) | **Blocks** `gh pr close` (usually a typo for `gh pr merge`). Override with `CC_ALLOW_PR_CLOSE=1` prefix. |
+| `cc-block-push-delete-hook.py` | `PreToolUse` (matcher: `Bash`) | **Blocks** `git push --delete <branch>` / `git push origin :<branch>` when the branch heads an open PR (deleting it would auto-close the PR). Override with `CC_ALLOW_BRANCH_DELETE=1` prefix. |
+| `cc-general-principles-hook.py` | `PreToolUse` (matcher: `Edit\|Write\|MultiEdit\|NotebookEdit`) | **Non-blocking** nudge that fires once per session on the first code-writing tool call, reminding Claude to invoke the `general-principles` skill. |
 
-Without these hooks, the rules above are advisory only. With them, the rules are mechanically enforced at the two moments that matter (turn-end and post-ExitWorktree).
+The two blocking hooks (hygiene + pr-close + push-delete) are narrow: they each answer a single yes/no question and stay out of the way otherwise. Worktree lifecycle and cleanup are user-driven — the hooks surface state but don't force moves.
 
 ### Pre-commit syntax check
 

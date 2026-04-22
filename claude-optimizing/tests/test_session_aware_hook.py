@@ -44,9 +44,9 @@ def _decision(stdout):
     return json.loads(stdout)
 
 
-def test_dirty_from_other_session_warns_not_blocks(hook_local_repo, tmp_path):
+def test_dirty_from_other_session_does_not_block_or_warn(hook_local_repo, tmp_path):
     """File dirty on disk, but the transcript doesn't reference it →
-    treat as prior-session state, warn on stderr, allow Stop."""
+    prior-session state is ignored entirely: no block, no stderr warning."""
     (hook_local_repo / "orphan.txt").write_text("from another session\n")
 
     tp = _write_transcript(tmp_path, [
@@ -56,8 +56,9 @@ def test_dirty_from_other_session_warns_not_blocks(hook_local_repo, tmp_path):
     out, err, rc = _invoke_hook(hook_local_repo, tp)
     assert rc == 0
     assert _decision(out) is None, f"expected no block, got: {out!r}"
-    assert "orphan.txt" in err, f"expected warning mentioning orphan.txt, got: {err!r}"
-    assert "prior sessions" in err.lower()
+    assert "orphan.txt" not in err, (
+        f"prior-session dirt must not be warned about; stderr: {err!r}"
+    )
 
 
 def test_dirty_from_this_session_blocks(hook_local_repo, tmp_path):
@@ -77,9 +78,9 @@ def test_dirty_from_this_session_blocks(hook_local_repo, tmp_path):
     assert "new.py" in d.get("reason", "")
 
 
-def test_mixed_blocks_and_warns(hook_local_repo, tmp_path):
+def test_mixed_blocks_on_own_but_ignores_prior(hook_local_repo, tmp_path):
     """One file this session, one from prior session → block on the
-    this-session path AND warn about the prior-session path."""
+    this-session path; prior-session path is ignored entirely (no warning)."""
     mine = hook_local_repo / "mine.py"
     mine.write_text("new\n")
     theirs = hook_local_repo / "theirs.txt"
@@ -96,7 +97,9 @@ def test_mixed_blocks_and_warns(hook_local_repo, tmp_path):
     assert "mine.py" in d.get("reason", "")
     assert "theirs.txt" not in d.get("reason", ""), \
         "prior-session path must not be in block reason"
-    assert "theirs.txt" in err
+    assert "theirs.txt" not in err, (
+        f"prior-session dirt must not be warned about; stderr: {err!r}"
+    )
 
 
 def test_untracked_from_bash_redirect_blocks(hook_local_repo, tmp_path):

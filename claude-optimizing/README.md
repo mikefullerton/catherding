@@ -10,12 +10,12 @@ claude-optimizing/
 ├── install.sh            ← idempotent installer (see "How install.sh works")
 ├── uninstall.sh          ← reverses everything install.sh did
 ├── claude-additions.md   ← guidance block — merged into ~/.claude/CLAUDE.md
-├── scripts-git/    (10)  ← git / PR workflow
+├── scripts-git/     (8)  ← git / PR workflow
 ├── scripts-bash/    (2)  ← shell helpers
 ├── scripts-xcode/   (9)  ← macOS / Xcode
 ├── scripts-claude/  (5)  ← Claude Code meta
 ├── scripts-meta/    (3)  ← self-management (cc-install, cc-doctor, cc-help)
-└── scripts-hooks/   (2)  ← Claude Code hook scripts (cc-*-hook.py)
+└── scripts-hooks/   (5)  ← Claude Code hook scripts (cc-*-hook.py)
 ```
 
 Skill-internal tools that only make sense inside a specific skill's runtime live under that skill's own `scripts/` subdir. Those are invoked directly by the skill (not on `$PATH`, no `cc-` prefix).
@@ -42,7 +42,7 @@ Runs five idempotent steps, each labelled in its output:
 |---|---|
 | 0. Prereq check | Verifies `git`, `gh`, `python3` are on `PATH`; warns if `~/.local/bin` isn't on `PATH`; exits non-zero if anything is missing. |
 | 1. Symlink `cc-*` scripts | `ln -sfn` every `claude-optimizing/scripts-*/cc-*.py` into `~/.local/bin/`. `cc-*-hook.py` files route to `~/.claude/hooks/` instead. Skill-internal tools under `skills/<name>/scripts/` are NOT touched — they're invoked directly by the owning skill. |
-| 2. Register hooks | Patches `~/.claude/settings.json` idempotently with two entries: `cc-repo-hygiene-hook.py` under `hooks.Stop`, and `cc-exit-worktree-hook.py` under `hooks.PostToolUse` with matcher `ExitWorktree`. |
+| 2. Register hooks | Patches `~/.claude/settings.json` idempotently: `cc-repo-hygiene-hook.py` under `hooks.Stop`; `cc-exit-worktree-hook.py` under `hooks.PostToolUse` (matcher `ExitWorktree`); `cc-block-pr-close-hook.py` and `cc-block-push-delete-hook.py` under `hooks.PreToolUse` (matcher `Bash`); `cc-general-principles-hook.py` under `hooks.PreToolUse` (matcher `Edit\|Write\|MultiEdit\|NotebookEdit`). |
 | 3. Merge guidance block | Reads `claude-additions.md` and inserts it into `~/.claude/CLAUDE.md` between `<!-- BEGIN claude-optimizing -->` / `<!-- END claude-optimizing -->` markers. On re-run, replaces the block in place. |
 | 4. Activate pre-commit | `git config core.hooksPath .githooks` in the containing repo, so committed `cc-*` scripts get `py_compile`-checked before the commit lands. |
 | 5. Verify | Runs `cc-doctor` if available; prints a clean-up summary. |
@@ -53,18 +53,16 @@ Runs five idempotent steps, each labelled in its output:
 
 Every script supports `--help`. Exit codes are always meaningful.
 
-### Git / PR workflow — `scripts-git/` (10)
+### Git / PR workflow — `scripts-git/` (8)
 
 | Command | Purpose |
 |---|---|
-| `cc-merge-worktree <pr>` | Full 9-step PR merge + worktree/branch cleanup (auto-switches to main worktree, marks draft PRs ready, discards upstream-identical dirt, handles drifted submodules). |
+| `cc-merge-worktree <pr>` | Merge a worktree PR and clean up (auto-switches to main worktree, marks draft PRs ready, discards upstream-identical dirt). Run from the main worktree, not from inside the worktree being merged. |
 | `cc-commit-push "msg" [--pr TITLE] [--tracked-only]` | Stage-all → commit → push → optional draft PR. Prints staged-file count so no follow-up `git status` is needed. |
-| `cc-repo-state` | Session-start audit: branch, status, worktrees, staleness, drifted submodules, default-branch lag. |
+| `cc-repo-state` | Session-start audit: branch, status, worktrees, staleness, default-branch lag. |
 | `cc-pr-status <num>` / `cc-pr-review <num>` | Compact PR summary (state, checks, diff, comments) / full review state (reviewers, inline comments, CI rollup). |
 | `cc-rebase-main` | Fetch + rebase onto `origin/<default>` + force-push-with-lease. |
 | `cc-branch-hygiene [--cleanup]` | Stale / merged / remote-only / prunable report. |
-| `cc-bump-submodule <path>...` | Bump submodules to tip of `origin/<default>`. |
-| `cc-submodule-status` | Per-submodule recorded-vs-checked-out-vs-origin diff. |
 | `cc-since <ref>` | List merged PRs + commits since a tag/branch/SHA. |
 
 ### Shell helpers — `scripts-bash/` (2)
@@ -106,14 +104,17 @@ Every script supports `--help`. Exit codes are always meaningful.
 | `cc-doctor` | Walk both `~/.local/bin/cc-*` and `~/.claude/hooks/cc-*-hook.py`; report broken, non-symlink, or stale entries. Exit non-zero on any problem. |
 | `cc-help [<name>]` | List all `cc-*` scripts with one-line summaries; pass a script name to see its full `--help`. |
 
-### Hook scripts — `scripts-hooks/` (2)
+### Hook scripts — `scripts-hooks/` (5)
 
 | File | Role |
 |---|---|
-| `cc-repo-hygiene-hook.py` | `Stop` hook enforcer. Blocks the turn from ending if: uncommitted/untracked changes exist, local/remote branches are already merged, the default branch is behind the remote, or worktrees are stale. |
-| `cc-exit-worktree-hook.py` | `PostToolUse` hook (matcher: `ExitWorktree`). Fires right after `ExitWorktree` returns; exits non-zero if a non-default-branch worktree is still on disk whose branch is already merged into `origin/<default>`, with a diagnostic that names the exact `cc-merge-worktree <pr>` to run. Blocks Claude's next tool call until the cleanup finishes. |
+| `cc-repo-hygiene-hook.py` | `Stop` hook. **Blocks** the turn from ending only if this session produced staged, unstaged, or untracked changes that weren't committed + pushed. Ignores prior-session dirt. |
+| `cc-exit-worktree-hook.py` | `PostToolUse:ExitWorktree`. **Non-blocking** reminder on stderr after `ExitWorktree` — warns about stale worktrees (merged branches still on disk) and orphan remote branches (PR merged, remote branch not deleted), and suggests the `cc-merge-worktree <pr>` that would clean them up. User decides whether to act. |
+| `cc-block-pr-close-hook.py` | `PreToolUse:Bash`. **Blocks** `gh pr close` (usually a typo for `gh pr merge`). Override with `CC_ALLOW_PR_CLOSE=1` prefix. |
+| `cc-block-push-delete-hook.py` | `PreToolUse:Bash`. **Blocks** `git push --delete <branch>` / `git push origin :<branch>` when the branch heads an open PR (would auto-close the PR). Override with `CC_ALLOW_BRANCH_DELETE=1` prefix. |
+| `cc-general-principles-hook.py` | `PreToolUse:Edit\|Write\|MultiEdit\|NotebookEdit`. **Non-blocking** once-per-session nudge toward the `general-principles` skill on the first code-writing tool call. |
 
-Both are symlinked into `~/.claude/hooks/` by `install.sh` and registered in `~/.claude/settings.json` (Stop event / PostToolUse event respectively).
+All are symlinked into `~/.claude/hooks/` by `install.sh` and registered in `~/.claude/settings.json` on the appropriate event.
 
 ## Adding a new script
 

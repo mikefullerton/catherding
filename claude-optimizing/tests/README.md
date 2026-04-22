@@ -11,8 +11,8 @@ push real commits, and open real draft PRs, then clean up after themselves.
 Several of the scripts exist precisely to navigate quirks that mocks cannot
 reproduce: `gh` CLI behaviour inside worktrees, GitHub's
 `delete_branch_on_merge` setting auto-pruning the head ref before our
-explicit `git push --delete` runs, submodule drift, and so on. A mocked
-remote would let bugs through that the script is meant to catch.
+explicit `git push --delete` runs, and so on. A mocked remote would let bugs
+through that the script is meant to catch.
 
 ## Sandbox repo configuration
 
@@ -40,9 +40,9 @@ gh api -X PATCH repos/agentic-cookbook/catherdingtests \
 | `test_pr_review.py`       | `cc-pr-review`      | Review state inspection |
 | `test_repo_state.py`      | `cc-repo-state`     | Session-start audit |
 | `test_merge_worktree.py`  | `cc-merge-worktree` | Squash-merge + full worktree cleanup; **bug-reproduction** for the stale `refs/remotes/origin/<branch>` tracking-ref class |
-| `test_repo_hygiene_hook.py` | `cc-repo-hygiene-hook` | Stop hook detects squash-merged orphan remote branches (the `delete_branch_on_merge: false` case that `ExitWorktree action: remove` leaves behind when it skips `cc-merge-worktree`) |
-| `test_exit_worktree_hook.py` | `cc-exit-worktree-hook` | PostToolUse:ExitWorktree hook blocks on the same orphan-remote case as above so Claude fixes it before the next tool call, not only at turn-end |
-| `test_session_aware_hook.py` | `cc-repo-hygiene-hook` | Checks 1–3 classify dirty paths by transcript-declared session origin: this-session → block, prior-session → stderr warn, exit 0 |
+| `test_repo_hygiene_hook.py` | `cc-repo-hygiene-hook` | Confirms Stop hook stays silent about cross-session state (orphan remote branches are the ExitWorktree hook's concern now) |
+| `test_exit_worktree_hook.py` | `cc-exit-worktree-hook` | PostToolUse:ExitWorktree non-blocking reminder about stale worktrees and orphan remote branches |
+| `test_session_aware_hook.py` | `cc-repo-hygiene-hook` | Session-touched paths → block; prior-session dirt → ignored entirely (no block, no stderr warning) |
 
 ## Running
 
