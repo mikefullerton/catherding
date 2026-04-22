@@ -132,7 +132,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent  # claude-optimizing/
 
 def _resolve_cc_script(name):
     """Find the local source of a cc-* script so tests exercise the working
-    copy, not whatever ~/.local/bin/<name> happens to be symlinked to.
+    copy, not whatever ~/.local/bin/<name> happens to be installed as.
     Falls back to PATH lookup if the name isn't a known local script."""
     for subdir in ("scripts-git", "scripts-bash", "scripts-claude",
                    "scripts-meta", "scripts-xcode", "scripts-hooks"):

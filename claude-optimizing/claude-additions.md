@@ -59,8 +59,8 @@ The `cc-*` scripts (installed to `~/.local/bin/` from `~/projects/active/catherd
 - `cc-clean-dd [pattern] [--yes] [--older-than DAYS]` — list/delete Xcode DerivedData directories by pattern/age.
 
 **Self-management:**
-- `cc-install` — idempotent re-symlink pass.
-- `cc-doctor` — report broken/stale `cc-*` symlinks; exit non-zero on any problem.
+- `cc-install` — idempotent copy pass (installs/refreshes `cc-*` in `~/.local/bin/` and `~/.claude/hooks/`).
+- `cc-doctor` — report missing, stale, or orphan `cc-*` copies; exit non-zero on any problem.
 
 **Hooks (installed to `~/.claude/hooks/`, not `$PATH`):**
 - `cc-repo-hygiene-hook` — Stop-event guard: blocks the turn only if Claude made changes this session and didn't commit + push them. Ignores prior-session dirt; never blocks on pre-existing state.

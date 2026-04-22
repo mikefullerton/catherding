@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Reverse claude-optimizing/install.sh:
-#   1. Remove cc-* symlinks from ~/.local/bin/ and ~/.claude/hooks/
-#      (only symlinks that actually point into this claude-optimizing/ tree)
+#   1. Remove cc-* files from ~/.local/bin/ and ~/.claude/hooks/
+#      (only entries whose names match a script in this claude-optimizing/ tree)
 #   2. De-register the repo-hygiene Stop hook from ~/.claude/settings.json
 #   3. Strip the guidance block from ~/.claude/CLAUDE.md (between markers)
 #   4. Unset core.hooksPath if it still points at .githooks
@@ -21,18 +21,20 @@ info()  { printf "  %s\n" "$*"; }
 
 # ---------- 1. Remove script + hook symlinks ----------------------------------
 
-head1 "Removing cc-* symlinks that point into $REPO_DIR..."
+head1 "Removing cc-* files sourced from $HERE..."
 removed=0
-for dir in "$BIN_DIR" "$HOOKS_DIR"; do
-    [ -d "$dir" ] || continue
-    for entry in "$dir"/cc-*; do
-        [ -L "$entry" ] || continue
-        target="$(readlink "$entry")"
-        case "$target" in
-            "$HERE"/*)
-                rm "$entry"; removed=$((removed + 1)); info "$entry" ;;
-        esac
-    done
+for script in "$HERE"/scripts-*/cc-*.py; do
+    [ -f "$script" ] || continue
+    name="$(basename "$script" .py)"
+    case "$name" in
+        *-hook) target="$HOOKS_DIR/$name.py" ;;
+        *)      target="$BIN_DIR/$name"     ;;
+    esac
+    if [ -e "$target" ] || [ -L "$target" ]; then
+        rm -f "$target"
+        removed=$((removed + 1))
+        info "$target"
+    fi
 done
 info "total: $removed"
 

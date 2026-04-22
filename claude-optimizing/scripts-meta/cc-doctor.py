@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
-"""Verify every cc-* entry resolves to an executable script.
+"""Verify every cc-* entry is a copy of its canonical source and is executable.
 
 Usage: cc-doctor
 
 Walks both `~/.local/bin/cc-*` (regular scripts) and `~/.claude/hooks/cc-*-hook.py`
-(Claude Code hook scripts). Reports broken symlinks (target deleted/moved),
-non-symlinks shadowing the namespace, and stale entries pointing outside the
-canonical scripts dir. Also checks the global CLAUDE.md guidance block for
-stale unmarked duplicates, and checks that each policy skill references at
-least one policy file in policies/. Exits non-zero on any problem.
+(Claude Code hook scripts). Reports missing installs (canonical source has no
+installed copy), stale copies (content differs from source — re-run
+cc-install), orphans (installed file has no matching canonical source),
+non-executable entries, and legacy symlinks (old install model). Also checks
+the global CLAUDE.md guidance block for stale unmarked duplicates, and
+checks that each policy skill references at least one policy file in
+policies/. Exits non-zero on any problem.
 """
 from __future__ import annotations
 
+import filecmp
 import os
 import sys
 from pathlib import Path
@@ -53,6 +56,23 @@ def _entries() -> list[Path]:
             if p.name.startswith("cc-") and p.name.endswith("-hook.py")
         )
     return out
+
+
+def _canonical_sources() -> dict[Path, Path]:
+    """Map install-target path -> canonical source path for every cc-*.py."""
+    by_target: dict[Path, Path] = {}
+    for src_dir in CANONICAL_SOURCES:
+        if not src_dir.is_dir():
+            continue
+        for script in sorted(src_dir.glob("cc-*.py")):
+            if not script.is_file():
+                continue
+            if script.stem.endswith("-hook"):
+                target = HOOKS_DIR / script.name
+            else:
+                target = BIN_DIR / script.stem
+            by_target[target] = script
+    return by_target
 
 
 def _check_claude_md_drift(issues: list[str]) -> int:
@@ -97,50 +117,51 @@ def main() -> int:
         print(f"FAIL: neither {BIN_DIR} nor {HOOKS_DIR} exists", file=sys.stderr)
         return 1
 
-    ok = broken = non_symlink = stale = 0
+    ok = missing = stale = orphan = legacy_symlink = not_exec = 0
     issues: list[str] = []
     claude_md_drift = _check_claude_md_drift(issues)
     policy_drift = _check_policy_skill_refs(issues)
 
-    for entry in _entries():
-        if not entry.is_symlink():
-            non_symlink += 1
-            issues.append(f"  not a symlink: {entry}")
+    by_target = _canonical_sources()
+    installed = {e: e for e in _entries()}
+
+    for target, script in by_target.items():
+        entry = installed.pop(target, None)
+        if entry is None:
+            missing += 1
+            issues.append(f"  missing install: {target} (source: {script})")
             continue
-        try:
-            real = entry.resolve(strict=True)
-        except FileNotFoundError:
-            broken += 1
-            issues.append(f"  BROKEN symlink: {entry} -> {os.readlink(entry)}")
+        if entry.is_symlink():
+            legacy_symlink += 1
+            issues.append(f"  legacy symlink (re-run cc-install): {entry} -> {os.readlink(entry)}")
             continue
-        if not os.access(real, os.X_OK):
-            issues.append(f"  not executable: {real}")
-            broken += 1
-            continue
-        # Stale = points outside the canonical script dirs AND outside any
-        # catherding worktree. EnterWorktree creates worktrees under
-        # `<catherding>/.claude/worktrees/<name>/claude-optimizing/scripts-<area>/`,
-        # which is fine while testing.
-        import re
-        real_s = str(real)
-        is_canonical = any(real_s.startswith(str(src) + "/") for src in CANONICAL_SOURCES)
-        is_worktree = (
-            "/catherding/.claude/worktrees/" in real_s
-            and bool(re.search(r"/claude-optimizing/scripts-[a-z]+/", real_s))
-        )
-        if not (is_canonical or is_worktree):
+        if not entry.is_file():
+            issues.append(f"  not a regular file: {entry}")
             stale += 1
-            issues.append(f"  stale (points outside catherding): {entry} -> {real}")
+            continue
+        if not os.access(entry, os.X_OK):
+            not_exec += 1
+            issues.append(f"  not executable: {entry}")
+            continue
+        if not filecmp.cmp(script, entry, shallow=False):
+            stale += 1
+            issues.append(f"  stale copy (re-run cc-install): {entry} ≠ {script}")
+            continue
         ok += 1
+
+    for entry in installed.values():
+        orphan += 1
+        issues.append(f"  orphan (no canonical source): {entry}")
 
     for line in issues:
         print(line)
 
     summary = (
-        f"did: ok {ok} | broken {broken} | non-symlink {non_symlink} | stale {stale}"
+        f"did: ok {ok} | missing {missing} | stale {stale} | orphan {orphan}"
+        f" | legacy-symlink {legacy_symlink} | not-executable {not_exec}"
         f" | claude.md drift {claude_md_drift} | policy drift {policy_drift}"
     )
-    if broken or non_symlink or stale or claude_md_drift or policy_drift:
+    if missing or stale or orphan or legacy_symlink or not_exec or claude_md_drift or policy_drift:
         print(summary, file=sys.stderr)
         return 1
     print(summary)

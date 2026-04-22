@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Re-symlink every cc-* script from the repo into ~/.local/bin/.
+"""Copy every cc-* script from the repo into ~/.local/bin/ (or ~/.claude/hooks/).
 
 Usage:
   cc-install                           # install from canonical repo (claude-optimizing/scripts-*/)
@@ -8,7 +8,8 @@ Usage:
 
 Each `cc-<name>.py` becomes `~/.local/bin/cc-<name>` (extension stripped), except
 `cc-*-hook.py` files which go to `~/.claude/hooks/cc-*-hook.py` (Claude Code
-expects hook scripts there, not on PATH).
+expects hook scripts there, not on PATH). Files are copied — edits to the
+source require re-running this script (or install.sh) to take effect.
 
 By default, installs from every `claude-optimizing/scripts-*/` category dir
 (scripts-git, scripts-bash, scripts-xcode, scripts-claude, scripts-meta,
@@ -19,13 +20,15 @@ directly). Pass `--from <dir>` to override with a single explicit source
 
 Useful when:
   - a new script was added (so install.sh needs to re-run)
-  - testing modified scripts from a worktree before merging them
-  - cc-doctor reports broken symlinks
+  - a source script was edited and the installed copy is now stale
+  - cc-doctor reports missing or stale entries
 """
 from __future__ import annotations
 
 import argparse
+import filecmp
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -54,7 +57,7 @@ def _install_target(script: Path) -> Path:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Repoint cc-* symlinks in ~/.local/bin/.")
+    ap = argparse.ArgumentParser(description="Install cc-* script copies into ~/.local/bin/ and ~/.claude/hooks/.")
     ap.add_argument(
         "--from", dest="source", default=None,
         help="Explicit source dir containing cc-*.py scripts "
@@ -104,21 +107,21 @@ def main() -> int:
     changed = unchanged = 0
     for script in resolved:
         target = _install_target(script)
-        if target.is_symlink() and os.readlink(target) == str(script):
+        if target.is_file() and not target.is_symlink() and filecmp.cmp(script, target, shallow=False):
             unchanged += 1
             continue
         if args.dry_run:
-            print(f"would link {target} -> {script}")
+            print(f"would copy {script} -> {target}")
         else:
             if target.exists() or target.is_symlink():
                 target.unlink()
-            target.symlink_to(script)
-            os.chmod(script, 0o755)
+            shutil.copy2(script, target)
+            os.chmod(target, 0o755)
         changed += 1
 
     sources_str = ", ".join(str(s) for s in sources)
     print(
-        f"did: {changed} symlink(s) {'planned' if args.dry_run else 'updated'} "
+        f"did: {changed} copy(ies) {'planned' if args.dry_run else 'installed'} "
         f"| {unchanged} already current | from {sources_str}"
     )
     return 0

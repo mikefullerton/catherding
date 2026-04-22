@@ -58,8 +58,9 @@ for script in "$HERE"/scripts-*/cc-*.py; do
         *-hook) target="$HOOKS_DIR/$name.py"; loc=".claude/hooks" ;;
         *)      target="$BIN_DIR/$name";       loc=".local/bin"   ;;
     esac
-    ln -sfn "$script" "$target"
-    chmod +x "$script"
+    rm -f "$target"
+    cp "$script" "$target"
+    chmod +x "$target"
     installed=$((installed + 1))
     info "$name → $loc"
 done

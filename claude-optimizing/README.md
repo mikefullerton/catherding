@@ -41,13 +41,13 @@ Runs five idempotent steps, each labelled in its output:
 | Step | Effect |
 |---|---|
 | 0. Prereq check | Verifies `git`, `gh`, `python3` are on `PATH`; warns if `~/.local/bin` isn't on `PATH`; exits non-zero if anything is missing. |
-| 1. Symlink `cc-*` scripts | `ln -sfn` every `claude-optimizing/scripts-*/cc-*.py` into `~/.local/bin/`. `cc-*-hook.py` files route to `~/.claude/hooks/` instead. Skill-internal tools under `skills/<name>/scripts/` are NOT touched — they're invoked directly by the owning skill. |
+| 1. Install `cc-*` scripts | `cp` every `claude-optimizing/scripts-*/cc-*.py` into `~/.local/bin/`. `cc-*-hook.py` files route to `~/.claude/hooks/` instead. Edits to the source require re-running `cc-install` (or `install.sh`) to take effect. Skill-internal tools under `skills/<name>/scripts/` are NOT touched — they're invoked directly by the owning skill. |
 | 2. Register hooks | Patches `~/.claude/settings.json` idempotently: `cc-repo-hygiene-hook.py` under `hooks.Stop`; `cc-exit-worktree-hook.py` under `hooks.PostToolUse` (matcher `ExitWorktree`); `cc-block-pr-close-hook.py` and `cc-block-push-delete-hook.py` under `hooks.PreToolUse` (matcher `Bash`); `cc-general-principles-hook.py` under `hooks.PreToolUse` (matcher `Edit\|Write\|MultiEdit\|NotebookEdit`). |
 | 3. Merge guidance block | Reads `claude-additions.md` and inserts it into `~/.claude/CLAUDE.md` between `<!-- BEGIN claude-optimizing -->` / `<!-- END claude-optimizing -->` markers. On re-run, replaces the block in place. |
 | 4. Activate pre-commit | `git config core.hooksPath .githooks` in the containing repo, so committed `cc-*` scripts get `py_compile`-checked before the commit lands. |
 | 5. Verify | Runs `cc-doctor` if available; prints a clean-up summary. |
 
-`uninstall.sh` reverses each step and is similarly idempotent. It only removes symlinks that actually point into this tree, so other installs on the same machine are untouched.
+`uninstall.sh` reverses each step and is similarly idempotent. It only removes entries whose names match a script in this tree, so other installs on the same machine are untouched.
 
 ## The script catalog
 
@@ -100,8 +100,8 @@ Every script supports `--help`. Exit codes are always meaningful.
 
 | Command | Purpose |
 |---|---|
-| `cc-install [--from DIR] [--dry-run]` | Idempotent re-symlink pass. Scans every `claude-optimizing/scripts-*/` by default. |
-| `cc-doctor` | Walk both `~/.local/bin/cc-*` and `~/.claude/hooks/cc-*-hook.py`; report broken, non-symlink, or stale entries. Exit non-zero on any problem. |
+| `cc-install [--from DIR] [--dry-run]` | Idempotent copy pass. Scans every `claude-optimizing/scripts-*/` by default and installs each script as a file copy (content-compared; no-op when up to date). |
+| `cc-doctor` | Walk both `~/.local/bin/cc-*` and `~/.claude/hooks/cc-*-hook.py`; report missing, stale (diverged from source), orphan, non-executable, or legacy-symlink entries. Exit non-zero on any problem. |
 | `cc-help [<name>]` | List all `cc-*` scripts with one-line summaries; pass a script name to see its full `--help`. |
 
 ### Hook scripts — `scripts-hooks/` (5)
@@ -114,14 +114,14 @@ Every script supports `--help`. Exit codes are always meaningful.
 | `cc-block-push-delete-hook.py` | `PreToolUse:Bash`. **Blocks** `git push --delete <branch>` / `git push origin :<branch>` when the branch heads an open PR (would auto-close the PR). Override with `CC_ALLOW_BRANCH_DELETE=1` prefix. |
 | `cc-general-principles-hook.py` | `PreToolUse:Edit\|Write\|MultiEdit\|NotebookEdit`. **Non-blocking** once-per-session nudge toward the `general-principles` skill on the first code-writing tool call. |
 
-All are symlinked into `~/.claude/hooks/` by `install.sh` and registered in `~/.claude/settings.json` on the appropriate event.
+All are copied into `~/.claude/hooks/` by `install.sh` and registered in `~/.claude/settings.json` on the appropriate event.
 
 ## Adding a new script
 
 1. Pick the right category dir. If none fits, create a new `claude-optimizing/scripts-<area>/` — the installer globs `scripts-*/`, so no loop updates are needed.
 2. Create `scripts-<area>/cc-<name>.py` with `#!/usr/bin/env python3` and a short docstring.
 3. `chmod +x`.
-4. Run `cc-install` to (re-)symlink everything. Files ending in `-hook` automatically route to `~/.claude/hooks/`; everything else lands on `$PATH`.
+4. Run `cc-install` to copy everything into place. Files ending in `-hook` automatically route to `~/.claude/hooks/`; everything else lands on `$PATH`.
 5. Add a row to the relevant section above and to the catalog block in `claude-additions.md`.
 
 ## Related
