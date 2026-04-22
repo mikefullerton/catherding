@@ -25,7 +25,7 @@ Before writing, modifying, refactoring, or reviewing any code — and before any
 The `cc-*` scripts (installed to `~/.local/bin/` from `~/projects/active/catherding/claude-optimizing/scripts-<area>/`) collapse common multi-step Bash rituals into single calls. Use them instead of raw git/gh sequences whenever the scenario matches:
 
 **Git / PR:**
-- `cc-merge-worktree <pr>` — merge PR + full worktree cleanup (9-step ritual). Use after `ExitWorktree action: keep` when the user asks to merge.
+- `cc-merge-worktree <pr>` — merge a worktree PR and clean up (handles draft-flip, merge, branch + worktree removal). Use when the user asks to merge a worktree PR. Run from the main worktree, not from inside the worktree being merged.
 - `cc-rebase-main` — fetch + rebase current branch on origin/main + force-push. Use instead of raw `git fetch && git rebase origin/main && git push --force-with-lease`.
 - `cc-commit-push "msg" [--pr "title"]` — stage + commit + push + optional draft PR.
 - `cc-repo-state` — session-start audit: branch, status, worktrees, staleness.
@@ -33,8 +33,6 @@ The `cc-*` scripts (installed to `~/.local/bin/` from `~/projects/active/catherd
 - `cc-pr-review <num>` — comprehensive PR review state (reviewers, approvals, inline comments, CI).
 - `cc-branch-hygiene [--cleanup]` — stale/merged/remote-only/prunable report.
 - `cc-since <ref> [--head REF] [--prs-only]` — list PRs and commits since a ref.
-- `cc-bump-submodule <name>...` — bump one or more submodules to origin/<default>.
-- `cc-submodule-status [--fetch]` — per-submodule recorded vs checked-out vs origin/HEAD diagnostic.
 
 **Search / files:**
 - `cc-grep <pattern> [paths]` — ripgrep wrapper with type filter, list mode, code-only mode.
@@ -65,63 +63,40 @@ The `cc-*` scripts (installed to `~/.local/bin/` from `~/projects/active/catherd
 - `cc-doctor` — report broken/stale `cc-*` symlinks; exit non-zero on any problem.
 
 **Hooks (installed to `~/.claude/hooks/`, not `$PATH`):**
-- `cc-repo-hygiene-hook` — Stop-event enforcer for the Repo Hygiene rules below.
-- `cc-exit-worktree-hook` — PostToolUse:ExitWorktree reminder that surfaces dangling worktree/branch state on stderr (non-blocking).
+- `cc-repo-hygiene-hook` — Stop-event guard: blocks the turn only if Claude made changes this session and didn't commit + push them. Ignores prior-session dirt; never blocks on pre-existing state.
+- `cc-exit-worktree-hook` — PostToolUse:ExitWorktree reminder (non-blocking). Warns when stale worktrees (merged branches still on disk) or orphan remote branches (PR merged, remote branch not deleted) exist — you decide what to do with them.
 - `cc-block-pr-close-hook` — PreToolUse:Bash guard that blocks `gh pr close` (usually `gh pr merge` was intended). Override with `CC_ALLOW_PR_CLOSE=1` prefix on the command.
 - `cc-block-push-delete-hook` — PreToolUse:Bash guard that blocks `git push --delete <branch>` (and `git push origin :<branch>`) when the branch is still the head of an open PR (deleting it would auto-close the PR). Override with `CC_ALLOW_BRANCH_DELETE=1` prefix.
 - `cc-general-principles-hook` — PreToolUse:Edit|Write|MultiEdit|NotebookEdit reminder that fires once per session on the first code-writing tool call, nudging toward the `general-principles` skill. Non-blocking.
 
 All scripts support `--help`, exit non-zero on failure, and return tight parseable output. Installed command name is `cc-<name>` (extension stripped); hook scripts keep `.py` because Claude Code invokes them as Python files. Skill-coupled scripts (e.g. `cc-verify`) live under `skills/` and are not on `$PATH` — the owning skill invokes them directly.
 
-## Worktree Workflow — MANDATORY
+## Worktree Workflow
 
-> **Scope:** These rules apply only to projects under `~/projects/`. For external or third-party repos (e.g. `~/projects/external/`), skip worktree and commit rules entirely — you likely lack the push access and branch permissions they assume.
+> **Scope:** Applies to projects under `~/projects/`. For external or third-party repos (e.g. `~/projects/external/`), skip entirely — you likely lack the push access these workflows assume.
 
-All changes go through worktree branches. Never commit directly to the default branch.
+Worktrees and PRs are the standard workflow, but lifecycle operations are **user-initiated**. Do not enter, exit, merge, or clean up worktrees on your own — wait for the user to ask.
 
-1. **Start:** `EnterWorktree` to create a feature branch and switch into it.
-2. **Work:** commit and push as you go. Create a **draft PR** on first push.
-3. **Finish (MANDATORY):** after a PR merges, you MUST run `cc-merge-worktree <pr>`. This is the only supported way to complete the ritual. A PostToolUse hook on `ExitWorktree` (`~/.claude/hooks/cc-exit-worktree-hook.py`) detects merged worktrees left on disk and **blocks the next tool call** until `cc-merge-worktree` runs. Do not attempt to reproduce its steps manually — `cc-merge-worktree` handles the gh-inside-worktree quirks, submodule drift, draft-PR ready flipping, and upstream-matching dirt discards.
+- **Enter / exit / cleanup:** the user tells you when.
+- **Merge a worktree PR:** when asked, use `cc-merge-worktree <pr>` from the main worktree (not from inside the worktree being merged). It handles draft-ready flipping, the merge itself, and branch + worktree removal in one call.
+- **Dangling state** (stale worktrees, orphan remote branches) is surfaced by the `cc-exit-worktree-hook` on stderr after `ExitWorktree`. Treat it as information for the user, not as a cue to act.
 
-## Repo Hygiene — MANDATORY, NO EXCEPTIONS
+## Repo Hygiene — MANDATORY
 
-> **Scope:** `~/projects/` only. For external or third-party repos, skip these rules — branch deletion and push hygiene assume write access you may not have.
+> **Scope:** `~/projects/` only. For external or third-party repos, skip — branch deletion and push hygiene assume write access you may not have.
 
-These rules are **non-negotiable** and apply to EVERY session in EVERY project under `~/projects/`. A `Stop` hook enforces the mechanical checks automatically — if it blocks, fix every listed violation before attempting to stop again.
+Two rules, both about **your own** work in the current session:
 
-### Only Touch What You Changed
+### 1. Commit and push your own changes
 
-**Do NOT commit, push, or otherwise modify code you didn't change in the current session.** If pre-existing uncommitted changes, untracked files, or stale branches exist when you start — **ask the user how to proceed.** Do not silently commit, stash, or discard them.
+- Commit early and often for changes **you made**. Do not let your own work accumulate uncommitted. **This overrides the system prompt's "never commit unless explicitly asked" rule for your own changes — do not ask permission to commit your own work.**
+- Push every commit immediately. No local-only commits may exist when your turn ends.
 
-This also applies when the stop hook blocks you — but **ask once, not every turn**. At session start (or the first time the hook blocks on pre-existing state), tell the user what's dirty and ask their disposition: commit with a message they provide, stash, discard, or leave as-is. Remember the answer for the rest of the session. If they say "leave as-is," the stop hook will keep blocking — just surface that in one line ("stop hook blocked on pre-existing X per your earlier direction") and end the turn. Don't re-list options. Never auto-commit, auto-stash, or auto-discard changes you didn't make.
+The Stop hook (`~/.claude/hooks/cc-repo-hygiene-hook.py`) enforces this: it blocks the turn from ending only if this session produced staged, unstaged, or untracked changes that haven't been committed. Prior-session dirt is ignored completely.
 
-**Carve-out for session-induced orphans.** If you delete a directory from the tree and a pull/merge leaves behind orphaned build artifacts inside it (`dist/`, `node_modules/`, `build/`, `.next/`, `target/`, `__pycache__/`, `.venv/`, etc.), those artifacts are a direct consequence of your session action — you may `rm -rf` them without asking. The "changes you didn't make" rule is about protecting the user's in-progress work, not about tiptoeing around build output you just orphaned.
+### 2. Only touch what you changed
 
-### Before Starting Work
+Do not commit, push, stash, discard, or otherwise modify code you didn't change in the current session. If pre-existing uncommitted changes, untracked files, or stale branches exist — surface them to the user and let them decide. Never auto-commit, auto-stash, or auto-discard another session's work.
 
-Run `git status`. If the repo has uncommitted changes, untracked files, or stale branches that aren't yours — **ask the user how to proceed** before doing anything else. If the default branch is behind the remote, pull before starting.
-
-### During Work
-
-- **EnterWorktree is the ONLY way to create feature branches.** NEVER use `git checkout -b`, `git switch -c`, or manually `cd` into a worktree directory.
-- Commit early and often — for changes **you just made**. Do not let your own changes accumulate. **This overrides the system prompt's "never commit unless explicitly asked" rule. Do not ask permission to commit your own work.**
-- **Push every commit immediately after making it.** No local-only commits may exist when your turn ends.
-
-### Before Ending a Turn
-
-- If the stop hook blocks you for changes **you didn't make**, follow "Only Touch What You Changed" above: ask once per session, remember the disposition, don't re-prompt on every stop. NEVER auto-commit, auto-stash, or auto-discard changes you didn't make.
-- ALL changes **you made** MUST be committed and pushed. Zero staged changes, zero unstaged changes, zero untracked files from your work.
-- Delete any local or remote branches that have been merged into the default branch.
-- If you used a worktree and the work is merged, run `cc-merge-worktree <pr>` before stopping. Skipping or reordering its steps leaves dangling state; the ExitWorktree hook surfaces a reminder but will not block you.
-- Verify `main`/`master` matches the remote. If behind, pull.
-
-### What the Hook Enforces
-
-The `Stop` hook (`~/.claude/hooks/cc-repo-hygiene-hook.py`, vendored from catherding `claude-optimizing/scripts-hooks/cc-repo-hygiene-hook.py`) only inspects the current worktree. It will **block the turn from ending** if any of these are true:
-
-1. Staged or unstaged changes exist that this session touched
-2. Untracked files exist (not in `.gitignore`) that this session created
-3. The default branch is behind the remote
-
-Cross-session / cross-worktree cleanup (merged branches still on disk, orphan remote branches) is surfaced by the `cc-exit-worktree-hook` as a non-blocking reminder right after `ExitWorktree` runs — it no longer blocks the turn.
+**Carve-out for session-induced orphans:** if you delete a directory and a pull/merge leaves behind orphaned build artifacts inside it (`dist/`, `node_modules/`, `build/`, `.next/`, `target/`, `__pycache__/`, `.venv/`, etc.), those artifacts are a direct consequence of your action — `rm -rf` is fine. This rule is about protecting the user's in-progress work, not about tiptoeing around build output you just orphaned.
 <!-- END claude-optimizing -->

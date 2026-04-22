@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
-# Repo hygiene Stop hook — blocks turn if the current worktree is dirty
-# Checks: this-session staged/unstaged/untracked changes, default branch behind remote
+"""Repo hygiene Stop hook — block if Claude left its own work uncommitted.
+
+Single purpose: detect staged, unstaged, or untracked changes that this
+session produced (via Edit / Write / NotebookEdit / Bash tool_use inputs)
+and refuse to end the turn until they're committed and pushed. Prior-
+session dirt is ignored entirely — surfacing it is the user's call, not
+the hook's.
+
+Only enforces under ~/projects/ (but not ~/projects/external/).
+"""
 
 import json
 import os
@@ -21,10 +29,6 @@ def run(cmd, cwd=None, timeout=10):
 
 def _read_transcript_tool_uses(transcript_path):
     """Return (edit_paths, bash_commands) from the Claude Code transcript.
-
-    edit_paths: set of absolute paths from Edit / Write / NotebookEdit
-        tool_use file_path inputs.
-    bash_commands: list of command strings from Bash tool_use inputs.
 
     Returns (None, None) on any failure (missing file, IO error, malformed
     JSON line, or unexpected structure). Callers treat None as "fail
@@ -70,40 +74,32 @@ def _read_transcript_tool_uses(transcript_path):
         return None, None
 
 
-def _classify_paths(rel_paths, cwd, edit_paths, bash_commands):
-    """Partition repo-relative paths into (touched, untouched) by session.
+def _session_touched(rel_paths, cwd, edit_paths, bash_commands):
+    """Return the subset of rel_paths that this session touched.
 
-    A path is "touched" by the current session if:
-      - its absolute form appears in edit_paths (from Edit/Write/
-        NotebookEdit tool_use file_path inputs), OR
-      - its relative form or absolute form appears as a substring in any
-        Bash command string.
-
-    The Bash substring check is intentionally loose: false positives
-    (warn-eligible paths promoted to block) are safe; false negatives
-    (Claude-touched paths demoted to warn) would let real session dirt
-    slip past Stop with only a warning, which is the dangerous direction.
+    A path counts as touched if its absolute form appears in edit_paths,
+    or its relative/absolute form appears as a substring in any Bash
+    command. The substring check is intentionally loose: a false positive
+    (prior-session path promoted to session-touched) only means an extra
+    block, while a false negative would let real session dirt slip past
+    Stop — the dangerous direction.
     """
-    touched, untouched = [], []
+    touched = []
     for rel in rel_paths:
         abs_path = os.path.realpath(os.path.join(cwd, rel))
-        is_touched = abs_path in edit_paths
-        if not is_touched:
-            for cmd in bash_commands:
-                if rel in cmd or abs_path in cmd:
-                    is_touched = True
-                    break
-        if is_touched:
+        if abs_path in edit_paths:
             touched.append(rel)
-        else:
-            untouched.append(rel)
-    return touched, untouched
+            continue
+        for cmd in bash_commands:
+            if rel in cmd or abs_path in cmd:
+                touched.append(rel)
+                break
+    return touched
 
 
 def main():
     input_json = json.loads(sys.stdin.read())
 
-    # Guard: prevent infinite loop — if hook already blocked once, allow stop
     if input_json.get("stop_hook_active"):
         sys.exit(0)
 
@@ -111,7 +107,6 @@ def main():
     if not cwd:
         sys.exit(0)
 
-    # Guard: only enforce for ~/projects/ but NOT ~/projects/external/
     home = os.path.expanduser("~")
     projects_root = os.path.join(home, "projects")
     external_root = os.path.join(home, "projects", "external")
@@ -121,202 +116,39 @@ def main():
     if not in_projects or in_external:
         sys.exit(0)
 
-    # Guard: not a git repo
     _, rc = run(["git", "-C", cwd, "rev-parse", "--is-inside-work-tree"])
     if rc != 0:
         sys.exit(0)
 
-    # Detect default branch
-    default_branch = None
-    out, rc = run(["git", "-C", cwd, "symbolic-ref", "refs/remotes/origin/HEAD"])
-    if rc == 0 and out:
-        default_branch = out.replace("refs/remotes/origin/", "")
-    else:
-        for candidate in ("main", "master"):
-            _, rc = run(
-                ["git", "-C", cwd, "show-ref", "--verify", "--quiet", f"refs/heads/{candidate}"]
-            )
-            if rc == 0:
-                default_branch = candidate
-                break
-
-    # Detect remote
-    _, rc = run(["git", "-C", cwd, "remote", "get-url", "origin"])
-    has_remote = rc == 0
-
-    # Fetch with --prune so the origin/<default_branch> tracking ref used
-    # by Check 6 reflects what's actually on origin.
-    if has_remote:
-        run(["git", "-C", cwd, "fetch", "origin", "--prune", "--quiet"], timeout=10)
-
     transcript_path = input_json.get("transcript_path") or ""
     edit_paths, bash_commands = _read_transcript_tool_uses(transcript_path)
     classify_enabled = edit_paths is not None
-    warnings = []
+
+    def _session_only(rel_paths):
+        if not classify_enabled:
+            return rel_paths
+        return _session_touched(rel_paths, cwd, edit_paths, bash_commands)
 
     violations = []
 
-    def _split(rel_paths):
-        """Return (this_session, prior_session) for a list of dirty paths.
-        If classification is disabled (transcript unreadable), fail closed:
-        treat everything as this-session."""
-        if not classify_enabled:
-            return rel_paths, []
-        return _classify_paths(rel_paths, cwd, edit_paths, bash_commands)
-
-    # Check 1: Staged changes
     out, _ = run(["git", "-C", cwd, "diff", "--cached", "--name-only"])
-    staged_paths = [p for p in out.splitlines() if p]
-    if staged_paths:
-        this_sess, prior = _split(staged_paths)
-        if this_sess:
-            violations.append(
-                "Staged changes not committed: " + ", ".join(this_sess)
-            )
-        if prior:
-            warnings.append(
-                "Staged changes from prior sessions: " + ", ".join(prior)
-            )
+    staged = _session_only([p for p in out.splitlines() if p])
+    if staged:
+        violations.append("Staged changes not committed: " + ", ".join(staged))
 
-    # Check 2: Unstaged changes
     out, _ = run(["git", "-C", cwd, "diff", "--name-only"])
-    unstaged_paths = [p for p in out.splitlines() if p]
-    if unstaged_paths:
-        this_sess, prior = _split(unstaged_paths)
-        if this_sess:
-            violations.append(
-                "Unstaged changes to tracked files: " + ", ".join(this_sess)
-            )
-        if prior:
-            warnings.append(
-                "Unstaged changes from prior sessions: " + ", ".join(prior)
-            )
+    unstaged = _session_only([p for p in out.splitlines() if p])
+    if unstaged:
+        violations.append("Unstaged changes to tracked files: " + ", ".join(unstaged))
 
-    # Check 3: Untracked files
     out, _ = run(["git", "-C", cwd, "ls-files", "--others", "--exclude-standard"])
-    untracked_paths = [p for p in out.splitlines() if p]
-    if untracked_paths:
-        this_sess, prior = _split(untracked_paths)
-        if this_sess:
-            violations.append(
-                f"{len(this_sess)} untracked file(s) not in .gitignore: "
-                + ", ".join(this_sess)
-            )
-        if prior:
-            warnings.append(
-                f"{len(prior)} untracked file(s) from prior sessions: "
-                + ", ".join(prior)
-            )
-
-    # Check 4: Default branch behind remote
-    if default_branch and has_remote:
-        local_sha, _ = run(["git", "-C", cwd, "rev-parse", default_branch])
-        remote_sha, _ = run(["git", "-C", cwd, "rev-parse", f"origin/{default_branch}"])
-        if local_sha and remote_sha and local_sha != remote_sha:
-            behind, _ = run(
-                ["git", "-C", cwd, "rev-list", "--count", f"{default_branch}..origin/{default_branch}"]
-            )
-            if behind and int(behind) > 0:
-                violations.append(
-                    f"{default_branch} is {behind} commit(s) behind origin/{default_branch}"
-                )
-
-    # Check 5: Submodule hygiene
-    # For each registered submodule: parent's recorded SHA must be reachable
-    # from the submodule's origin/<default>. Blocks turn if not. Also warn
-    # (non-blocking) if the session touched files beneath a submodule path
-    # while the submodule HEAD is detached — that's the "Submodule Workflow"
-    # rule violation. Skipped entirely when no .gitmodules exists, so the
-    # common no-submodule case stays zero-cost.
-    gitmodules_path = os.path.join(cwd, ".gitmodules")
-    if os.path.isfile(gitmodules_path):
-        out, rc = run(
-            ["git", "-C", cwd, "config", "--file", ".gitmodules",
-             "--get-regexp", r"submodule\..*\.path"]
+    untracked = _session_only([p for p in out.splitlines() if p])
+    if untracked:
+        violations.append(
+            f"{len(untracked)} untracked file(s) not in .gitignore: "
+            + ", ".join(untracked)
         )
-        sub_paths = []
-        if rc == 0 and out:
-            for line in out.splitlines():
-                parts = line.split(None, 1)
-                if len(parts) == 2:
-                    sub_paths.append(parts[1])
 
-        for sub_rel in sub_paths:
-            sub_abs = os.path.join(cwd, sub_rel)
-            if not os.path.isdir(os.path.join(sub_abs, ".git")) and not os.path.isfile(os.path.join(sub_abs, ".git")):
-                # Submodule not checked out; nothing to verify.
-                continue
-
-            # Recorded SHA in parent index
-            ls_out, rc_ls = run(["git", "-C", cwd, "ls-tree", "HEAD", sub_rel])
-            recorded = ""
-            if rc_ls == 0 and ls_out:
-                parts = ls_out.split()
-                if len(parts) >= 3:
-                    recorded = parts[2]
-            if not recorded:
-                continue
-
-            # Fetch origin in the submodule (quiet, bounded).
-            run(["git", "-C", sub_abs, "fetch", "origin", "--quiet"], timeout=10)
-
-            # Submodule's default branch.
-            sub_head, rc_h = run(
-                ["git", "-C", sub_abs, "symbolic-ref", "refs/remotes/origin/HEAD"]
-            )
-            if rc_h == 0 and sub_head.startswith("refs/remotes/origin/"):
-                sub_default = sub_head.replace("refs/remotes/origin/", "")
-            else:
-                sub_default = "main"
-
-            # Ancestor check: recorded SHA must be on origin/<sub_default>.
-            _, rc_anc = run(
-                ["git", "-C", sub_abs, "merge-base", "--is-ancestor",
-                 recorded, f"origin/{sub_default}"]
-            )
-            if rc_anc != 0:
-                violations.append(
-                    f"submodule {sub_rel} pinned to {recorded[:12]} not on "
-                    f"origin/{sub_default} — merge the submodule branch, "
-                    f"then cc-bump-submodule {sub_rel}"
-                )
-
-            # Detached-HEAD warning if the session touched the submodule.
-            if classify_enabled:
-                sub_real = os.path.realpath(sub_abs)
-                touched_sub = any(
-                    ep == sub_real or ep.startswith(sub_real + os.sep)
-                    for ep in edit_paths
-                )
-                if not touched_sub:
-                    for cmd_str in bash_commands:
-                        if sub_rel in cmd_str or sub_real in cmd_str:
-                            touched_sub = True
-                            break
-                if touched_sub:
-                    _, rc_branch = run(
-                        ["git", "-C", sub_abs, "symbolic-ref",
-                         "--short", "-q", "HEAD"]
-                    )
-                    if rc_branch != 0:
-                        warnings.append(
-                            f"submodule {sub_rel} edited this session while in "
-                            f"detached HEAD — per Submodule Workflow rule, "
-                            f"branch off origin/{sub_default} before editing"
-                        )
-
-    # Emit warnings to stderr regardless of whether we block — Claude Code
-    # surfaces stderr in the transcript so both user and Claude can see
-    # pre-existing dirt without it blocking turn-end.
-    if warnings:
-        print(
-            "⚠ Uncommitted files from prior sessions (not blocking):",
-            file=sys.stderr,
-        )
-        for w in warnings:
-            print("  - " + w, file=sys.stderr)
-
-    # Output result
     if not violations:
         sys.exit(0)
 

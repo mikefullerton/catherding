@@ -33,7 +33,7 @@ The `cc-*` scripts have a real-GitHub test harness at `claude-optimizing/tests/`
 
 ## Git Workflow
 
-All work must be done in worktree branches and merged back into main via PR. Use `EnterWorktree` to create feature branches. Never commit directly to main. `cc-merge-worktree <pr>` handles the full merge + cleanup ritual (including remote-branch deletion, which `gh pr merge --delete-branch` silently skips from inside a worktree).
+Worktrees + PRs are the standard workflow; the user initiates worktree lifecycle moves (enter, exit, merge, cleanup). When asked to merge a worktree PR, use `cc-merge-worktree <pr>` from the main worktree — it handles draft-flip, merge, and branch + worktree removal (including the remote-branch deletion that `gh pr merge --delete-branch` silently skips from inside a worktree).
 
 ## graphify
 
