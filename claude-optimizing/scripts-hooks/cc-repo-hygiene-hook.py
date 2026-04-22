@@ -221,6 +221,90 @@ def main():
                     f"{default_branch} is {behind} commit(s) behind origin/{default_branch}"
                 )
 
+    # Check 5: Submodule hygiene
+    # For each registered submodule: parent's recorded SHA must be reachable
+    # from the submodule's origin/<default>. Blocks turn if not. Also warn
+    # (non-blocking) if the session touched files beneath a submodule path
+    # while the submodule HEAD is detached — that's the "Submodule Workflow"
+    # rule violation. Skipped entirely when no .gitmodules exists, so the
+    # common no-submodule case stays zero-cost.
+    gitmodules_path = os.path.join(cwd, ".gitmodules")
+    if os.path.isfile(gitmodules_path):
+        out, rc = run(
+            ["git", "-C", cwd, "config", "--file", ".gitmodules",
+             "--get-regexp", r"submodule\..*\.path"]
+        )
+        sub_paths = []
+        if rc == 0 and out:
+            for line in out.splitlines():
+                parts = line.split(None, 1)
+                if len(parts) == 2:
+                    sub_paths.append(parts[1])
+
+        for sub_rel in sub_paths:
+            sub_abs = os.path.join(cwd, sub_rel)
+            if not os.path.isdir(os.path.join(sub_abs, ".git")) and not os.path.isfile(os.path.join(sub_abs, ".git")):
+                # Submodule not checked out; nothing to verify.
+                continue
+
+            # Recorded SHA in parent index
+            ls_out, rc_ls = run(["git", "-C", cwd, "ls-tree", "HEAD", sub_rel])
+            recorded = ""
+            if rc_ls == 0 and ls_out:
+                parts = ls_out.split()
+                if len(parts) >= 3:
+                    recorded = parts[2]
+            if not recorded:
+                continue
+
+            # Fetch origin in the submodule (quiet, bounded).
+            run(["git", "-C", sub_abs, "fetch", "origin", "--quiet"], timeout=10)
+
+            # Submodule's default branch.
+            sub_head, rc_h = run(
+                ["git", "-C", sub_abs, "symbolic-ref", "refs/remotes/origin/HEAD"]
+            )
+            if rc_h == 0 and sub_head.startswith("refs/remotes/origin/"):
+                sub_default = sub_head.replace("refs/remotes/origin/", "")
+            else:
+                sub_default = "main"
+
+            # Ancestor check: recorded SHA must be on origin/<sub_default>.
+            _, rc_anc = run(
+                ["git", "-C", sub_abs, "merge-base", "--is-ancestor",
+                 recorded, f"origin/{sub_default}"]
+            )
+            if rc_anc != 0:
+                violations.append(
+                    f"submodule {sub_rel} pinned to {recorded[:12]} not on "
+                    f"origin/{sub_default} — merge the submodule branch, "
+                    f"then cc-bump-submodule {sub_rel}"
+                )
+
+            # Detached-HEAD warning if the session touched the submodule.
+            if classify_enabled:
+                sub_real = os.path.realpath(sub_abs)
+                touched_sub = any(
+                    ep == sub_real or ep.startswith(sub_real + os.sep)
+                    for ep in edit_paths
+                )
+                if not touched_sub:
+                    for cmd_str in bash_commands:
+                        if sub_rel in cmd_str or sub_real in cmd_str:
+                            touched_sub = True
+                            break
+                if touched_sub:
+                    _, rc_branch = run(
+                        ["git", "-C", sub_abs, "symbolic-ref",
+                         "--short", "-q", "HEAD"]
+                    )
+                    if rc_branch != 0:
+                        warnings.append(
+                            f"submodule {sub_rel} edited this session while in "
+                            f"detached HEAD — per Submodule Workflow rule, "
+                            f"branch off origin/{sub_default} before editing"
+                        )
+
     # Emit warnings to stderr regardless of whether we block — Claude Code
     # surfaces stderr in the transcript so both user and Claude can see
     # pre-existing dirt without it blocking turn-end.

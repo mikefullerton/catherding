@@ -102,6 +102,91 @@ def slug_from_origin_url(url: str) -> str | None:
     return f"{m.group(1)}/{m.group(2)}" if m else None
 
 
+def verify_submodule_pins_reachable(main_path, default_branch, pr_head_ref):
+    """Refuse to merge a parent PR whose submodule pins aren't published.
+
+    If `.gitmodules` exists, for every submodule the PR touches (via the
+    diff between origin/<default_branch> and origin/<pr_head_ref>), the
+    gitlink SHA on the PR branch must be reachable from the submodule's
+    origin/<submodule-default>. Otherwise merging the parent advertises a
+    submodule commit that only exists on an unmerged (or unpushed) branch,
+    which becomes dangling for every other clone.
+
+    Returns a list of failure messages (empty on success).
+    """
+    gitmodules = os.path.join(main_path, ".gitmodules")
+    if not os.path.isfile(gitmodules):
+        return []
+
+    out, rc = run(
+        ["git", "config", "--file", ".gitmodules", "--get-regexp", r"submodule\..*\.path"],
+        check=False, cwd=main_path,
+    )
+    if rc != 0 or not out:
+        return []
+    sub_paths = []
+    for line in out.splitlines():
+        parts = line.split(None, 1)
+        if len(parts) == 2:
+            sub_paths.append(parts[1])
+    if not sub_paths:
+        return []
+
+    # Ensure we have origin/<pr_head_ref> locally for ls-tree.
+    run(["git", "fetch", "origin", pr_head_ref], check=False, cwd=main_path)
+
+    diff_out, rc = run(
+        ["git", "diff", "--name-only",
+         f"origin/{default_branch}...origin/{pr_head_ref}"],
+        check=False, cwd=main_path,
+    )
+    touched = set(diff_out.splitlines()) if rc == 0 else set()
+
+    failures = []
+    for sub_rel in sub_paths:
+        if sub_rel not in touched:
+            continue
+
+        entry, rc = run(["git", "ls-tree", f"origin/{pr_head_ref}", sub_rel],
+                        check=False, cwd=main_path)
+        if rc != 0 or not entry:
+            continue
+        parts = entry.split()
+        if len(parts) < 3:
+            continue
+        pinned = parts[2]
+
+        sub_abs = os.path.join(main_path, sub_rel)
+        if not os.path.isdir(sub_abs):
+            failures.append(
+                f"submodule {sub_rel} not checked out in {main_path} — "
+                f"cannot verify pin {pinned[:12]}"
+            )
+            continue
+
+        run(["git", "fetch", "origin", "--quiet"], check=False, cwd=sub_abs)
+
+        sub_head, rc_h = run(["git", "symbolic-ref", "refs/remotes/origin/HEAD"],
+                             check=False, cwd=sub_abs)
+        if rc_h == 0 and sub_head.startswith("refs/remotes/origin/"):
+            sub_default = sub_head.removeprefix("refs/remotes/origin/")
+        else:
+            sub_default = "main"
+
+        _, rc_anc = run(
+            ["git", "merge-base", "--is-ancestor", pinned, f"origin/{sub_default}"],
+            check=False, cwd=sub_abs,
+        )
+        if rc_anc != 0:
+            failures.append(
+                f"submodule {sub_rel} pinned to {pinned[:12]} on PR branch is "
+                f"not on {sub_rel}'s origin/{sub_default} — merge the submodule "
+                f"PR first, then cc-bump-submodule {sub_rel} and push"
+            )
+
+    return failures
+
+
 def discard_if_matches_upstream(default_branch, cwd):
     """Discard tracked changes that already match origin/<default_branch>.
 
@@ -253,6 +338,20 @@ def main():
             sys.exit(2)
 
     print(f"merging PR #{args.pr} (worktree branch: {wt_branch})")
+
+    # 2b. Submodule-pin preflight. If the PR bumps any submodule pin, the
+    # new SHA must be on the submodule's origin/<default> before the parent
+    # merges — otherwise parent main ends up advertising a submodule commit
+    # that only exists on an unmerged branch.
+    if pr_state == "OPEN":
+        pin_failures = verify_submodule_pins_reachable(
+            main_path, default_branch, pr_head_ref,
+        )
+        if pin_failures:
+            print("FAIL: submodule pin preflight:", file=sys.stderr)
+            for msg in pin_failures:
+                print(f"  - {msg}", file=sys.stderr)
+            sys.exit(3)
 
     # 3. Merge PR (skip if already merged). Mark ready if draft.
     if pr_state == "OPEN":
