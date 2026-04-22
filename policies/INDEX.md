@@ -57,6 +57,14 @@ Policies are grouped into two tiers:
 | [code-signing](workflow/apple-platform-development/code-signing.md) | Team mikefullerton; entitlements preserved; no certs in repo | `configuring-signing`, `entitlements-change`, `xcode-team-setup`, `creating-xcode-project` |
 | [agentictoolkit-logging](workflow/apple-platform-development/agentictoolkit-logging.md) | Apple projects using AgenticToolkit must implement logging via the `Loggable` protocol | `using-agentictoolkit`, `writing-swift`, `adding-logging`, `swift-logging-audit` |
 
+### Multi-Project Development
+
+| Policy | Summary | Triggers |
+|--------|---------|----------|
+| [dependencies-and-pins](workflow/multi-project-development/dependencies-and-pins.md) | Dependency repos cloned inside the consumer (gitignored); `dependencies.json` records repo, branch, last-sha, optional tag and ci-guidance | `multi-project-setup`, `dependency-manifest`, `dependencies-json`, `adding-dependency`, `replacing-submodule` |
+| [dependency-workflow](workflow/multi-project-development/dependency-workflow.md) | Sync on fresh clone; branch off tracked branch inside a dep; merge-then-bump for cross-repo changes | `dependency-workflow`, `dependency-bump`, `cross-repo-change`, `syncing-dependencies`, `editing-dependency` |
+| [dependents-branch-pattern](workflow/multi-project-development/dependents-branch-pattern.md) | Internal deps maintain a per-consumer `dependents/<consumer>` branch so each consumer tracks upstream at its own cadence | `dependents-branch`, `integration-branch`, `consumer-tracking`, `absorbing-upstream-changes` |
+
 ### Repo Hygiene
 
 | Policy | Summary | Triggers |
