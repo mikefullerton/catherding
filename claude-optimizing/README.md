@@ -41,8 +41,8 @@ Runs five idempotent steps, each labelled in its output:
 | Step | Effect |
 |---|---|
 | 0. Prereq check | Verifies `git`, `gh`, `python3` are on `PATH`; warns if `~/.local/bin` isn't on `PATH`; exits non-zero if anything is missing. |
-| 1. Install `cc-*` scripts | `cp` every `claude-optimizing/scripts-*/cc-*.py` into `~/.local/bin/`. `cc-*-hook.py` files route to `~/.claude/hooks/` instead. Edits to the source require re-running `cc-install` (or `install.sh`) to take effect. Skill-internal tools under `skills/<name>/scripts/` are NOT touched — they're invoked directly by the owning skill. |
-| 2. Register hooks | Patches `~/.claude/settings.json` idempotently: `cc-repo-hygiene-hook.py` under `hooks.Stop`; `cc-exit-worktree-hook.py` under `hooks.PostToolUse` (matcher `ExitWorktree`); `cc-block-pr-close-hook.py` and `cc-block-push-delete-hook.py` under `hooks.PreToolUse` (matcher `Bash`); `cc-general-principles-hook.py` under `hooks.PreToolUse` (matcher `Edit\|Write\|MultiEdit\|NotebookEdit`). |
+| 1. Install `cc-*` scripts | `cp` every `claude-optimizing/scripts-*/cc-*.py` into `~/.local/bin/`. `cc-*-hook.py` files route to `~/.claude/hooks/` instead — but only the ones in the `ACTIVE_HOOKS` allowlist (top of `install.sh`, mirrored in `cc-install.py` / `cc-doctor.py`). The other hook sources stay on disk as source-only. Edits to a source require re-running `cc-install` (or `install.sh`) to take effect. Skill-internal tools under `skills/<name>/scripts/` are NOT touched — they're invoked directly by the owning skill. |
+| 2. Register hooks | Patches `~/.claude/settings.json` idempotently to register `cc-general-principles-hook.py` under `hooks.PreToolUse` (matcher `Edit\|Write\|MultiEdit\|NotebookEdit`). No other hooks are registered — source-only hooks are neither copied nor registered. |
 | 3. Merge guidance block | Reads `claude-additions.md` and inserts it into `~/.claude/CLAUDE.md` between `<!-- BEGIN claude-optimizing -->` / `<!-- END claude-optimizing -->` markers. On re-run, replaces the block in place. |
 | 4. Activate pre-commit | `git config core.hooksPath .githooks` in the containing repo, so committed `cc-*` scripts get `py_compile`-checked before the commit lands. |
 | 5. Verify | Runs `cc-doctor` if available; prints a clean-up summary. |
@@ -104,17 +104,18 @@ Every script supports `--help`. Exit codes are always meaningful.
 | `cc-doctor` | Walk both `~/.local/bin/cc-*` and `~/.claude/hooks/cc-*-hook.py`; report missing, stale (diverged from source), orphan, non-executable, or legacy-symlink entries. Exit non-zero on any problem. |
 | `cc-help [<name>]` | List all `cc-*` scripts with one-line summaries; pass a script name to see its full `--help`. |
 
-### Hook scripts — `scripts-hooks/` (5)
+### Hook scripts — `scripts-hooks/` (1 active, 5 source-only)
 
-| File | Role |
-|---|---|
-| `cc-repo-hygiene-hook.py` | `Stop` hook. **Blocks** the turn from ending only if this session produced staged, unstaged, or untracked changes that weren't committed + pushed. Ignores prior-session dirt. |
-| `cc-exit-worktree-hook.py` | `PostToolUse:ExitWorktree`. **Non-blocking** reminder on stderr after `ExitWorktree` — warns about stale worktrees (merged branches still on disk) and orphan remote branches (PR merged, remote branch not deleted), and suggests the `cc-merge-worktree <pr>` that would clean them up. User decides whether to act. |
-| `cc-block-pr-close-hook.py` | `PreToolUse:Bash`. **Blocks** `gh pr close` (usually a typo for `gh pr merge`). Override with `CC_ALLOW_PR_CLOSE=1` prefix. |
-| `cc-block-push-delete-hook.py` | `PreToolUse:Bash`. **Blocks** `git push --delete <branch>` / `git push origin :<branch>` when the branch heads an open PR (would auto-close the PR). Override with `CC_ALLOW_BRANCH_DELETE=1` prefix. |
-| `cc-general-principles-hook.py` | `PreToolUse:Edit\|Write\|MultiEdit\|NotebookEdit`. **Non-blocking** once-per-session nudge toward the `general-principles` skill on the first code-writing tool call. |
+| File | Status | Role |
+|---|---|---|
+| `cc-general-principles-hook.py` | **active** | `PreToolUse:Edit\|Write\|MultiEdit\|NotebookEdit`. **Non-blocking** once-per-session nudge toward the `general-principles` skill on the first code-writing tool call. |
+| `cc-repo-hygiene-hook.py` | source-only | `Stop` hook. Would block turn-end if the session left uncommitted changes; disabled so that source-control operations are user-driven. |
+| `cc-dependencies-hook.py` | source-only | `Stop` hook. Would block turn-end if `dependencies.json` pins aren't reachable from `origin/<branch>`; disabled. |
+| `cc-exit-worktree-hook.py` | source-only | `PostToolUse:ExitWorktree`. Non-blocking reminder about stale worktrees / orphan remote branches; disabled. |
+| `cc-block-pr-close-hook.py` | source-only | `PreToolUse:Bash`. Would block `gh pr close`; disabled. |
+| `cc-block-push-delete-hook.py` | source-only | `PreToolUse:Bash`. Would block `git push --delete <branch>` when the branch heads an open PR; disabled. |
 
-All are copied into `~/.claude/hooks/` by `install.sh` and registered in `~/.claude/settings.json` on the appropriate event.
+Only the active hook is copied into `~/.claude/hooks/` and registered in `~/.claude/settings.json`. To re-enable a source-only hook, add it to the `ACTIVE_HOOKS` allowlist in `install.sh` / `scripts-meta/cc-install.py` / `scripts-meta/cc-doctor.py`, add its registration entry to `install.sh`'s JSON-patch block, and re-run `install.sh`.
 
 ## Adding a new script
 

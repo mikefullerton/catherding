@@ -42,6 +42,10 @@ DEFAULT_SOURCES = sorted((REPO_ROOT / "claude-optimizing").glob("scripts-*"))
 BIN_DIR = Path.home() / ".local" / "bin"
 HOOKS_DIR = Path.home() / ".claude" / "hooks"
 
+# Hook source files listed here get installed; others in scripts-hooks/ stay
+# as source-only. Mirrors ACTIVE_HOOKS in install.sh and cc-doctor.py.
+ACTIVE_HOOKS = {"cc-general-principles-hook"}
+
 
 def _install_target(script: Path) -> Path:
     """Where this script should be installed.
@@ -86,7 +90,12 @@ def main() -> int:
 
     scripts: list[Path] = []
     for src in sources:
-        scripts.extend(sorted(p for p in src.glob("cc-*.py") if p.is_file()))
+        for p in sorted(src.glob("cc-*.py")):
+            if not p.is_file():
+                continue
+            if p.stem.endswith("-hook") and p.stem not in ACTIVE_HOOKS:
+                continue
+            scripts.append(p)
     if not scripts:
         print(f"FAIL: no cc-*.py scripts in {', '.join(str(s) for s in sources)}", file=sys.stderr)
         return 1

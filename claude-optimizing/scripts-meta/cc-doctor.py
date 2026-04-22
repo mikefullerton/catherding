@@ -27,6 +27,11 @@ CANONICAL_SOURCES = sorted((REPO_ROOT / "claude-optimizing").glob("scripts-*"))
 BIN_DIR = Path.home() / ".local" / "bin"
 HOOKS_DIR = Path.home() / ".claude" / "hooks"
 CLAUDE_MD = Path.home() / ".claude" / "CLAUDE.md"
+
+# Hook source files listed here are expected to be installed; others in
+# scripts-hooks/ stay as source-only. Mirrors ACTIVE_HOOKS in install.sh
+# and cc-install.py.
+ACTIVE_HOOKS = {"cc-general-principles-hook"}
 POLICIES_DIR = REPO_ROOT / "policies"
 POLICY_SKILLS_DIR = REPO_ROOT / "skills"
 POLICY_SKILLS = [
@@ -59,7 +64,11 @@ def _entries() -> list[Path]:
 
 
 def _canonical_sources() -> dict[Path, Path]:
-    """Map install-target path -> canonical source path for every cc-*.py."""
+    """Map install-target path -> canonical source path for every cc-*.py.
+
+    Hook sources not in ACTIVE_HOOKS are treated as source-only (skipped —
+    they're not expected to appear in ~/.claude/hooks/).
+    """
     by_target: dict[Path, Path] = {}
     for src_dir in CANONICAL_SOURCES:
         if not src_dir.is_dir():
@@ -68,6 +77,8 @@ def _canonical_sources() -> dict[Path, Path]:
             if not script.is_file():
                 continue
             if script.stem.endswith("-hook"):
+                if script.stem not in ACTIVE_HOOKS:
+                    continue
                 target = HOOKS_DIR / script.name
             else:
                 target = BIN_DIR / script.stem

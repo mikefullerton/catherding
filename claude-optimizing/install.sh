@@ -20,6 +20,11 @@ HOOKS_DIR="$HOME/.claude/hooks"
 CLAUDE_MD="$HOME/.claude/CLAUDE.md"
 SETTINGS_JSON="$HOME/.claude/settings.json"
 
+# Hook sources listed here get installed + registered; the rest stay in
+# scripts-hooks/ as source-only (ignored by install/cc-install/cc-doctor).
+# Mirrored in scripts-meta/cc-install.py and scripts-meta/cc-doctor.py.
+ACTIVE_HOOKS=("cc-general-principles-hook")
+
 warn()  { printf "  \033[33m!\033[0m %s\n" "$*" >&2; }
 info()  { printf "  %s\n" "$*"; }
 head1() { printf "\n\033[1m%s\033[0m\n" "$*"; }
@@ -55,8 +60,12 @@ for script in "$HERE"/scripts-*/cc-*.py; do
     [ -f "$script" ] || continue
     name="$(basename "$script" .py)"
     case "$name" in
-        *-hook) target="$HOOKS_DIR/$name.py"; loc=".claude/hooks" ;;
-        *)      target="$BIN_DIR/$name";       loc=".local/bin"   ;;
+        *-hook)
+            case " ${ACTIVE_HOOKS[*]} " in
+                *" $name "*) target="$HOOKS_DIR/$name.py"; loc=".claude/hooks" ;;
+                *)           continue ;;
+            esac ;;
+        *)  target="$BIN_DIR/$name"; loc=".local/bin" ;;
     esac
     rm -f "$target"
     cp "$script" "$target"
@@ -77,23 +86,9 @@ path = Path(sys.argv[1])
 settings = json.loads(path.read_text()) if path.exists() else {}
 
 # (event, matcher, command) tuples to register idempotently.
+# Only the active hook is registered here — other scripts-hooks/ sources
+# stay on disk as source-only (see ACTIVE_HOOKS in install.sh header).
 entries = [
-    (
-        "Stop", "",
-        "/usr/bin/python3 $HOME/.claude/hooks/cc-repo-hygiene-hook.py",
-    ),
-    (
-        "PostToolUse", "ExitWorktree",
-        "/usr/bin/python3 $HOME/.claude/hooks/cc-exit-worktree-hook.py",
-    ),
-    (
-        "PreToolUse", "Bash",
-        "/usr/bin/python3 $HOME/.claude/hooks/cc-block-pr-close-hook.py",
-    ),
-    (
-        "PreToolUse", "Bash",
-        "/usr/bin/python3 $HOME/.claude/hooks/cc-block-push-delete-hook.py",
-    ),
     (
         "PreToolUse", "Edit|Write|MultiEdit|NotebookEdit",
         "/usr/bin/python3 $HOME/.claude/hooks/cc-general-principles-hook.py",

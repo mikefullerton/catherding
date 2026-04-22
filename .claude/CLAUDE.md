@@ -13,7 +13,7 @@ claude-optimizing/         # Self-contained Claude-Code tooling layer (guidance 
   scripts-xcode/           # macOS / Xcode (cc-xcbuild, cc-xcgen, cc-applogs, …)
   scripts-claude/          # Claude Code meta (cc-usage-stats, cc-claude-fields, cc-memory, cc-graphify-status, cc-project-index)
   scripts-meta/            # Self-management (cc-install, cc-doctor, cc-help)
-  scripts-hooks/           # Claude Code hook scripts (cc-repo-hygiene-hook.py for Stop + cc-exit-worktree-hook.py for PostToolUse:ExitWorktree → ~/.claude/hooks/)
+  scripts-hooks/           # Claude Code hook sources (only cc-general-principles-hook is active → ~/.claude/hooks/; others kept as source-only, see ACTIVE_HOOKS allowlist)
   tests/                   # pytest harness for the cc-* scripts (uses agentic-cookbook/catherdingtests as a real-GitHub sandbox)
   claude-additions.md      # Guidance block appended to ~/.claude/CLAUDE.md by install.sh
   install.sh / uninstall.sh  # Deploy/remove guidance + scripts + hooks
@@ -30,10 +30,6 @@ The `cc-*` scripts have a real-GitHub test harness at `claude-optimizing/tests/`
 | `/yolo` | Toggle per-session YOLO mode |
 
 > `custom-status-line` moved to the [stenographer](https://github.com/agentic-cookbook/stenographer) repo.
-
-## Git Workflow
-
-Worktrees + PRs are the standard workflow; the user initiates worktree lifecycle moves (enter, exit, merge, cleanup). When asked to merge a worktree PR, use `cc-merge-worktree <pr>` from the main worktree — it handles draft-flip, merge, and branch + worktree removal (including the remote-branch deletion that `gh pr merge --delete-branch` silently skips from inside a worktree).
 
 ## graphify
 
