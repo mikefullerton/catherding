@@ -83,6 +83,35 @@ All changes go through worktree branches. Never commit directly to the default b
 2. **Work:** commit and push as you go. Create a **draft PR** on first push.
 3. **Finish (MANDATORY):** after a PR merges, you MUST run `cc-merge-worktree <pr>`. This is the only supported way to complete the ritual. A PostToolUse hook on `ExitWorktree` (`~/.claude/hooks/cc-exit-worktree-hook.py`) detects merged worktrees left on disk and **blocks the next tool call** until `cc-merge-worktree` runs. Do not attempt to reproduce its steps manually — `cc-merge-worktree` handles the gh-inside-worktree quirks, submodule drift, draft-PR ready flipping, and upstream-matching dirt discards.
 
+## Submodule Workflow — MANDATORY
+
+> **Scope:** `~/projects/` only. Same external carve-out as Worktree Workflow.
+>
+> **Prefer dependency repos when you control the upstream.** For repos where you want branch flexibility (especially internal deps with per-consumer `dependents/<consumer>` integration branches), use the Dependency Repos Workflow below instead. Submodules remain appropriate for externally-versioned deps you want pinned by SHA with no flexibility.
+
+When a project has a `.gitmodules`, edits inside a submodule directory follow extra rules. The parent repo's gitlink records a submodule commit by SHA — so any submodule SHA the parent points at must be reachable from the submodule's published default branch, or other clones will hit a dangling reference.
+
+1. **Branch off submodule `main`, never edit detached HEAD.** Before modifying anything inside a submodule, `cd` into it and verify `git symbolic-ref --short HEAD` returns a branch name. `git submodule update` leaves submodules at a specific commit (detached). Create a feature branch with `git switch -c feature/<topic> origin/<default>` before editing.
+2. **Do not use `EnterWorktree` inside a submodule.** The parent's gitlink points at the submodule's main checkout path; a submodule-internal worktree lives at a different path the parent build won't see. Branch the main checkout directly.
+3. **Merge submodule PR before parent PR.** Push the submodule branch, open a PR against the submodule repo, and get it merged to the submodule's `origin/<default>` first. Only then mark the parent PR ready.
+4. **Bump the parent pin to the merged SHA.** In the parent worktree, run `cc-bump-submodule <name>` so the parent's gitlink advances to a commit that exists on the submodule's `origin/<default>`. Commit and push that bump as part of the parent PR.
+
+**Enforcement.** The `Stop` hook refuses to end the turn if any submodule pin is not an ancestor of the submodule's `origin/<default>`, naming the submodule and telling you to merge-then-bump. `cc-merge-worktree` preflights the same check against the PR's head branch before running `gh pr merge`, so a parent PR cannot merge with an unpublished submodule SHA. Use `cc-submodule-status --fetch` for an ad-hoc diagnostic.
+
+## Dependency Repos Workflow — MANDATORY
+
+> **Scope:** `~/projects/` only. Same external carve-out as Worktree Workflow.
+
+Preferred alternative to submodules when you control the upstream. A **dependency repo** is cloned inside the consumer at `dependencies/<name>/` (gitignored), and tracked via a `dependencies.json` manifest at the consumer's repo root. The manifest records `repo`, `branch`, `last-sha`, optional `tag`, and optional `ci-guidance`. The consumer's `last-sha` MUST be reachable from the dep's `origin/<branch>` or other clones will hit an unreachable pin. Full policy: `~/projects/active/catherding/policies/workflow/multi-project-development/`.
+
+1. **Fresh clone setup.** After cloning a consumer, run `cc-deps-sync` — reads `dependencies.json`, clones each entry into `dependencies/<name>/` on the manifest's `branch` at `last-sha`. Builds should work immediately.
+2. **Branch off the tracked branch, never edit detached HEAD.** Inside `dependencies/<name>/`, `git switch -c feature/<topic> origin/<branch>` before editing. The dep must remain publishable.
+3. **Do not use `EnterWorktree` inside a dependency clone.** The consumer build expects the dep at `dependencies/<name>/`; a worktree lives at a different path the consumer won't see.
+4. **Merge dep PR before consumer PR.** Open and merge the PR against the dependency repo's tracked branch first. Only then mark the consumer PR ready.
+5. **Bump the consumer's pin to the merged SHA.** Run `cc-deps-bump <name>` in the consumer to advance `last-sha` to a commit reachable from `origin/<branch>`. Commit and push that bump as part of the consumer PR.
+
+**Enforcement.** The `Stop` hook (`cc-dependencies-hook.py`) refuses to end the turn if any `last-sha` is not an ancestor of the dependency's `origin/<branch>`, if a set `tag` doesn't resolve to `last-sha`, or if `ci-guidance` is internally inconsistent. Use `cc-deps-verify` for an ad-hoc diagnostic.
+
 ## Repo Hygiene — MANDATORY, NO EXCEPTIONS
 
 > **Scope:** `~/projects/` only. For external or third-party repos, skip these rules — branch deletion and push hygiene assume write access you may not have.
