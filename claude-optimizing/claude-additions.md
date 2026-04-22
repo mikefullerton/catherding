@@ -81,6 +81,20 @@ Worktrees and PRs are the standard workflow, but lifecycle operations are **user
 - **Merge a worktree PR:** when asked, use `cc-merge-worktree <pr>` from the main worktree (not from inside the worktree being merged). It handles draft-ready flipping, the merge itself, and branch + worktree removal in one call.
 - **Dangling state** (stale worktrees, orphan remote branches) is surfaced by the `cc-exit-worktree-hook` on stderr after `ExitWorktree`. Treat it as information for the user, not as a cue to act.
 
+## Dependency Repos Workflow — MANDATORY
+
+> **Scope:** `~/projects/` only. Same external carve-out as Worktree Workflow.
+
+A **dependency repo** is cloned inside the consumer at `dependencies/<name>/` (gitignored), and tracked via a `dependencies.json` manifest at the consumer's repo root. The manifest records `repo`, `branch`, `last-sha`, optional `tag`, and optional `ci-guidance`. The consumer's `last-sha` MUST be reachable from the dep's `origin/<branch>` or other clones will hit an unreachable pin. Full policy: `~/projects/active/catherding/policies/workflow/multi-project-development/`.
+
+1. **Fresh clone setup.** After cloning a consumer, run `cc-deps-sync` — reads `dependencies.json`, clones each entry into `dependencies/<name>/` on the manifest's `branch` at `last-sha`. Builds should work immediately.
+2. **Branch off the tracked branch, never edit detached HEAD.** Inside `dependencies/<name>/`, `git switch -c feature/<topic> origin/<branch>` before editing. The dep must remain publishable.
+3. **Do not use `EnterWorktree` inside a dependency clone.** The consumer build expects the dep at `dependencies/<name>/`; a worktree lives at a different path the consumer won't see.
+4. **Merge dep PR before consumer PR.** Open and merge the PR against the dependency repo's tracked branch first. Only then mark the consumer PR ready.
+5. **Bump the consumer's pin to the merged SHA.** Run `cc-deps-bump <name>` in the consumer to advance `last-sha` to a commit reachable from `origin/<branch>`. Commit and push that bump as part of the consumer PR.
+
+**Enforcement.** The `Stop` hook (`cc-dependencies-hook.py`) refuses to end the turn if any `last-sha` is not an ancestor of the dependency's `origin/<branch>`, if a set `tag` doesn't resolve to `last-sha`, or if `ci-guidance` is internally inconsistent. Use `cc-deps-verify` for an ad-hoc diagnostic.
+
 ## Repo Hygiene — MANDATORY
 
 > **Scope:** `~/projects/` only. For external or third-party repos, skip — branch deletion and push hygiene assume write access you may not have.
