@@ -59,6 +59,8 @@ echo "catherding uninstaller — independent components:"
 echo "  1. Claude optimizations"
 echo "  2. YOLO mode"
 echo "  3. Developer-policy skills"
+echo "  4. check-repos"
+echo "  5. remove-worktree"
 echo ""
 
 if confirm "Uninstall Claude optimizations?"; then
@@ -76,6 +78,26 @@ if confirm "Uninstall developer-policy skills?"; then
     for skill in "${POLICY_SKILLS[@]}"; do
         uninstall_skill "$skill"
     done
+fi
+
+if confirm "Uninstall check-repos?"; then
+    target="$HOME/.local/bin/check-repos"
+    if [ -f "$target" ]; then
+        rm "$target"
+        echo "    removed $target"
+    else
+        echo "    SKIP (not installed)"
+    fi
+fi
+
+if confirm "Uninstall remove-worktree?"; then
+    target="$HOME/.local/bin/remove-worktree"
+    if [ -f "$target" ]; then
+        rm "$target"
+        echo "    removed $target"
+    else
+        echo "    SKIP (not installed)"
+    fi
 fi
 
 echo ""

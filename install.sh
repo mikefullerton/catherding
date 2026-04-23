@@ -69,6 +69,8 @@ echo "catherding installer — independent components:"
 echo "  1. Claude optimizations (cc-* scripts, Stop hook, global CLAUDE.md guidance)"
 echo "  2. YOLO mode"
 echo "  3. Developer-policy skills (global-install, read-time only)"
+echo "  4. check-repos (standalone repo-tree status reporter)"
+echo "  5. remove-worktree (standalone worktree+branch cleanup)"
 echo ""
 
 # ---- 1. Claude optimizations ------------------------------------------------
@@ -89,6 +91,18 @@ if confirm "Install developer-policy skills?"; then
     for skill in "${POLICY_SKILLS[@]}"; do
         install_skill "$skill"
     done
+fi
+
+# ---- 4. check-repos --------------------------------------------------------
+if confirm "Install check-repos?"; then
+    echo "Installing check-repos..."
+    "$REPO_DIR/tools/check-repos/install.sh" 2>&1 | sed 's/^/    /'
+fi
+
+# ---- 5. remove-worktree ----------------------------------------------------
+if confirm "Install remove-worktree?"; then
+    echo "Installing remove-worktree..."
+    "$REPO_DIR/tools/remove-worktree/install.sh" 2>&1 | sed 's/^/    /'
 fi
 
 echo ""
