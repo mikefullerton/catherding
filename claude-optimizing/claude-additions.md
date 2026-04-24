@@ -1,5 +1,5 @@
 <!-- BEGIN claude-optimizing -->
-<!-- claude-optimizing v2.0 -->
+<!-- claude-optimizing v2.1 -->
 ## Scripting Language — MANDATORY
 
 Always use Python for scripts. NEVER write bash/shell scripts (`.sh`). This includes hooks, utilities, automation, build helpers, and any standalone script. If an existing bash script needs modification, rewrite it in Python.
@@ -68,6 +68,16 @@ The `cc-*` scripts (installed to `~/.local/bin/` from `~/projects/active/catherd
 Other hook scripts ship in the repo under `claude-optimizing/scripts-hooks/` as source-only (not installed, not registered); flip the `ACTIVE_HOOKS` allowlist in `install.sh` / `cc-install.py` / `cc-doctor.py` to enable one.
 
 All scripts support `--help`, exit non-zero on failure, and return tight parseable output. Installed command name is `cc-<name>` (extension stripped); hook scripts keep `.py` because Claude Code invokes them as Python files. Skill-coupled scripts (e.g. `cc-verify`) live under `skills/` and are not on `$PATH` — the owning skill invokes them directly.
+
+## Source Control — MANDATORY
+
+**Never run SCM commands on my behalf.** I run all source-control operations myself. This applies to every SCM tool (git, gh, jj, hg, svn, etc.) and to any wrapper (`cc-commit-push`, `cc-merge-worktree`, `cc-rebase-main`, etc.).
+
+**Forbidden without an explicit per-instance request:** `commit`, `push`, `pull`, `fetch`, `merge`, `rebase`, `reset`, `revert`, `cherry-pick`, `stash`, `checkout`/`switch`, `branch` create/delete, `tag`, `worktree` add/remove, `gh pr create`/`merge`/`close`, `gh issue` write ops, or anything that mutates repo state, remote state, or working tree.
+
+**Allowed without asking:** read-only inspection (`git status`, `git diff`, `git log`, `git show`, `gh pr view`, `gh pr list`, etc.) for context.
+
+**How to apply:** when work looks ready to commit/push/PR, stop and tell me what's ready. I will run the SCM command myself, or explicitly tell you to run a specific one. "Explicit" means *this* instance — prior approval for one commit is not standing approval for the next.
 
 ## Don't touch work you didn't change
 

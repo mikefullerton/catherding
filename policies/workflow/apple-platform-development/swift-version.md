@@ -1,7 +1,7 @@
 ---
 title: "Swift Version"
 summary: "All Swift code targets Swift 6.2.x with strict concurrency."
-triggers: [starting-swift-project, swift-package-setup, swift-version-audit, xcode-project-conversion]
+triggers: [starting-swift-project, swift-version-audit, xcode-project-conversion]
 tags: [swift, language-version, apple, concurrency]
 ---
 
@@ -9,10 +9,9 @@ tags: [swift, language-version, apple, concurrency]
 
 All Swift code targets Swift 6.2.x with strict concurrency.
 
-- All Swift code MUST target the latest patch release of Swift 6.2 (`6.2.x`).
-- `Package.swift` files MUST use `// swift-tools-version: 6.2`.
+- All Swift code MUST target the latest patch release of Swift 6.2 (`6.3.x`).
 - Code MUST compile cleanly under Swift 6 strict concurrency rules (`@Sendable`, `@MainActor`, strict data-race safety).
 - You MUST NOT downgrade to Swift 5 language mode.
-- You MUST NOT upgrade to Swift 6.3 or later without an explicit decision to do so.
+- You MUST NOT downgrade to Swift 6.2 or earlier without an explicit decision to do so.
 
 **Derived from cookbook:** [native-controls](../../../../agenticcookbook/principles/native-controls.md)

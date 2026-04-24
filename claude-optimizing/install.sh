@@ -150,6 +150,7 @@ SENTINEL_HEADERS = [
     "## Workflow Scripts — PREFER over multi-step Bash",
     "## Worktree Workflow — MANDATORY",
     "## Repo Hygiene — MANDATORY, NO EXCEPTIONS",
+    "## Source Control — MANDATORY",
 ]
 
 def _strip_section(text: str, header: str) -> str:

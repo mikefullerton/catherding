@@ -51,9 +51,9 @@ Policies are grouped into two tiers:
 
 | Policy | Summary | Triggers |
 |--------|---------|----------|
-| [swift-version](workflow/apple-platform-development/swift-version.md) | Swift 6.2.x with strict concurrency | `starting-swift-project`, `swift-package-setup`, `swift-version-audit`, `xcode-project-conversion` |
+| [swift-version](workflow/apple-platform-development/swift-version.md) | Swift 6.2.x with strict concurrency | `starting-swift-project`, `swift-version-audit`, `xcode-project-conversion` |
 | [swift-file-organization](workflow/apple-platform-development/swift-file-organization.md) | One entity per file; nested types and protocol conformance in extensions | `writing-swift`, `creating-swift-file`, `swift-file-audit`, `refactoring-swift` |
-| [xcode-projects](workflow/apple-platform-development/xcode-projects.md) | Swift packages for reusable code; Xcode projects (XcodeGen + checked-in .xcodeproj) for shipping products; single .xcworkspace in /apple aggregates both | `creating-xcode-project`, `adding-xcode-target`, `xcodeworkspace-setup`, `creating-swift-package`, `adding-reusable-code` |
+| [xcode-projects](workflow/apple-platform-development/xcode-projects.md) | All Apple code in XcodeGen-managed Xcode projects (project.yml + checked-in .xcodeproj); single .xcworkspace in /apple aggregates every project | `creating-xcode-project`, `adding-xcode-target`, `xcodeworkspace-setup`, `adding-reusable-code` |
 | [code-signing](workflow/apple-platform-development/code-signing.md) | Team mikefullerton; entitlements preserved; no certs in repo | `configuring-signing`, `entitlements-change`, `xcode-team-setup`, `creating-xcode-project` |
 | [agentictoolkit-logging](workflow/apple-platform-development/agentictoolkit-logging.md) | Apple projects using AgenticToolkit must implement logging via the `Loggable` protocol | `using-agentictoolkit`, `writing-swift`, `adding-logging`, `swift-logging-audit` |
 
