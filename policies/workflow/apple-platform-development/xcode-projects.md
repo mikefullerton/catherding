@@ -1,13 +1,15 @@
 ---
 title: "Xcode Projects"
-summary: "All Apple code lives in XcodeGen-managed Xcode projects (project.yml + checked-in .xcodeproj). A single .xcworkspace in /apple aggregates every project."
+summary: "All Apple code lives in hand-edited Xcode projects (.xcodeproj). No SPM, no XcodeGen. A single .xcworkspace in /apple aggregates every project."
 triggers: [creating-xcode-project, adding-xcode-target, xcodeworkspace-setup, adding-reusable-code]
-tags: [xcode, xcodegen, apple, build]
+tags: [xcode, apple, build]
 ---
 
 # Xcode Projects
 
-All Apple code lives in XcodeGen-managed Xcode projects (`project.yml` + checked-in `.xcodeproj`). A single `.xcworkspace` in `/apple` aggregates every project. Swift packages (SPM) are not used as a project structure in this author's repos.
+All Apple code lives in hand-edited Xcode projects (`.xcodeproj`). The `.xcodeproj` is the source of truth and is checked into the repo. A single `.xcworkspace` in `/apple` aggregates every project.
+
+This author's repos do **not** use Swift packages for project structure and do **not** use XcodeGen.
 
 ## Project Structure
 
@@ -16,13 +18,9 @@ All Apple code lives in XcodeGen-managed Xcode projects (`project.yml` + checked
   /apple/ProjectName1/
   /apple/ProjectName2/
   ```
-- Both reusable code and shipping products use Xcode projects. Consuming projects reference reusable projects as Xcode project dependencies within the same workspace.
-- You MUST NOT author local code as a Swift package (no `Package.swift` files for project structure). External SPM dependencies (libraries consumed from GitHub, etc.) are still referenced through an Xcode project's `project.yml` `packages:` section — that is fine; the prohibition is on authoring your own local code as a Swift package.
-
-## Xcode Project Files
-
-- Every Xcode project MUST have a `project.yml` (XcodeGen spec) at the root of its project directory, e.g. `/apple/MyProject/project.yml`.
-- The generated `.xcodeproj` MUST be checked into the repo alongside `project.yml`.
+- Both reusable code and shipping products use Xcode projects. Consuming projects reference reusable projects as Xcode project references within the same workspace.
+- You MUST NOT author local code as a Swift package (no `Package.swift` files for project structure). External SPM dependencies (libraries consumed from GitHub, etc.) are still fine — they are referenced from the Xcode project as package dependencies.
+- You MUST NOT introduce XcodeGen (`project.yml`). The `.xcodeproj` is edited directly — in Xcode, or via deliberate `pbxproj` edits.
 
 ## Xcode Workspace
 

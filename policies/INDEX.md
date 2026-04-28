@@ -23,7 +23,7 @@ Policies are grouped into two tiers:
 | Policy | Summary | Triggers |
 |--------|---------|----------|
 | [all](setup/required-tools/all.md) | Python 3.12+ and SQLite on every machine | `machine-setup`, `dependency-audit`, `new-dev-machine`, `tooling-setup` |
-| [apple](setup/required-tools/apple.md) | Xcode + XcodeGen (plus recommended VS Code, Claude Code) | `machine-setup`, `new-dev-machine`, `apple-setup` |
+| [apple](setup/required-tools/apple.md) | Xcode (plus recommended VS Code, Claude Code) | `machine-setup`, `new-dev-machine`, `apple-setup` |
 | [windows](setup/required-tools/windows.md) | Visual Studio | `machine-setup`, `new-dev-machine`, `windows-setup` |
 | [scripting](setup/required-tools/scripting.md) | Python 3.12+ for scripts; only install/uninstall/setup may be `.sh` | `writing-script`, `tooling-setup`, `automation-task`, `writing-hook` |
 
@@ -53,7 +53,8 @@ Policies are grouped into two tiers:
 |--------|---------|----------|
 | [swift-version](workflow/apple-platform-development/swift-version.md) | Swift 6.2.x with strict concurrency | `starting-swift-project`, `swift-version-audit`, `xcode-project-conversion` |
 | [swift-file-organization](workflow/apple-platform-development/swift-file-organization.md) | One entity per file; nested types and protocol conformance in extensions | `writing-swift`, `creating-swift-file`, `swift-file-audit`, `refactoring-swift` |
-| [xcode-projects](workflow/apple-platform-development/xcode-projects.md) | All Apple code in XcodeGen-managed Xcode projects (project.yml + checked-in .xcodeproj); single .xcworkspace in /apple aggregates every project | `creating-xcode-project`, `adding-xcode-target`, `xcodeworkspace-setup`, `adding-reusable-code` |
+| [xcode-projects](workflow/apple-platform-development/xcode-projects.md) | All Apple code in hand-edited Xcode projects (no SPM, no XcodeGen); single .xcworkspace in /apple aggregates every project | `creating-xcode-project`, `adding-xcode-target`, `xcodeworkspace-setup`, `adding-reusable-code` |
+| [derived-data](workflow/apple-platform-development/derived-data.md) | All Xcode builds land in the default DerivedData location; projects MUST NOT redirect build output into the repo or a custom path | `creating-xcode-project`, `configuring-build-settings`, `xcodeproj-audit`, `build-output-debug`, `writing-build-script` |
 | [code-signing](workflow/apple-platform-development/code-signing.md) | Team mikefullerton; entitlements preserved; no certs in repo | `configuring-signing`, `entitlements-change`, `xcode-team-setup`, `creating-xcode-project` |
 | [agentictoolkit-logging](workflow/apple-platform-development/agentictoolkit-logging.md) | Apple projects using AgenticToolkit must implement logging via the `Loggable` protocol | `using-agentictoolkit`, `writing-swift`, `adding-logging`, `swift-logging-audit` |
 

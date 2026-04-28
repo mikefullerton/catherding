@@ -1,6 +1,6 @@
 ---
 name: apple-and-xcode-policies
-description: Use when touching Swift code, Package.swift, project.yml, any .xcodeproj, an Xcode workspace, code-signing entitlements, or working in an Apple project that uses AgenticToolkit. Enforces Swift 6.2.x, SPM for reusable code + Xcode projects for shipping products, XcodeGen, /apple layout, code-signing rules, Swift file organization, and AgenticToolkit Loggable requirement. macOS only.
+description: Use when touching Swift code, any .xcodeproj, an Xcode workspace, code-signing entitlements, or working in an Apple project that uses AgenticToolkit. Enforces Swift 6.2.x, Xcode-projects-only (no SPM, no XcodeGen), /apple layout, code-signing rules, Swift file organization, and AgenticToolkit Loggable requirement. macOS only.
 ---
 
 # Apple & Xcode — MANDATORY (macOS)
@@ -9,7 +9,6 @@ description: Use when touching Swift code, Package.swift, project.yml, any .xcod
 
 **All Swift code targets the latest patch release of Swift 6.2** (i.e. `6.2.x`).
 
-- Use `// swift-tools-version: 6.2` in `Package.swift` files.
 - Write code that compiles cleanly under Swift 6 concurrency rules: `@Sendable`, `@MainActor`, strict data-race safety.
 - **Do not downgrade** to Swift 5 language mode.
 - **Do not upgrade** to Swift 6.3 or later without an explicit decision.
@@ -48,25 +47,19 @@ Each Apple project lives in its own subdirectory under `/apple`:
 
 Platform-specific code, projects, and tooling live *exclusively* under their platform directory.
 
-## Project type: SPM vs Xcode — MANDATORY
+## Project type — MANDATORY
 
-Pick by what the code *is*, not by preference:
+**Xcode projects only.** All Apple code — reusable libraries and shipping products alike — lives in a hand-edited `.xcodeproj`.
 
-- **Reusable code → Swift package (SPM).** For multi-component reusable code, use a single package with multiple targets. If SPM is insufficient for a specific purpose (e.g. the reusable code needs assets or other files SPM doesn't support), **consult the user** before reaching for an Xcode project.
-- **Shipping product → Xcode project.** Anything that ships as an app bundle, a plugin, or a macOS filesystem package uses an Xcode project — not an SPM package. Xcode projects consume the reusable Swift packages.
-
-### Xcode project files
-
-- Every Xcode project has a `project.yml` (XcodeGen spec) at its project root: `/apple/MyProject/project.yml`.
-- The generated `.xcodeproj` is **checked into the repo** alongside `project.yml`.
-- Use `cc-xcgen` to regenerate after editing `project.yml`.
+- **No Swift packages for project structure.** Do not author local code as a Swift package; no `Package.swift` files. External SPM dependencies consumed from GitHub are still fine — they are referenced from the Xcode project as package dependencies.
+- **No XcodeGen.** No `project.yml` files. The `.xcodeproj` is the source of truth and is edited directly (in Xcode or by careful `pbxproj` edits).
+- Reusable code is consumed by other projects as an **Xcode project reference** in the same workspace.
 
 ## Xcode workspace
 
-`/apple` must contain a single `.xcworkspace` that aggregates every Apple project in the repo — both Xcode projects and Swift packages:
+`/apple` must contain a single `.xcworkspace` that aggregates every Xcode project in the repo:
 
 - Every `.xcodeproj` directly under `/apple/<ProjectName>/` → include.
-- Every Swift package directly under `/apple/<ProjectName>/` → include.
 - Submodules (their directories sit at the repo root): include their Apple projects **one level deep only**. If a submodule itself contains nested submodules, do *not* include those nested projects.
 
 ## Code signing
@@ -81,7 +74,7 @@ Full rationale across these policy files in `~/projects/active/catherding/polici
 
 - [swift-version.md](../../policies/workflow/apple-platform-development/swift-version.md) — Swift 6.2.x and strict concurrency
 - [swift-file-organization.md](../../policies/workflow/apple-platform-development/swift-file-organization.md) — one entity per file; nested types and protocol conformance in extensions
-- [xcode-projects.md](../../policies/workflow/apple-platform-development/xcode-projects.md) — XcodeGen + project.yml + .xcworkspace
+- [xcode-projects.md](../../policies/workflow/apple-platform-development/xcode-projects.md) — Xcode projects only (no SPM, no XcodeGen) + single `.xcworkspace`
 - [code-signing.md](../../policies/workflow/apple-platform-development/code-signing.md) — signing team + entitlements
 - [agentictoolkit-logging.md](../../policies/workflow/apple-platform-development/agentictoolkit-logging.md) — Loggable protocol required in projects using AgenticToolkit
 

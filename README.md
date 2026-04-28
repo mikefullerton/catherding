@@ -39,7 +39,7 @@ Single-call replacements for multi-step Bash rituals Claude keeps repeating. Eve
 |---|---|---|
 | Git / PR workflow | 8 | `cc-merge-worktree`, `cc-commit-push`, `cc-repo-state`, `cc-pr-status`, `cc-pr-review`, `cc-rebase-main`, `cc-branch-hygiene`, `cc-since` |
 | Shell helpers | 2 | `cc-grep`, `cc-rename` |
-| macOS / Xcode | 9 | `cc-xcgen`, `cc-xcbuild`, `cc-xcschemes`, `cc-xcsetting`, `cc-xcrun-app`, `cc-app-path`, `cc-applogs`, `cc-plist`, `cc-clean-dd` |
+| macOS / Xcode | 8 | `cc-xcbuild`, `cc-xcschemes`, `cc-xcsetting`, `cc-xcrun-app`, `cc-app-path`, `cc-applogs`, `cc-plist`, `cc-clean-dd` |
 | Claude Code meta | 5 | `cc-usage-stats`, `cc-claude-fields`, `cc-memory`, `cc-graphify-status`, `cc-project-index` |
 | Self-management | 3 | `cc-install`, `cc-doctor`, `cc-help` |
 | Hooks | 5 | `cc-repo-hygiene-hook`, `cc-exit-worktree-hook`, `cc-block-pr-close-hook`, `cc-block-push-delete-hook`, `cc-general-principles-hook` (all route to `~/.claude/hooks/`, not `$PATH`) |

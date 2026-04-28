@@ -82,11 +82,10 @@ Every script supports `--help`. Exit codes are always meaningful.
 | `cc-graphify-status [--saving\|--collecting\|--total]` | Summary of graphify savings per project. |
 | `cc-project-index [--filter graphify\|git\|worktrees\|stale]` | Find projects under `~/projects/` by criteria. |
 
-### macOS / Xcode — `scripts-xcode/` (9)
+### macOS / Xcode — `scripts-xcode/` (8)
 
 | Command | Purpose |
 |---|---|
-| `cc-xcgen` | `xcodegen generate` in every dir under the repo that has a `project.yml`. |
 | `cc-xcbuild` | `xcodebuild build` or `test` with compact output. |
 | `cc-xcschemes` | List schemes in an Xcode workspace or project. |
 | `cc-xcsetting <scheme> <key>...` | Resolved Xcode build-setting values without grepping pbxproj. |

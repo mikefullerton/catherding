@@ -7,7 +7,7 @@ tags: [tooling, dependencies, setup, windows]
 
 # Required Tools
 
-Machine must have Python 3.12+ and SQLite (all platforms), Xcode + XcodeGen (Apple), Visual Studio (Windows).
+Machine must have Python 3.12+ and SQLite (all platforms), Xcode (Apple), Visual Studio (Windows).
 
 ## All Platforms
 
@@ -21,7 +21,6 @@ Machine must have Python 3.12+ and SQLite (all platforms), Xcode + XcodeGen (App
 | Tool | Notes |
 |------|-------|
 | Xcode | Install from the Mac App Store |
-| XcodeGen | `brew install xcodegen` — used to generate `.xcodeproj` from `project.yml` |
 
 ## Windows
 

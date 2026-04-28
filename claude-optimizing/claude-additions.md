@@ -49,7 +49,6 @@ The `cc-*` scripts (installed to `~/.local/bin/` from `~/projects/active/catherd
 
 **macOS / Xcode:**
 - `cc-xcbuild <scheme> [--test] [--clean]` — build (or test) an Xcode scheme.
-- `cc-xcgen [paths]` — regenerate xcodeproj files from `project.yml`.
 - `cc-xcrun-app <scheme> [--no-build] [--grep]` — build and run an app, tail logs.
 - `cc-xcschemes` — list schemes in an Xcode workspace/project.
 - `cc-xcsetting <scheme> <key>...` — resolve Xcode build-setting values (e.g. `PRODUCT_BUNDLE_IDENTIFIER`) without grepping `pbxproj`.
